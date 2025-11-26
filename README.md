@@ -12,12 +12,6 @@ Suteikite galimybę pirkti be registracijos („Svečio režimas“), jei to dar
 Sukurk duomenų bazės lentelę ir formą produktų atsiliepimams (su žvaigždutėmis).
 Forume ir turgelyje prie įrašų pridėk mygtuką „Pranešti“ (Report), kad administratorius gautų pranešimą apie netinkamą turinį.“
 
-Modifikuok callback.php failą (mokėjimo patvirtinimą).
-Gavus sėkmingą apmokėjimo patvirtinimą, sistema privalo automatiškai sumažinti nupirktų prekių kiekį (quantity) duomenų bazėje.
-
-SEO Meta duomenys:
-Failuose product.php ir news_view.php suprogramuok dinaminį OpenGraph (og:image, og:title, og:description) ir Twitter Card meta žymų generavimą pagal konkretų turinį
-
 2. Skaitmeniniai įrankiai diabetui
 Svetainė gali tapti ne tik parduotuve, bet ir kasdieniu įrankiu.
 
