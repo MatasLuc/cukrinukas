@@ -13,7 +13,9 @@ ensureAdminAccount($pdo);
 $freeShippingIds = getFreeShippingProductIds($pdo);
 
 $id = (int) ($_GET['id'] ?? 0);
-$stmt = $pdo->prepare('SELECT p.*, c.name AS category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.id = ? LIMIT 1');
+
+// 1. Atnaujinta užklausa: įtrauktas c.slug kategorijos nuorodai
+$stmt = $pdo->prepare('SELECT p.*, c.name AS category_name, c.slug AS category_slug FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.id = ? LIMIT 1');
 $stmt->execute([$id]);
 $product = $stmt->fetch();
 
@@ -82,13 +84,19 @@ if (!empty($product['category_id'])) {
     $productCategoryDiscount = $categoryDiscounts[(int)$product['category_id']] ?? null;
 }
 $priceDisplay = buildPriceDisplay($product, $globalDiscount, $categoryDiscounts);
+
+// 2. Meta duomenų paruošimas SEO
+$meta = [
+    'title' => $product['title'] . ' | Cukrinukas',
+    'description' => mb_substr(strip_tags($product['description']), 0, 160),
+    'image' => 'https://e-kolekcija.lt' . $product['image_url']
+];
 ?>
 <!doctype html>
 <html lang="lt">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><?php echo htmlspecialchars($product['title']); ?> | E-kolekcija</title>
   <?php echo headerStyles(); ?>
   <style>
     :root {
@@ -104,7 +112,7 @@ $priceDisplay = buildPriceDisplay($product, $globalDiscount, $categoryDiscounts)
     body { margin:0; background: var(--bg); color: var(--text); font-family:'Inter', system-ui, -apple-system, sans-serif; }
     a { color:inherit; text-decoration:none; }
     .page { max-width:1100px; margin:0 auto; padding:28px 24px 64px; display:grid; gap:24px; }
-    .breadcrumbs { display:flex; align-items:center; gap:10px; font-weight:600; color: var(--muted); }
+    .breadcrumbs { display:flex; align-items:center; gap:10px; font-weight:600; color: var(--muted); flex-wrap: wrap; }
     .shell { display:grid; grid-template-columns: 1.05fr 0.95fr; gap:22px; align-items:start; }
     .gallery { background:var(--card); border:1px solid var(--border); border-radius:20px; padding:16px; box-shadow:0 14px 34px rgba(0,0,0,0.08); display:grid; gap:12px; }
     .main-image { position:relative; border-radius:16px; overflow:hidden; background:#fff; cursor:zoom-in; }
@@ -143,19 +151,25 @@ $priceDisplay = buildPriceDisplay($product, $globalDiscount, $categoryDiscounts)
   </style>
 </head>
 <body>
-  <?php renderHeader($pdo, 'product'); ?>
+  <?php renderHeader($pdo, 'product', $meta); ?>
   <?php $mainImage = $images[0]['path'] ?? $product['image_url']; ?>
   <div class="page">
     <div class="breadcrumbs">
-      <a href="/products.php">← Atgal į katalogą</a>
-      <span>/</span>
-      <span><?php echo htmlspecialchars($product['title']); ?></span>
+      <a href="/">Pagrindinis</a> <span>/</span>
+      <a href="/products.php">Parduotuvė</a> <span>/</span>
+      <?php if (!empty($product['category_name'])): ?>
+         <a href="/products.php?category=<?php echo urlencode($product['category_slug'] ?? ''); ?>">
+            <?php echo htmlspecialchars($product['category_name']); ?>
+         </a> <span>/</span>
+      <?php endif; ?>
+      <span style="color: #0b0b0b; font-weight: 700;"><?php echo htmlspecialchars($product['title']); ?></span>
     </div>
+
     <div class="shell">
       <div class="gallery">
         <div class="main-image">
           <?php if (!empty($product['ribbon_text'])): ?><div class="ribbon"><?php echo htmlspecialchars($product['ribbon_text']); ?></div><?php endif; ?>
-          <img src="<?php echo htmlspecialchars($mainImage); ?>" alt="<?php echo htmlspecialchars($product['title']); ?>">
+          <img src="<?php echo htmlspecialchars($mainImage); ?>" alt="<?php echo htmlspecialchars($product['title']); ?>" loading="lazy">
         </div>
         <?php if ($images): ?>
           <div class="thumbs">
@@ -182,7 +196,7 @@ $priceDisplay = buildPriceDisplay($product, $globalDiscount, $categoryDiscounts)
         </div>
         <form method="post" class="form-row">
           <?php echo csrfField(); ?>
-<input class="quantity" type="number" name="quantity" min="1" value="1">
+          <input class="quantity" type="number" name="quantity" min="1" value="1">
           <input type="hidden" name="variation_id" id="variation-id" value="0">
           <button class="btn" type="submit">Į krepšelį</button>
           <button class="heart-btn" name="action" value="wishlist" type="submit" aria-label="Į norų sąrašą">♥</button>
@@ -267,6 +281,62 @@ $priceDisplay = buildPriceDisplay($product, $globalDiscount, $categoryDiscounts)
   <div class="lightbox" id="lightbox" aria-hidden="true">
     <img src="" alt="Padidinta produkto nuotrauka">
   </div>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org/",
+    "@type": "Product",
+    "name": <?php echo json_encode($product['title']); ?>,
+    "image": [<?php echo json_encode('https://e-kolekcija.lt' . $product['image_url']); ?>],
+    "description": <?php echo json_encode(mb_substr(strip_tags($product['description']), 0, 300)); ?>,
+    "sku": <?php echo json_encode($product['id']); ?>,
+    "offers": {
+      "@type": "Offer",
+      "url": <?php echo json_encode("https://e-kolekcija.lt/product.php?id=" . $product['id']); ?>,
+      "priceCurrency": "EUR",
+      "price": <?php echo json_encode($priceDisplay['current']); ?>,
+      "availability": <?php echo ((int)$product['quantity'] > 0) ? '"https://schema.org/InStock"' : '"https://schema.org/OutOfStock"'; ?>,
+      "itemCondition": "https://schema.org/NewCondition"
+    }
+  }
+  </script>
+
+  <script>
+    // Sekti prekės peržiūrą
+    fbq('track', 'ViewContent', {
+      content_name: '<?php echo htmlspecialchars($product['title']); ?>',
+      content_ids: ['<?php echo $product['id']; ?>'],
+      content_type: 'product',
+      value: <?php echo $priceDisplay['current']; ?>,
+      currency: 'EUR'
+    });
+
+    // Sekti įdėjimą į krepšelį
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form.form-row');
+        if (form) {
+            const addToCartBtn = form.querySelector('button[type="submit"]:not(.heart-btn)');
+            if (addToCartBtn) {
+                addToCartBtn.addEventListener('click', function() {
+                    const qtyInput = form.querySelector('input[name="quantity"]');
+                    const qty = qtyInput ? qtyInput.value : 1;
+                    
+                    fbq('track', 'AddToCart', {
+                        content_name: '<?php echo htmlspecialchars($product['title']); ?>',
+                        content_ids: ['<?php echo $product['id']; ?>'],
+                        content_type: 'product',
+                        value: <?php echo $priceDisplay['current']; ?>,
+                        currency: 'EUR',
+                        contents: [{
+                            'id': '<?php echo $product['id']; ?>',
+                            'quantity': qty
+                        }]
+                    });
+                });
+            }
+        }
+    });
+  </script>
 
   <?php renderFooter($pdo); ?>
 
