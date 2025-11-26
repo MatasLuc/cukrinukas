@@ -28,13 +28,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
     header('Location: /saved.php');
     exit;
 }
+
+// SEO Meta duomenys
+$meta = [
+    'title' => $recipe['title'] . ' | Receptai',
+    'description' => mb_substr(strip_tags($recipe['body']), 0, 160),
+    'image' => 'https://nauja.apdaras.lt' . $recipe['image_url']
+];
 ?>
 <!doctype html>
 <html lang="lt">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><?php echo htmlspecialchars($recipe['title']); ?> | Cukrinukas</title>
   <?php echo headerStyles(); ?>
   <style>
     :root { --color-bg: #f7f7fb; --border:#e4e6f0; --pill:#eef7ff; }
@@ -59,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
   </style>
 </head>
 <body>
-  <?php renderHeader($pdo, 'recipes'); ?>
+  <?php renderHeader($pdo, 'recipes', $meta); ?>
   <main class="shell">
     <section class="hero">
       <div class="crumb"><a href="/recipes.php">← Receptai</a><span>/</span><span>Įkvėpimas</span></div>
@@ -101,6 +107,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
       </aside>
     </section>
   </main>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org/",
+    "@type": "Recipe",
+    "name": <?php echo json_encode($recipe['title']); ?>,
+    "image": [<?php echo json_encode('https://nauja.apdaras.lt.lt' . $recipe['image_url']); ?>],
+    "author": {
+      "@type": "Organization",
+      "name": "Cukrinukas"
+    },
+    "datePublished": <?php echo json_encode(date('Y-m-d', strtotime($recipe['created_at']))); ?>,
+    "description": <?php echo json_encode(mb_substr(strip_tags($recipe['body']), 0, 160)); ?>
+  }
+  </script>
 
   <?php renderFooter($pdo); ?>
 </body>
