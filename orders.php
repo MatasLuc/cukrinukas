@@ -15,6 +15,29 @@ ensureAdminAccount($pdo);
 
 $userId = (int) $_SESSION['user_id'];
 
+// Facebook Pixel Purchase Event Logic
+$newPurchaseScript = '';
+if (!empty($_SESSION['flash_success']) && strpos($_SESSION['flash_success'], 'Apmokėjimas patvirtintas') !== false) {
+    // Gauname naujausią užsakymą
+    $latestOrderStmt = $pdo->prepare('SELECT id, total FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT 1');
+    $latestOrderStmt->execute([$userId]);
+    $latest = $latestOrderStmt->fetch();
+    
+    if ($latest) {
+        $safeTotal = (float)$latest['total'];
+        $safeId = (int)$latest['id'];
+        $newPurchaseScript = "
+        <script>
+          fbq('track', 'Purchase', {
+            value: {$safeTotal},
+            currency: 'EUR',
+            content_ids: ['{$safeId}'],
+            content_type: 'product'
+          });
+        </script>";
+    }
+}
+
 $orderStmt = $pdo->prepare('SELECT id, total, status, created_at, customer_name, customer_address FROM orders WHERE user_id = ? ORDER BY created_at DESC');
 $orderStmt->execute([$userId]);
 $orders = $orderStmt->fetchAll();
@@ -139,5 +162,7 @@ $itemStmt = $pdo->prepare('SELECT oi.*, p.title, p.image_url FROM order_items oi
   </div>
 
   <?php renderFooter($pdo); ?>
+  
+  <?php echo $newPurchaseScript; ?>
 </body>
 </html>
