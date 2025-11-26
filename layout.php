@@ -308,7 +308,13 @@ function currentUser(): array {
     ];
 }
 
-function renderHeader(PDO $pdo, string $active = ''): void {
+function renderHeader(PDO $pdo, string $active = '', array $meta = []): void {
+    // Meta duomenų paruošimas su numatytosiomis reikšmėmis
+    $metaTitle = $meta['title'] ?? 'Cukrinukas.lt – diabeto priemonės ir žinios';
+    $metaDesc = $meta['description'] ?? 'Gliukometrai, sensoriai, juostelės, mažo GI užkandžiai ir patarimai gyvenimui su diabetu.';
+    $metaImage = $meta['image'] ?? 'https://e-kolekcija.lt/uploads/default_social.jpg';
+    $metaUrl = "https://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+
     $cart = getCartData($pdo, $_SESSION['cart'] ?? [], $_SESSION['cart_variations'] ?? []);
     $user = currentUser();
     try {
@@ -341,6 +347,44 @@ function renderHeader(PDO $pdo, string $active = ''): void {
         return $html;
     };
     ?>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+
+      <title><?php echo htmlspecialchars($metaTitle); ?></title>
+      <meta name="description" content="<?php echo htmlspecialchars(mb_substr(strip_tags($metaDesc), 0, 160)); ?>">
+      <link rel="canonical" href="<?php echo htmlspecialchars($metaUrl); ?>">
+
+      <meta property="og:type" content="website">
+      <meta property="og:url" content="<?php echo htmlspecialchars($metaUrl); ?>">
+      <meta property="og:title" content="<?php echo htmlspecialchars($metaTitle); ?>">
+      <meta property="og:description" content="<?php echo htmlspecialchars(mb_substr(strip_tags($metaDesc), 0, 200)); ?>">
+      <meta property="og:image" content="<?php echo htmlspecialchars($metaImage); ?>">
+
+      <meta property="twitter:card" content="summary_large_image">
+      <meta property="twitter:url" content="<?php echo htmlspecialchars($metaUrl); ?>">
+      <meta property="twitter:title" content="<?php echo htmlspecialchars($metaTitle); ?>">
+      <meta property="twitter:description" content="<?php echo htmlspecialchars(mb_substr(strip_tags($metaDesc), 0, 200)); ?>">
+      <meta property="twitter:image" content="<?php echo htmlspecialchars($metaImage); ?>">
+
+      <script>
+      !function(f,b,e,v,n,t,s)
+      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+      n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t,s)}(window, document,'script',
+      'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', 'JUSU_PIXEL_ID'); 
+      fbq('track', 'PageView');
+      </script>
+      <noscript><img height="1" width="1" style="display:none"
+      src="https://www.facebook.com/tr?id=JUSU_PIXEL_ID&ev=PageView&noscript=1"
+      /></noscript>
+      <?php echo headerStyles(); ?>
+    </head>
+
     <?php if ($bannerEnabled && $bannerText): ?>
       <div class="announcement-bar" style="background: <?php echo htmlspecialchars($bannerBg); ?>;">
         <span class="announcement-bar__label">Aktualu</span>
