@@ -15,14 +15,23 @@ $categoryDiscounts = getCategoryDiscounts($pdo);
 $freeShippingIds = getFreeShippingProductIds($pdo);
 
 $selectedSlug = $_GET['category'] ?? null;
+$searchQuery = $_GET['query'] ?? null; // <-- Nauja: gauname paieškos užklausą
 $categories = $pdo->query('SELECT id, name, slug FROM categories ORDER BY name ASC')->fetchAll();
 
 $params = [];
-$where = '';
+$whereClauses = [];
+
 if ($selectedSlug) {
-    $where = 'WHERE c.slug = ?';
+    $whereClauses[] = 'c.slug = ?';
     $params[] = $selectedSlug;
 }
+
+if ($searchQuery) { // <-- Nauja: filtruojame pagal pavadinimą, jei užklausa yra
+    $whereClauses[] = 'p.title LIKE ?';
+    $params[] = '%' . $searchQuery . '%';
+}
+
+$where = $whereClauses ? 'WHERE ' . implode(' AND ', $whereClauses) : ''; // Jungiame sąlygas
 
 $stmt = $pdo->prepare(
     'SELECT p.*, c.name AS category_name, c.slug AS category_slug,
@@ -148,6 +157,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
       transition: all .18s ease;
     }
     .chip:hover, .chip:focus-visible { border-color: rgba(124, 58, 237, 0.45); color: #111827; box-shadow: 0 10px 26px rgba(0,0,0,0.08); }
+    .search-input { /* Naujas stilius paieškai */
+      flex-grow: 1;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-size: 15px;
+      min-width: 200px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+      transition: all .18s ease;
+    }
+    .search-input:focus {
+      border-color: rgba(124, 58, 237, 0.45);
+      outline: none;
+    }
 
     .grid { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:20px; justify-items:stretch; }
     @media (max-width: 1080px) { .grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
@@ -250,11 +274,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     </section>
 
     <div class="filter-bar">
+        <form method="get" class="search-form" style="display: flex; gap: 10px; align-items: center; flex-grow: 1;">
+            <input type="text" name="query" placeholder="Ieškoti prekių pagal pavadinimą..." class="search-input" value="<?php echo htmlspecialchars($searchQuery ?? ''); ?>">
+            <?php if ($selectedSlug): // Išlaikome kategorijos filtrą paieškos rezultatuose ?>
+                <input type="hidden" name="category" value="<?php echo htmlspecialchars($selectedSlug); ?>">
+            <?php endif; ?>
+            <button type="submit" class="btn" style="padding: 10px 14px; border-radius: 12px; background: #0b0b0b; color: #fff; border-color: #0b0b0b;">Ieškoti</button>
+            <?php if ($searchQuery || $selectedSlug): // Valymo mygtukas, jei yra filtras ?>
+                <a href="/products.php" class="btn secondary" style="padding: 10px 14px; border-radius: 12px; background:#fff; color:#0b0b0b; border:1px solid var(--border);">Valyti filtrus</a>
+            <?php endif; ?>
+        </form>
+    </div>
+    <div class="filter-bar" style="margin-top: -10px;">
       <div class="filter-title">Atrinktos kategorijos</div>
       <div class="chips">
-        <a class="chip" href="/products.php">Visos</a>
+        <a class="chip" href="/products.php<?php echo $searchQuery ? '?query=' . urlencode($searchQuery) : ''; ?>">Visos</a>
         <?php foreach ($categories as $cat): ?>
-          <a class="chip" href="/products.php?category=<?php echo urlencode($cat['slug']); ?>"><?php echo htmlspecialchars($cat['name']); ?></a>
+          <a class="chip" href="/products.php?category=<?php echo urlencode($cat['slug']); ?><?php echo $searchQuery ? '&query=' . urlencode($searchQuery) : ''; ?>"><?php echo htmlspecialchars($cat['name']); ?></a>
         <?php endforeach; ?>
       </div>
     </div>
