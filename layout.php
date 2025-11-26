@@ -375,6 +375,18 @@ function renderHeader(PDO $pdo, string $active = '', array $meta = []): void {
       <meta property="twitter:description" content="<?php echo htmlspecialchars(mb_substr(strip_tags($metaDesc), 0, 200)); ?>">
       <meta property="twitter:image" content="<?php echo htmlspecialchars($metaImage); ?>">
 
+        <link rel="manifest" href="/manifest.json">
+              <meta name="theme-color" content="#f7f7fb">
+              <link rel="apple-touch-icon" href="/uploads/icon-192.png"> <script>
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('Service Worker registruotas:', reg.scope))
+                    .catch(err => console.log('Service Worker klaida:', err));
+                });
+              }
+              </script>
+        
       <!-- Facebook Pixel Base Code -->
       <script>
       !function(f,b,e,v,n,t,s)
