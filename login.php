@@ -117,9 +117,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <div class="card">
       <a class="brand" href="/">Cukrinukas.lt</a>
-      <div style="text-align:right; margin-bottom:8px;">
-            <a href="/forgot_password.php" style="font-size:13px; color:#666;">Pamiršau slaptažodį</a>
-      </div>
       <h2>Prisijungti</h2>
       <p>Įveskite savo el. pašto adresą ir slaptažodį.</p>
 
@@ -147,6 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </form>
 
       <div class="link-row">
+        <a href="/forgot_password.php">Pamiršau slaptažodį</a>
         <a href="/register.php">Neturite paskyros? Registruokitės</a>
         <a href="/">↩ Pagrindinis</a>
       </div>
