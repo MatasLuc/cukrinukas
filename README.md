@@ -129,3 +129,146 @@ Jei tai sėkmingas grįžimas, sugeneruok JS kodą fbq('track', 'Purchase', ...)
 Lazy Loading: Instruktuok, kaip masiškai pridėti loading="lazy" atributą visoms produktų nuotraukoms products.php tinklelyje.
 Breadcrumbs: Patikslink, kaip išplėsti „Breadcrumbs“ navigaciją product.php faile, kad ji rodytų pilną kelią (pvz., Pagrindinis > Parduotuvė > Kategorija > Prekė).
 Svarbu: Pateikdamas kodą, nurodyk, į kurį failą ir kurią vietą jis turi būti įterptas. Naudok mano turimą failų struktūrą ir kintamųjų pavadinimus (pvz., $pdo, $product['title']).
+
+
+
+
+
+1. UX ir Frontend interaktyvumas (AJAX ir PWA)
+Užduotis: Įgyvendinti modernius vartotojo sąsajos sprendimus be puslapio perkrovimo ir PWA funkcionalumą.
+
+Reikalavimai:
+
+AJAX krepšelis ir Wishlist:
+
+Modifikuoti mygtukus „Į krepšelį“ ir „♥“ (Wishlist) failuose products.php ir produktų kortelėse.
+
+Naudoti JavaScript Fetch API, kad duomenys būtų siunčiami į serverį fone.
+
+Sėkmingo atsakymo atveju dinamiškai atnaujinti krepšelio ikonėlę (prekių skaičių/sumą) ir širdelės spalvą header'yje be puslapio perkrovimo.
+
+Realaus laiko pranešimai (Chat):
+
+Faile messages.php įdiegti setInterval (kas 5–10 sek.) arba WebSocket sprendimą.
+
+JavaScript turi tikrinti naujas žinutes fone ir papildyti pokalbio langą (append), kad nereikėtų rankiniu būdu perkrauti puslapio.
+
+Nemokamo pristatymo „Progress Bar“:
+
+Faile cart.php sukurti vizualią juostą (progress bar).
+
+Logika: Paimti cart_total ir palyginti su free_shipping_treshold.
+
+Atvaizduoti tekstą: „Liko vos X € iki nemokamo pristatymo!“ ir atitinkamai užpildyti juostą CSS pagalba.
+
+PWA (Progressive Web App):
+
+Sugeneruoti manifest.json failą (pavadinimas, ikonėlės, spalvos).
+
+Sukurti ir registruoti service-worker.js failą, kad svetainę būtų galima įdiegti į telefoną kaip programėlę ir ji veiktų offline režimu (bent jau statiniai puslapiai).
+
+2. Prekių valdymas, Paieška ir Likučiai
+Užduotis: Patobulinti prekių paiešką, likučių valdymą ir atvaizdavimą.
+
+Reikalavimai:
+
+Paieškos modulis:
+
+Faile products.php virš prekių sąrašo įdėti paieškos laukelį (input type="text").
+
+Parašyti SQL užklausą, kuri filtruotų prekes pagal pavadinimą (LIKE %query%) kartu su esamu kategorijų filtru.
+
+Likučių valdymas (Backend):
+
+Faile callback.php (mokėjimų vartai): gavus patvirtinimą apie sėkmingą apmokėjimą (status='accepted'), automatiškai vykdyti SQL UPDATE products SET quantity = quantity - ordered_qty WHERE id = product_id.
+
+Likučių atvaizdavimas (Frontend):
+
+Faile product.php tikrinti kintamąjį $product['quantity'].
+
+Sąlyga: Jei likutis > 0 ir < 5, rodyti ryškų pranešimą: „Liko tik keli vienetai!“.
+
+Mažo likučio ataskaita (Admin):
+
+Faile admin.php (Dashboard skiltyje) sukurti naują valdiklį/lentelę.
+
+SQL: SELECT title, quantity FROM products WHERE quantity < 10 ORDER BY quantity ASC. Tai leis administratoriui matyti, ką reikia užsakyti.
+
+3. Vartotojų sistema, Lojalumas ir Saugumas
+Užduotis: Išplėsti vartotojų registracijos galimybes, sukurti lojalumo sistemą ir „Svečio“ režimą.
+
+Reikalavimai:
+
+Svečio pirkimas (Guest Checkout):
+
+Krepšelyje (cart.php -> checkout.php) leisti tęsti pirkimą neprisijungus.
+
+Tokiu atveju prašyti tik pristatymo informacijos ir el. pašto, nekuriant vartotojo paskyros DB, arba kuriant laikiną „šešėlinę“ paskyrą užsakymo įvykdymui.
+
+Socialinis prisijungimas (OAuth):
+
+Įdiegti prisijungimą per „Google“ ir „Facebook“.
+
+DB pakeitimas: ALTER TABLE users ADD COLUMN google_id VARCHAR(255), ADD COLUMN auth_provider VARCHAR(50).
+
+Logika: Jei el. paštas jau egzistuoja, susieti paskyras; jei ne – sukurti naują vartotoją.
+
+Lojalumo sistema „Cukrinukai“:
+
+DB pakeitimas: users lentelėje pridėti stulpelį points_balance.
+
+Logika:
+
+Skirti taškus už pirkimą (pvz., 1€ = 1 taškas).
+
+Skirti taškus už turinį: +X taškų už patvirtintą receptą, +Y už atsiliepimą.
+
+Krepšelyje leisti panaudoti taškus kaip nuolaidą.
+
+Patikimo nario statusas (Reputacija):
+
+Turgelyje (community_market.php) po įvykdyto sandorio leisti pirkėjui palikti atsiliepimą (teigiamas/neigiamas).
+
+Vartotojo profilyje rodyti statistiką: „X sėkmingų sandorių“.
+
+4. Bendruomenė, Turinys ir SEO
+Užduotis: Sukurti įrankius diabeto valdymui, atsiliepimų sistemą ir optimizuoti SEO.
+
+Reikalavimai:
+
+Atsiliepimai ir Moderavimas:
+
+Sukurti DB lentelę product_reviews (user_id, product_id, rating, comment, date).
+
+Produkto puslapyje atvaizduoti formą ir esamus atsiliepimus.
+
+Forume ir turgelyje prie įrašų pridėti mygtuką „Pranešti“ (Report). Sukurti lentelę reports, kurią matytų administratorius.
+
+Diabeto įrankiai (Skaičiuoklė ir Dienoraštis):
+
+Angliavandenių skaičiuoklė: Receptuose ir produktuose įvesti laukus „Angliavandenių kiekis (100g)“. Sukurti skriptą, kuris vartotojui įvedus svorį, paskaičiuotų galutinius angliavandenius (arba AV).
+
+Glikemijos dienoraštis: Vartotojo profilyje sukurti skiltį, kurioje galima įrašyti: Data, Laikas, Glikemija (mmol/l). Atvaizduoti paprastą grafiką (naudojant pvz., Chart.js).
+
+SEO Meta duomenys (OpenGraph):
+
+Faile layout.php (header dalyje) dinamiškai generuoti <meta property="og:..." žymas.
+
+Jei atidaromas product.php arba news_view.php, meta og:image turi būti to produkto/naujienos nuotrauka, o og:title – pavadinimas.
+
+Sukurti sitemap.php, kuris dinamiškai generuoja XML su visais aktyviais produktais ir straipsniais.
+
+Dovanų ir Labdaros sistema:
+
+Dovanų kuponai: Sukurti virtualų produktą, kurį nupirkus generuojamas unikalus kodas, suteikiantis X sumos nuolaidą.
+
+Turgelio kategorija „Dovanoju“: Pridėti atskirą filtrą turgelyje prekėms, kurių kaina 0.00 €, skirtą bendruomenės paramos mainams.
+
+5. Admin UI patobulinimas (Drag & Drop)
+Užduotis: Supaprastinti nuotraukų įkėlimą administracinėje dalyje.
+
+Reikalavimai:
+
+Faile product_edit.php pakeisti standartinį input type="file" į „Drag & Drop“ zoną.
+
+Naudoti JavaScript (arba biblioteką kaip Dropzone.js), kad nuotraukos būtų įkeliamos asinchroniškai (AJAX), o administratorius iškart matytų įkeltų nuotraukų peržiūrą (thumbnails) prieš išsaugodamas prekę.
