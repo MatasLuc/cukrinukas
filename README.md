@@ -6,9 +6,6 @@ AJAX veiksmai (be perkrovimo):
 Dabar paspaudus „Į krepšelį“ arba „♥“ (Wishlist), puslapis persikrauna. Tai vargina.
 Patobulinimas: Naudokite JavaScript (fetch API), kad šie veiksmai vyktų fone, o ikonėlės/skaičiai atsinaujintų dinamiškai.
 
-Paieška:
-Prekių sąraše (products.php) yra tik kategorijų filtras. Būtina įdėti paieškos laukelį, kad vartotojas galėtų rasti prekę pagal pavadinimą.
-
 Registracija/Prisijungimas perkant:
 Suteikite galimybę pirkti be registracijos („Svečio režimas“), jei to dar nėra pilnai įgyvendinta. Privaloma registracija dažnai atbaido pirkėjus.
 
@@ -169,11 +166,6 @@ Užduotis: Patobulinti prekių paiešką, likučių valdymą ir atvaizdavimą.
 
 Reikalavimai:
 
-Paieškos modulis:
-
-Faile products.php virš prekių sąrašo įdėti paieškos laukelį (input type="text").
-
-Parašyti SQL užklausą, kuri filtruotų prekes pagal pavadinimą (LIKE %query%) kartu su esamu kategorijų filtru.
 
 Likučių valdymas (Backend):
 
