@@ -51,7 +51,7 @@ if (isset($_POST['add_promo_product'])) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Krepšelis | E-kolekcija</title>
+  <title>Krepšelis | Cukrinukas.lt</title>
   <?php echo headerStyles(); ?>
   <style>
     :root {
@@ -87,7 +87,7 @@ if (isset($_POST['add_promo_product'])) {
   <div class="page">
     <div class="head-row">
       <a href="/products.php" class="btn secondary">← Grįžti į parduotuvę</a>
-      <a href="/checkout.php" class="btn">Apmokėti</a>
+      <a href="/checkout.php" class="btn" onclick="fbq('track', 'InitiateCheckout');">Apmokėti</a>
     </div>
 
     <?php if ($freeShippingOffers): ?>
@@ -149,7 +149,7 @@ if (isset($_POST['add_promo_product'])) {
         <?php endforeach; ?>
         <div style="display:flex; justify-content:flex-end; gap:12px; align-items:center; padding-top:12px;">
           <strong style="font-size:18px;">Iš viso: <?php echo number_format($total, 2); ?> €</strong>
-          <a class="btn" href="/checkout.php">Tęsti</a>
+          <a class="btn" href="/checkout.php" onclick="fbq('track', 'InitiateCheckout');">Tęsti</a>
         </div>
       <?php endif; ?>
     </div>
