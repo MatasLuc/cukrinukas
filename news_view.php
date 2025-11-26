@@ -30,15 +30,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
     header('Location: /saved.php');
     exit;
 }
+
+// SEO Meta duomenys
+$meta = [
+    'title' => $news['title'] . ' | Naujienos',
+    'description' => $news['summary'] ?: mb_substr(strip_tags($news['body']), 0, 160),
+    'image' => 'https://e-kolekcija.lt' . $news['image_url']
+];
 ?>
 <!doctype html>
 <html lang="lt">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><?php echo htmlspecialchars($news['title']); ?> | Cukrinukas</title>
   <?php echo headerStyles(); ?>
   <style>
+    /* Jūsų stiliai lieka tie patys */
     :root { --color-bg: #f7f7fb; --color-primary: #0b0b0b; --pill:#f0f2ff; --border:#e4e6f0; }
     * { box-sizing: border-box; }
     a { color:inherit; text-decoration:none; }
@@ -48,8 +55,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
     .crumb { display:flex; align-items:center; gap:10px; color:#6b6b7a; font-size:14px; }
     .meta { display:flex; align-items:center; gap:10px; color:#6b6b7a; font-size:14px; flex-wrap:wrap; }
     .badge { padding:6px 12px; border-radius:999px; background:var(--pill); border:1px solid var(--border); font-weight:600; font-size:13px; color:#2b2f4c; }
-    .primary-btn { padding:10px 16px; border-radius:12px; border:1px solid #0b0b0b; background:#0b0b0b; color:#fff; box-shadow:0 10px 28px rgba(0,0,0,0.08); cursor:pointer; }
-    .ghost-btn { padding:10px 16px; border-radius:12px; border:1px solid var(--border); background:#fff; color:#0b0b0b; box-shadow:0 8px 22px rgba(0,0,0,0.05); cursor:pointer; }
     .heart-btn { width:44px; height:44px; border-radius:14px; border:1px solid var(--border); background:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; box-shadow:0 10px 22px rgba(0,0,0,0.08); }
     .media { overflow:hidden; border-radius:18px; border:1px solid var(--border); background:#fff; box-shadow:0 16px 38px rgba(0,0,0,0.06); }
     .media img { width:100%; object-fit:cover; max-height:460px; display:block; }
@@ -59,11 +64,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
     .info-card { background:#fff; border:1px solid var(--border); border-radius:18px; padding:16px; box-shadow:0 12px 26px rgba(0,0,0,0.05); display:flex; flex-direction:column; gap:10px; }
     .info-title { font-weight:700; font-size:15px; color:#1c1c28; }
     .info-note { color:#6b6b7a; font-size:13px; line-height:1.5; }
+    .ghost-btn { padding:10px 16px; border-radius:12px; border:1px solid var(--border); background:#fff; color:#0b0b0b; box-shadow:0 8px 22px rgba(0,0,0,0.05); cursor:pointer; text-align:center; }
     @media(max-width: 900px){ .grid { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
-  <?php renderHeader($pdo, 'news'); ?>
+  <?php renderHeader($pdo, 'news', $meta); ?>
+  
   <main class="shell">
     <section class="hero">
       <div class="crumb"><a href="/news.php">← Naujienos</a><span>/</span><span>Nauja istorija</span></div>
@@ -98,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
           <?php echo sanitizeHtml($news['body']); ?>
         <?php else: ?>
           <p style="margin-top:0;"><?php echo nl2br(htmlspecialchars($news['summary'] ?? '')); ?></p>
-          <h5 class="text-center text-muted"><a href="/login.php">Prisijunkite</a>, kad perskaitytumėte visą naujieną</h5>
+          <h5 class="text-center text-muted" style="text-align:center; color:#6b6b7a; margin-top:24px;"><a href="/login.php" style="text-decoration:underline;">Prisijunkite</a>, kad perskaitytumėte visą naujieną</h5>
         <?php endif; ?>
       </article>
       <aside class="info-card">
@@ -108,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
           <span>Skelbimo ID: <strong>#<?php echo (int)$news['id']; ?></strong></span>
           <span>Publikavimo data: <strong><?php echo date('Y-m-d', strtotime($news['created_at'])); ?></strong></span>
         </div>
-        <a class="ghost-btn" href="/news.php" style="text-align:center;">Peržiūrėti kitas naujienas</a>
+        <a class="ghost-btn" href="/news.php">Peržiūrėti kitas naujienas</a>
       </aside>
     </section>
   </main>
