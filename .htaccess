@@ -1,0 +1,26 @@
+RewriteEngine On
+RewriteBase /
+
+# Priverstinis HTTPS (rekomenduojama)
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Produktų perrašymas
+# Pvz.: e-kolekcija.lt/produktas/gliukometras-123 -> product.php?id=123
+RewriteRule ^produktas/.*-(?P<id>\d+)$ product.php?id=$1 [L,QSA]
+
+# Receptų perrašymas
+RewriteRule ^receptas/.*-(?P<id>\d+)$ recipe_view.php?id=$1 [L,QSA]
+
+# Naujienų perrašymas
+RewriteRule ^naujiena/.*-(?P<id>\d+)$ news_view.php?id=$1 [L,QSA]
+
+# Statiniai puslapiai (nebūtina, bet gražiau)
+RewriteRule ^parduotuve$ products.php [L]
+RewriteRule ^receptai$ recipes.php [L]
+RewriteRule ^naujienos$ news.php [L]
+RewriteRule ^kontaktai$ contact.php [L]
+RewriteRule ^bendruomene$ community.php [L]
+
+# Sitemap
+RewriteRule ^sitemap\.xml$ sitemap.php [L]
