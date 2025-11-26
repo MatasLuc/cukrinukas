@@ -1,47 +1,68 @@
-# Cukrinukas – Projekto Vystymo Planas (To-Do)
+# Cukrinukas – Projekto Būsena ir Vystymo Planas
 
-Šiame dokumente pateikiamas sąrašas planuojamų funkcionalumų ir patobulinimų.
+Šiame dokumente pateikiama išsami projekto apžvalga: kas jau yra įgyvendinta (testavimui) ir kas dar planuojama (vystymui).
 
-## 1. Skubūs Taisymai (Critical)
+---
+
+## ✅ 1. Atlikti Darbai (Ready for Testing)
+Šios funkcijos jau yra įdiegtos kode. Prašome patikrinti jų veikimą.
+
+### 🔍 SEO Optimizacija
+- [x] **Dinaminiai Meta Tagai:** - `layout.php` automatiškai generuoja `<title>`, `description` pagal puslapio turinį.
+  - Įdiegti **Open Graph** (Facebook) ir **Twitter Card** tagai gražiam dalinimuisi socialiniuose tinkluose.
+- [x] **Struktūruoti duomenys (Schema.org):**
+  - `product.php`: Google supranta prekės kainą, valiutą ir likutį.
+  - `recipe_view.php`: Google supranta recepto autorių, pavadinimą ir datą.
+- [x] **Techninis SEO:**
+  - Sukurtas dinaminis `sitemap.php` (XML žemėlapis paieškos sistemoms).
+  - Sukurtas `.htaccess` failas „draugiškoms“ nuorodoms (pvz., `/produktas/pavadinimas-123`).
+  - Įjungtas **Lazy Loading** nuotraukoms kataloge (`products.php`) ir prekės puslapyje.
+  - Išplėsta „Breadcrumbs“ navigacija prekės puslapyje.
+
+### 📊 Facebook Pixel Integracija
+- [x] **Base Code:** Įdėtas į `layout.php` (veikia visuose puslapiuose).
+- [x] **Įvykių sekimas (Standard Events):**
+  - `PageView`: Visi puslapiai.
+  - `ViewContent`: Atidarius konkrečią prekę (`product.php`).
+  - `AddToCart`: Paspaudus mygtuką „Į krepšelį“ (`product.php`).
+  - `InitiateCheckout`: Paspaudus „Apmokėti“ krepšelyje (`cart.php`).
+  - `Purchase`: Sėkmingai grįžus iš banko (`orders.php`).
+
+---
+
+## 🚧 2. Planuojami Darbai (To-Do List)
+
+### 🚨 Skubūs Taisymai (Critical)
 - [ ] **Apmokėjimo sistema:** Peržiūrėti `checkout.php` ir `libwebtopay` logiką – užtikrinti sklandų mokėjimo iniciavimą ir statusų atnaujinimą.
 
-## 2. Vartotojo Patirtis (UX/UI)
-- [ ] **AJAX veiksmai:**
-    - Prekių įdėjimas į krepšelį be puslapio perkrovimo.
-    - „Norų sąrašo“ (Wishlist) veiksmai be puslapio perkrovimo.
-    - Dinaminis krepšelio ikonėlės/skaičiaus atnaujinimas header'yje.
+### 🎨 Vartotojo Patirtis (UX/UI)
+- [ ] **AJAX veiksmai (Be perkrovimo):**
+    - Prekių įdėjimas į krepšelį.
+    - „Norų sąrašo“ (Wishlist) paspaudimas.
+    - Dinaminis krepšelio skaičiuko atnaujinimas header'yje.
 - [ ] **Nemokamo pristatymo juosta:** Krepšelyje atvaizduoti „Progress Bar“, rodantį, kiek eurų trūksta iki nemokamo pristatymo.
 - [ ] **Likučių atvaizdavimas:** Prekės kortelėje rodyti įspėjimą (pvz., raudona spalva), kai likutis yra mažas (pvz., < 5 vnt.).
-- [ ] **PWA (Progressive Web App):** Pritaikyti svetainę diegimui į telefonus (manifest.json, service workers), kad veiktų kaip programėlė ir turėtų offline galimybes.
+- [ ] **PWA (Progressive Web App):** Pritaikyti svetainę diegimui į telefonus (manifest.json, service workers) veikimui offline.
 
-## 3. Parduotuvės Funkcionalumas
-- [ ] **Svečio pirkimas:** Suteikti galimybę pirkti be privalomos registracijos (Guest Checkout).
-- [ ] **Atsiliepimų sistema:**
-    - Sukurti DB lentelę atsiliepimams.
-    - Sukurti formą prie prekių su vertinimu žvaigždutėmis ir komentaru.
-- [ ] **Lojalumo sistema („Cukrinukai“):**
-    - Skirti taškus už pirkinius, registraciją, įkeltus receptus ar atsiliepimus.
-    - Leisti panaudoti taškus nuolaidoms krepšelyje.
+### 🛒 Parduotuvės Funkcionalumas
+- [ ] **Svečio pirkimas:** Leisti pirkti be privalomos registracijos (Guest Checkout).
+- [ ] **Atsiliepimų sistema:** Sukurti DB lentelę ir formą vertinimams žvaigždutėmis bei komentarams.
+- [ ] **Lojalumo sistema („Cukrinukai“):** Kaupiamieji taškai už pirkinius/veiksmus ir jų panaudojimas nuolaidoms.
 - [ ] **Dovanų kuponai:** Galimybė įsigyti ir panaudoti elektroninius dovanų kuponus.
 
-## 4. Bendruomenė ir Turgelis
-- [ ] **Turinio moderavimas:** Pridėti mygtuką „Pranešti“ (Report) prie forumo temų ir turgelio skelbimų netinkamam turiniui žymėti.
-- [ ] **Kategorija „Dovanoju“:** Turgelyje sukurti atskirą skiltį/filtrą atiduodamoms priemonėms (kaina 0.00 €).
-- [ ] **Narių reputacija:**
-    - Įdiegti „Patikimo nario“ statusą.
-    - Leisti palikti atsiliepimą po sėkmingo sandorio turgelyje.
-    - Profilyje rodyti sėkmingų sandorių skaičių.
-- [ ] **Privačios žinutės (Live):** Patobulinti `messages.php` naudojant AJAX/setInterval, kad susirašinėjimas vyktų realiu laiku be perkrovimo.
+### 👥 Bendruomenė ir Turgelis
+- [ ] **Turinio moderavimas:** Mygtukas „Pranešti“ (Report) netinkamam turiniui.
+- [ ] **Kategorija „Dovanoju“:** Turgelyje atskiras filtras prekėms, kurių kaina 0.00 €.
+- [ ] **Narių reputacija:** Reitingavimo sistema po sėkmingų sandorių.
+- [ ] **Privačios žinutės (Live):** `messages.php` atnaujinimas realiu laiku (AJAX/WebSocket).
 
-## 5. Skaitmeniniai Įrankiai Diabetui
-- [ ] **Angliavandenių skaičiuoklė:**
-    - Prie produktų/receptų rodyti angliavandenių vienetus (AV).
-    - Sukurti įrankį, kur įvedus svorį paskaičiuojamas bendras AV kiekis.
-- [ ] **Glikemijos dienoraštis:** Vartotojo paskyroje sukurti formą ir grafiką rodiklių sekimui.
+### 🩸 Skaitmeniniai Įrankiai Diabetui
+- [ ] **Angliavandenių skaičiuoklė:** Įrankis AV (angliavandenių vienetų) skaičiavimui pagal produkto svorį.
+- [ ] **Glikemijos dienoraštis:** Vartotojo paskyros skiltis rodiklių sekimui ir grafikai.
 
-## 6. Administravimas
-- [ ] **Likučių ataskaita:** Admin skydelyje („Dashboard“) pridėti lentelę „Prekės, kurios baigiasi“, kad būtų galima laiku užsakyti papildymą.
-- [ ] **Masinis nuotraukų įkėlimas:** Patobulinti prekių redagavimą (`product_edit.php`) įdiegiant „Drag & Drop“ zoną nuotraukoms su AJAX įkėlimu ir peržiūra.
+### 🛠️ Administravimas
+- [ ] **Likučių ataskaita:** Admin skydelyje lentelė „Prekės, kurios baigiasi“.
+- [ ] **Masinis nuotraukų įkėlimas:** Drag & Drop zona prekių redagavime (`product_edit.php`).
 
-## 7. Autentifikacija
-- [ ] **Socialinis prisijungimas:** Įdiegti prisijungimą per „Google“ ir „Facebook“ (OAuth).
+### 🔐 Autentifikacija
+- [ ] **Socialinis prisijungimas:** Google ir Facebook (OAuth) integracija.
