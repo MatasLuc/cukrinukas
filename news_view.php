@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
           <?php echo sanitizeHtml($news['body']); ?>
         <?php else: ?>
           <p style="margin-top:0;"><?php echo nl2br(htmlspecialchars($news['summary'] ?? '')); ?></p>
-          <p style="color:#6b6b7a;">Prisijunkite, kad perskaitytumėte visą naujieną.</p>
+          <h5 class="text-center text-muted"><a href="/login.php">Prisijunkite</a>, kad perskaitytumėte visą naujieną</h5>
         <?php endif; ?>
       </article>
       <aside class="info-card">
