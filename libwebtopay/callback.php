@@ -23,6 +23,18 @@ try {
             $oStmt->execute([$orderId]);
             $orderInfo = $oStmt->fetch();
             
+            // Nauja logikos dalis: Kiekio atnaujinimas
+            $itemsStmt = $pdo->prepare('SELECT product_id, quantity FROM order_items WHERE order_id = ?');
+            $itemsStmt->execute([$orderId]);
+            
+            $updateProductStmt = $pdo->prepare('UPDATE products SET quantity = quantity - ? WHERE id = ? AND quantity >= ?');
+            
+            foreach ($itemsStmt->fetchAll() as $item) {
+                // Sumažiname produkto likutį
+                $updateProductStmt->execute([$item['quantity'], $item['product_id'], $item['quantity']]);
+            }
+            // Pabaiga: Kiekio atnaujinimas
+
             if ($orderInfo) {
                 // Pirkėjui
                 $content = "<p>Sveiki, <strong>{$orderInfo['customer_name']}</strong>,</p>
@@ -32,12 +44,23 @@ try {
                 
                 // Galime pridėti nuorodą į užsakymų istoriją (jei vartotojas prisijungęs)
                 $html = getEmailTemplate('Užsakymas patvirtintas! ✅', $content, 'https://nauja.apdaras.lt/orders.php', 'Mano užsakymai');
-                sendEmail($orderInfo['customer_email'], "Užsakymo patvirtinimas #{$orderId}", $html);
+                // Adresas gali būti neprieinamas be pilno domeno, todėl palieku klaidų registravimą
+                try {
+                    sendEmail($orderInfo['customer_email'], "Užsakymo patvirtinimas #{$orderId}", $html);
+                } catch (Throwable $e) {
+                    logError('Failed to send customer email on successful payment for order: ' . $orderId, $e);
+                }
                 
                 // Adminui (galima palikti paprastesnį arba irgi gražų)
                 $adminContent = "<p>Gautas naujas užsakymas #{$orderId}.</p><p>Klientas: {$orderInfo['customer_name']}</p><p>Suma: {$orderInfo['total']} EUR</p>";
                 $adminHtml = getEmailTemplate('Naujas užsakymas 💰', $adminContent);
-                sendEmail($adminEmail, "Naujas užsakymas #{$orderId}", $adminHtml);
+                // Admino el. pašto adresą reikėtų paimti iš konfigūracijos (jei neįvestas) arba tiesiogiai įrašyti
+                $adminEmail = getenv('ADMIN_EMAIL') ?: 'admin@example.com'; 
+                try {
+                    sendEmail($adminEmail, "Naujas užsakymas #{$orderId}", $adminHtml);
+                } catch (Throwable $e) {
+                    logError('Failed to send admin email on successful payment for order: ' . $orderId, $e);
+                }
             }
         } 
         elseif ($status === '0' || $status === 'pending') 
