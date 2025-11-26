@@ -1,8 +1,5 @@
 TO DO LIST.
-Sutvarkyt forgot_password.php ir reset_password.php dizainą.
 Checkout.php kažkas su mokėjimu negerai. Užbaigt
-login.php Pamiršau slaptažodį perkelti žemiau Neturite paskyros? Registruokitės
-news_view.php padaryti, kad paspadus ant šio teksto: Prisijunkite, kad perskaitytumėte visą naujieną nukeltų į login.php
 
 Įdiek šiuos UX ir funkcionalumo patobulinimus
 AJAX veiksmai (be perkrovimo):
