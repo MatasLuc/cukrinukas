@@ -456,12 +456,11 @@ img { max-width: 100%; display: block; }
       </div>
       <div class="hero__content">
         <div class="hero__copy">
-          <div class="eyebrow">Kasdienė priežiūra</div>
+          <div class="eyebrow">Kas yra Cukrinukas.lt?</div>
           <h1><?php echo htmlspecialchars($heroTitle); ?></h1>
           <p><?php echo htmlspecialchars($heroBody); ?></p>
           <div class="hero__actions">
             <a class="btn" href="<?php echo htmlspecialchars($heroCtaUrl); ?>"><?php echo htmlspecialchars($heroCtaLabel); ?></a>
-            <a class="btn ghost" href="#parduotuve">Naršyti prekes</a>
           </div>
         </div>
         <div class="glass-stack">
@@ -587,11 +586,11 @@ img { max-width: 100%; display: block; }
       <section class="section-shell free-shipping">
         <div class="free-shipping__banner">
           <div>
-            <div class="eyebrow" style="color:#0ea5e9;">Nemokamas pristatymas</div>
-            <h2 style="margin:4px 0 6px;">Pridėkite dovanų prekę ir gaukite pristatymą už 0 €</h2>
-            <p style="margin:0; color:#0f172a; max-width:780px;">Įsidėkite vieną iš parinktų prekių ir pristatymas bus nemokamas visam užsakymui. Akcija taikoma iki 4 iš anksto atrinktų prekių.</p>
+            <div class="eyebrow" style="color:#0ea5e9;">Dviguba nauda</div>
+            <h2 style="margin:4px 0 6px;">Išsirinkite vieną iš šių prekių – viso užsakymo pristatymą apmokėsime mes.</h2>
+            <p style="margin:0; color:#0f172a; max-width:780px;">Kodėl mokėti už atvežimą? Įsidėkite vieną iš šių atrinktų produktų į krepšelį ir pristatymas visam užsakymui nekainuos nieko. Puiki proga išbandyti kažką naujo.</p>
           </div>
-          <span class="pill" style="background:#ecfeff; color:#0ea5e9; border-color:#bae6fd;">Iki 4 pasirinktų prekių</span>
+          <span class="pill" style="background:#ecfeff; color:#0ea5e9; border-color:#bae6fd;">Verta išbandyti!</span>
         </div>
         <div class="free-shipping__grid">
           <?php foreach ($freeShippingOffers as $offer): ?>
