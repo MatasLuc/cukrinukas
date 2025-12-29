@@ -456,7 +456,7 @@ img { max-width: 100%; display: block; }
       </div>
       <div class="hero__content">
         <div class="hero__copy">
-          <div class="eyebrow">Kas yra Cukrinukas.lt?</div>
+          <div class="eyebrow">Kas yra Cukrinukas?</div>
           <h1><?php echo htmlspecialchars($heroTitle); ?></h1>
           <p><?php echo htmlspecialchars($heroBody); ?></p>
           <div class="hero__actions">
@@ -587,7 +587,7 @@ img { max-width: 100%; display: block; }
         <div class="free-shipping__banner">
           <div>
             <div class="eyebrow" style="color:#0ea5e9;">Dviguba nauda</div>
-            <h2 style="margin:4px 0 6px;">Išsirinkite vieną iš šių prekių – viso užsakymo pristatymą apmokėsime mes.</h2>
+            <h2 style="margin:4px 0 6px;">Išsirinkite vieną iš šių prekių – viso užsakymo pristatymą apmokėsime mes!</h2>
             <p style="margin:0; color:#0f172a; max-width:780px;">Kodėl mokėti už atvežimą? Įsidėkite vieną iš šių atrinktų produktų į krepšelį ir pristatymas visam užsakymui nekainuos nieko. Puiki proga išbandyti kažką naujo.</p>
           </div>
           <span class="pill" style="background:#ecfeff; color:#0ea5e9; border-color:#bae6fd;">Verta išbandyti!</span>
@@ -643,7 +643,7 @@ img { max-width: 100%; display: block; }
     <section class="section-shell news-block" id="naujienos">
       <div class="news-block__header">
         <div>
-          <div class="eyebrow">Kas naujo E-kolekcijoje</div>
+          <div class="eyebrow">Kas naujo Cukrinukas.lt?</div>
           <h2 class="news-block__title">Naujienos</h2>
         </div>
         <a class="pill" href="/news.php">Visos naujienos →</a>
