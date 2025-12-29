@@ -643,7 +643,7 @@ img { max-width: 100%; display: block; }
     <section class="section-shell news-block" id="naujienos">
       <div class="news-block__header">
         <div>
-          <div class="eyebrow">Kas naujo Cukrinukas.lt?</div>
+          <div class="eyebrow">Kas naujo Cukrinukas?</div>
           <h2 class="news-block__title">Naujienos</h2>
         </div>
         <a class="pill" href="/news.php">Visos naujienos →</a>
