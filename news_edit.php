@@ -14,7 +14,8 @@ ensureNewsTable($pdo);
 ensureAdminAccount($pdo);
 
 $id = (int)($_GET['id'] ?? 0);
-$stmt = $pdo->prepare('SELECT id, title, summary, image_url, body, visibility, is_featured FROM news WHERE id = ?');
+// NAUJA: Įtrauktas 'author' į SELECT užklausą
+$stmt = $pdo->prepare('SELECT id, title, summary, author, image_url, body, visibility, is_featured FROM news WHERE id = ?');
 $stmt->execute([$id]);
 $item = $stmt->fetch();
 
@@ -27,12 +28,14 @@ if (!$item) {
 $errors = [];
 $message = '';
 $summary = $item['summary'] ?? '';
+$author = $item['author'] ?? ''; // NAUJA: Autoriaus kintamasis
 $visibility = $item['visibility'] ?? 'public';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     validateCsrfToken();
     $title = trim($_POST['title'] ?? '');
     $summary = trim($_POST['summary'] ?? '');
+    $author = trim($_POST['author'] ?? ''); // NAUJA: Gauname autorių iš formos
     $body = trim($_POST['body'] ?? '');
     $visibility = $_POST['visibility'] === 'members' ? 'members' : 'public';
     $isFeatured = isset($_POST['is_featured']) ? 1 : 0;
@@ -49,11 +52,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errors) {
         try {
-            $stmt = $pdo->prepare('UPDATE news SET title = ?, summary = ?, image_url = ?, body = ?, visibility = ?, is_featured = ? WHERE id = ?');
-            $stmt->execute([$title, $summary, $imagePath, $body, $visibility, $isFeatured, $item['id']]);
+            // NAUJA: Atnaujinta UPDATE užklausa su author stulpeliu
+            $stmt = $pdo->prepare('UPDATE news SET title = ?, summary = ?, author = ?, image_url = ?, body = ?, visibility = ?, is_featured = ? WHERE id = ?');
+            $stmt->execute([$title, $summary, $author, $imagePath, $body, $visibility, $isFeatured, $item['id']]);
             $message = 'Naujiena atnaujinta';
             $item['title'] = $title;
             $item['summary'] = $summary;
+            $item['author'] = $author;
             $item['body'] = $body;
             $item['visibility'] = $visibility;
             $item['image_url'] = $imagePath;
@@ -90,7 +95,8 @@ $safeBody = sanitizeHtml($currentBody);
     .notice { padding: 12px; border-radius: 12px; margin-top: 12px; }
     .notice.error { background: #fff1f1; border: 1px solid #f3b7b7; color: #991b1b; }
     .notice.success { background: #edf9f0; border: 1px solid #b8e2c4; color: #0f5132; }
-    .toolbar button, .toolbar input, .toolbar select { border-radius:10px; padding:8px 10px; border:1px solid #d7d7e2; background:#fff; cursor:pointer; color:#0b0b0b; font-weight:600; }
+    /* Pataisytas toolbar stilius, kad mygtukai neatrodytų paspausti */
+    .toolbar button, .toolbar input, .toolbar select { border-radius:10px; padding:8px 10px; border:1px solid #d7d7e2; background:#fff; cursor:pointer; color:#0b0b0b; font-weight:600; user-select: none; }
     .toolbar input[type=color] { padding:0; width:40px; height:36px; }
     .rich-editor { min-height:220px; padding:12px; border:1px solid #d7d7e2; border-radius:12px; background:#f9f9ff; }
     .rich-editor img { max-width:100%; height:auto; display:block; margin:12px 0; border-radius:12px; }
@@ -118,8 +124,11 @@ $safeBody = sanitizeHtml($currentBody);
 
       <form method="post" enctype="multipart/form-data" onsubmit="syncBody();">
         <?php echo csrfField(); ?>
-<label for="title">Pavadinimas</label>
+        <label for="title">Pavadinimas</label>
         <input id="title" name="title" type="text" required value="<?php echo htmlspecialchars($item['title']); ?>">
+
+        <label for="author">Autorius</label>
+        <input id="author" name="author" type="text" value="<?php echo htmlspecialchars($author); ?>" placeholder="Įveskite autoriaus vardą (pvz. Redakcija)">
 
         <label for="summary">Santrauka</label>
         <textarea id="summary" name="summary" required style="min-height:90px; "><?php echo htmlspecialchars($summary); ?></textarea>
@@ -130,18 +139,18 @@ $safeBody = sanitizeHtml($currentBody);
 
         <label for="body-editor">Turinys</label>
         <div class="toolbar" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
-          <button type="button" onclick="format('bold')">B</button>
-          <button type="button" onclick="format('italic')"><em>I</em></button>
-          <button type="button" onclick="format('underline')"><u>U</u></button>
-          <button type="button" onclick="format('strikeThrough')"><s>S</s></button>
-          <button type="button" onclick="format('insertUnorderedList')">• Sąrašas</button>
-          <button type="button" onclick="format('insertOrderedList')">1. Sąrašas</button>
-          <button type="button" onclick="format('formatBlock','blockquote')">Citata</button>
-          <button type="button" onclick="format('justifyLeft')">↤</button>
-          <button type="button" onclick="format('justifyCenter')">↔</button>
-          <button type="button" onclick="format('justifyRight')">↦</button>
-          <button type="button" onclick="createLink()">Nuoroda</button>
-          <button type="button" onclick="triggerInlineImage()">Įkelti nuotrauką</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="format('bold')">B</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="format('italic')"><em>I</em></button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="format('underline')"><u>U</u></button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="format('strikeThrough')"><s>S</s></button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="format('insertUnorderedList')">• Sąrašas</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="format('insertOrderedList')">1. Sąrašas</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="format('formatBlock','blockquote')">Citata</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="format('justifyLeft')">↤</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="format('justifyCenter')">↔</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="format('justifyRight')">↦</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="createLink()">Nuoroda</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="triggerInlineImage()">Įkelti nuotrauką</button>
           <input type="color" onchange="formatColor(this.value)" aria-label="Teksto spalva">
           <select onchange="format('fontSize', this.value)">
             <option value="3">Šrifto dydis</option>
@@ -150,7 +159,7 @@ $safeBody = sanitizeHtml($currentBody);
             <option value="4">Didelis</option>
             <option value="5">Labai didelis</option>
           </select>
-          <button type="button" onclick="format('removeFormat')">Išvalyti formatavimą</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="format('removeFormat')">Išvalyti formatavimą</button>
         </div>
         <div id="body-editor" class="rich-editor" contenteditable="true">
           <?php echo $safeBody; ?>
