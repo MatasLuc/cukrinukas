@@ -162,11 +162,16 @@ function ensureNewsTable(PDO $pdo): void {
     );
 
     $columns = $pdo->query("SHOW COLUMNS FROM news")->fetchAll(PDO::FETCH_COLUMN);
+    
     if (!in_array('summary', $columns, true)) {
         $pdo->exec('ALTER TABLE news ADD COLUMN summary TEXT NULL AFTER title');
     }
     if (!in_array('visibility', $columns, true)) {
         $pdo->exec('ALTER TABLE news ADD COLUMN visibility ENUM("public","members") NOT NULL DEFAULT "public" AFTER body');
+    }
+    // NAUJA: Pridedame autoriaus stulpelį, jei jo nėra
+    if (!in_array('author', $columns, true)) {
+        $pdo->exec('ALTER TABLE news ADD COLUMN author VARCHAR(100) DEFAULT NULL AFTER summary');
     }
 }
 
