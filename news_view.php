@@ -110,7 +110,7 @@ $meta = [
       </article>
       <aside class="info-card">
         <div class="info-title">Apžvalga</div>
-        <div class="info-note">Pridėjome šiuolaikišką pateikimą su švelniais atspalviais, kad skaityti būtų malonu.</div>
+        <div class="info-note">Pastebėjote klaidą? Atsiprašome ir kviečiame apie ją pranešti el. paštu labas@cukrinukas.lt</div>
         <div style="display:flex; flex-direction:column; gap:6px; font-size:14px; color:#2b2f4c;">
           <span>Skelbimo ID: <strong>#<?php echo (int)$news['id']; ?></strong></span>
           <span>Publikavimo data: <strong><?php echo date('Y-m-d', strtotime($news['created_at'])); ?></strong></span>
