@@ -11,13 +11,12 @@ if (!isset($_SESSION['user_id']) || empty($_SESSION['is_admin'])) {
 }
 
 $pdo = getPdo();
-ensureNewsTable($pdo); // Užtikrina, kad 'author' stulpelis egzistuotų
+ensureNewsTable($pdo);
 ensureAdminAccount($pdo);
 
 $errors = [];
 $message = '';
 
-// Kintamieji formos užpildymui (jei būtų klaida)
 $title = '';
 $summary = '';
 $author = '';
@@ -30,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     $title = trim($_POST['title'] ?? '');
     $summary = trim($_POST['summary'] ?? '');
-    $author = trim($_POST['author'] ?? ''); // NAUJA: Autorius
+    $author = trim($_POST['author'] ?? '');
     $body = trim($_POST['body'] ?? '');
     $visibility = $_POST['visibility'] === 'members' ? 'members' : 'public';
     $isFeatured = isset($_POST['is_featured']) ? 1 : 0;
@@ -39,7 +38,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Užpildykite pavadinimą, santrauką ir tekstą.';
     }
 
-    // Nuotraukos įkėlimas
     $imagePath = '';
     $uploaded = uploadImageWithValidation($_FILES['image'] ?? [], 'news_', $errors, 'Įkelkite naujienos nuotrauką.');
     if ($uploaded) {
@@ -48,11 +46,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errors) {
         try {
-            // NAUJA: Įterpiame autorių į duomenų bazę
             $stmt = $pdo->prepare('INSERT INTO news (title, summary, author, image_url, body, visibility, is_featured) VALUES (?, ?, ?, ?, ?, ?, ?)');
             $stmt->execute([$title, $summary, $author, $imagePath, $body, $visibility, $isFeatured]);
             
-            // Nukreipiame į naujienų sąrašą po sėkmingo sukūrimo
             header('Location: /news.php');
             exit;
         } catch (Throwable $e) {
@@ -68,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kurti naujieną | Cukrinukas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <?php echo headerStyles(); ?>
   <style>
     :root { --color-bg: #f7f7fb; --color-primary: #0b0b0b; }
@@ -83,11 +80,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     button { padding: 12px 18px; border-radius: 12px; border: none; background: #0b0b0b; color: #fff; font-weight: 600; cursor:pointer; margin-top: 14px; }
     .notice { padding: 12px; border-radius: 12px; margin-top: 12px; }
     .notice.error { background: #fff1f1; border: 1px solid #f3b7b7; color: #991b1b; }
-    /* Toolbar stilius identiškas news_edit.php */
+    
     .toolbar button, .toolbar input, .toolbar select { border-radius:10px; padding:8px 10px; border:1px solid #d7d7e2; background:#fff; cursor:pointer; color:#0b0b0b; font-weight:600; user-select: none; }
     .toolbar input[type=color] { padding:0; width:40px; height:36px; }
-    .rich-editor { min-height:220px; padding:12px; border:1px solid #d7d7e2; border-radius:12px; background:#f9f9ff; }
+    .rich-editor { min-height:220px; padding:12px; border:1px solid #d7d7e2; border-radius:12px; background:#f9f9ff; font-family: 'Inter', sans-serif; }
     .rich-editor img { max-width:100%; height:auto; display:block; margin:12px 0; border-radius:12px; }
+    
+    /* Priverstinai įjungiame Bold atvaizdavimą */
+    .rich-editor b, .rich-editor strong { font-weight: 700 !important; }
   </style>
 </head>
 <body>
@@ -105,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
       <?php endif; ?>
 
-      <form method="post" enctype="multipart/form-data" onsubmit="syncBody();">
+      <form method="post" enctype="multipart/form-data" onsubmit="return syncBody();">
         <?php echo csrfField(); ?>
         
         <label for="title">Pavadinimas</label>
@@ -149,7 +149,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <?php echo sanitizeHtml($body); ?>
         </div>
         <input type="file" id="inline-image-input" accept="image/*" style="display:none;">
-        <textarea id="body" name="body" hidden required><?php echo htmlspecialchars($body); ?></textarea>
+        
+        <textarea id="body" name="body" hidden><?php echo htmlspecialchars($body); ?></textarea>
 
         <label style="display:flex; align-items:center; gap:8px; margin-top:12px;">
           <input type="checkbox" name="is_featured" value="1" <?php echo $isFeatured ? 'checked' : ''; ?>> Rodyti kaip išskirtinę
@@ -215,9 +216,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
       inlineImageInput.value = '';
     });
+    
     function syncBody() {
       decorateImages();
-      hiddenBody.value = editor.innerHTML.trim();
+      const content = editor.innerHTML.trim();
+      
+      // Rankinis patikrinimas, ar turinys nėra tuščias
+      if (!content || content === '<br>') {
+        alert('Prašome užpildyti naujienos turinį.');
+        return false; // Sustabdo formos siuntimą
+      }
+      
+      hiddenBody.value = content;
+      return true; // Leidžia formos siuntimą
     }
     decorateImages();
   </script>
