@@ -88,7 +88,7 @@ $isAdmin = !empty($_SESSION['is_admin']);
         <div class="hero__actions">
           <a class="cta" href="<?php echo htmlspecialchars($siteContent['news_hero_cta_url'] ?? '#news'); ?>"><?php echo htmlspecialchars($siteContent['news_hero_cta_label'] ?? 'Peržiūrėti straipsnius'); ?></a>
           <?php if ($isAdmin): ?>
-            <a class="cta secondary" href="/news_create.php">+ Nauja naujiena</a>
+            <a class="cta secondary" href="/news_create.php">+ Pridėti naujieną</a>
           <?php endif; ?>
         </div>
       </div>
