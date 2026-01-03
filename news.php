@@ -82,7 +82,7 @@ $isAdmin = !empty($_SESSION['is_admin']);
   <main class="page">
     <section class="hero">
       <div>
-        <div class="hero__pill"><?php echo htmlspecialchars($siteContent['news_hero_pill'] ?? '📰 Bendruomenės pulsas'); ?></div>
+        <div class="hero__pill"><?php echo htmlspecialchars($siteContent['news_hero_pill'] ?? '📰 Mūsų naujienos'); ?></div>
         <h1><?php echo htmlspecialchars($siteContent['news_hero_title'] ?? 'Šviežiausios naujienos ir patarimai'); ?></h1>
         <p><?php echo htmlspecialchars($siteContent['news_hero_body'] ?? 'Aktualijos apie diabetą, kasdienę priežiūrą ir mūsų parduotuvės atnaujinimus – viskas vienoje vietoje.'); ?></p>
         <div class="hero__actions">
@@ -91,11 +91,6 @@ $isAdmin = !empty($_SESSION['is_admin']);
             <a class="cta secondary" href="/news_create.php">+ Nauja naujiena</a>
           <?php endif; ?>
         </div>
-      </div>
-      <div class="hero__card">
-        <span style="font-size:13px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase;"><?php echo htmlspecialchars($siteContent['news_hero_card_meta'] ?? 'Temos žyma'); ?></span>
-        <strong><?php echo htmlspecialchars($siteContent['news_hero_card_title'] ?? 'Inovatyvi priežiūra'); ?></strong>
-        <span style="color:var(--muted);"><?php echo htmlspecialchars($siteContent['news_hero_card_body'] ?? 'Atrinkti patarimai ir sėkmės istorijos'); ?></span>
       </div>
     </section>
 
