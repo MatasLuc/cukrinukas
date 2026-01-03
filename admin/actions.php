@@ -695,4 +695,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $view = 'community';
     }
+
+    // --- TURINIO TRYNIMAS ---
+    if ($action === 'delete_news') {
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id) {
+            $pdo->prepare('DELETE FROM news WHERE id = ?')->execute([$id]);
+            $messages[] = 'Naujiena ištrinta';
+        }
+        $view = 'content';
+    }
+
+    if ($action === 'delete_recipe') {
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id) {
+            $pdo->prepare('DELETE FROM recipes WHERE id = ?')->execute([$id]);
+            $messages[] = 'Receptas ištrintas';
+        }
+        $view = 'content';
+    }
 }
