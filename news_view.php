@@ -8,7 +8,8 @@ ensureNewsTable($pdo);
 ensureSavedContentTables($pdo);
 
 $id = (int)($_GET['id'] ?? 0);
-$stmt = $pdo->prepare('SELECT id, title, summary, image_url, body, visibility, created_at FROM news WHERE id = ?');
+// NAUJA: Įtrauktas 'author'
+$stmt = $pdo->prepare('SELECT id, title, summary, author, image_url, body, visibility, created_at FROM news WHERE id = ?');
 $stmt->execute([$id]);
 $news = $stmt->fetch();
 
@@ -37,6 +38,9 @@ $meta = [
     'description' => $news['summary'] ?: mb_substr(strip_tags($news['body']), 0, 160),
     'image' => 'https://e-kolekcija.lt' . $news['image_url']
 ];
+
+// NAUJA: Autoriaus atvaizdavimo logika
+$authorName = !empty($news['author']) ? $news['author'] : 'Redakcijos naujiena';
 ?>
 <!doctype html>
 <html lang="lt">
@@ -79,7 +83,7 @@ $meta = [
           <h1 style="margin:0; font-size:30px; line-height:1.2; color:#0b0b0b;"><?php echo htmlspecialchars($news['title']); ?></h1>
           <div class="meta">
             <span class="badge">Publikuota <?php echo date('Y-m-d', strtotime($news['created_at'])); ?></span>
-            <span class="badge" style="background:#e8fff5; border-color:#cfe8dc; color:#0d8a4d;">Redakcijos naujiena</span>
+            <span class="badge" style="background:#e8fff5; border-color:#cfe8dc; color:#0d8a4d;"><?php echo htmlspecialchars($authorName); ?></span>
           </div>
         </div>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
