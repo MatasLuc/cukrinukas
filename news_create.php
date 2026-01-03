@@ -39,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $imagePath = '';
+    // Pakeiskite klaidų rinkimą, kad validacija būtų griežtesnė tik jei failas įkeltas
     $uploaded = uploadImageWithValidation($_FILES['image'] ?? [], 'news_', $errors, 'Įkelkite naujienos nuotrauką.');
     if ($uploaded) {
         $imagePath = $uploaded;
@@ -81,12 +82,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .notice { padding: 12px; border-radius: 12px; margin-top: 12px; }
     .notice.error { background: #fff1f1; border: 1px solid #f3b7b7; color: #991b1b; }
     
+    /* Toolbar stilius su apsauga nuo teksto pažymėjimo */
     .toolbar button, .toolbar input, .toolbar select { border-radius:10px; padding:8px 10px; border:1px solid #d7d7e2; background:#fff; cursor:pointer; color:#0b0b0b; font-weight:600; user-select: none; }
     .toolbar input[type=color] { padding:0; width:40px; height:36px; }
     .rich-editor { min-height:220px; padding:12px; border:1px solid #d7d7e2; border-radius:12px; background:#f9f9ff; font-family: 'Inter', sans-serif; }
     .rich-editor img { max-width:100%; height:auto; display:block; margin:12px 0; border-radius:12px; }
     
-    /* Priverstinai įjungiame Bold atvaizdavimą */
+    /* SVARBU: Priverstinis Bold atvaizdavimas */
     .rich-editor b, .rich-editor strong { font-weight: 700 !important; }
   </style>
 </head>
@@ -117,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="summary">Santrauka</label>
         <textarea id="summary" name="summary" required style="min-height:90px;"><?php echo htmlspecialchars($summary); ?></textarea>
 
-        <label for="image">Nuotrauka</label>
+        <label for="image">Nuotrauka (Maks. dydis priklauso nuo serverio)</label>
         <input id="image" name="image" type="file" accept="image/*" required>
 
         <label for="body-editor">Turinys</label>
@@ -194,14 +196,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         img.style.borderRadius = '12px';
       });
     }
+    
     async function triggerInlineImage() {
       inlineImageInput.click();
     }
+    
+    // Pataisyta nuotraukų įkėlimo funkcija su CSRF tokenu
     inlineImageInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
+      
       const formData = new FormData();
       formData.append('image', file);
+      
+      // PAIMAME CSRF TOKENĄ IŠ FORMOS
+      const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+      formData.append('csrf_token', csrfToken);
+
       try {
         const res = await fetch('/editor_upload.php', { method: 'POST', body: formData });
         const data = await res.json();
@@ -212,7 +223,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           alert(data.error || 'Nepavyko įkelti nuotraukos');
         }
       } catch (err) {
-        alert('Klaida įkeliant nuotrauką');
+        alert('Klaida įkeliant nuotrauką. Patikrinkite failo dydį.');
       }
       inlineImageInput.value = '';
     });
@@ -221,14 +232,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       decorateImages();
       const content = editor.innerHTML.trim();
       
-      // Rankinis patikrinimas, ar turinys nėra tuščias
+      // Patikriname ar yra turinio (nes 'required' ant paslėpto lauko neveikia)
       if (!content || content === '<br>') {
         alert('Prašome užpildyti naujienos turinį.');
-        return false; // Sustabdo formos siuntimą
+        return false;
+      }
+      
+      // Patikriname pagrindinės nuotraukos dydį (prevencija dėl CSRF klaidos)
+      const mainImage = document.getElementById('image');
+      if (mainImage.files.length > 0) {
+        const fileSize = mainImage.files[0].size / 1024 / 1024; // MB
+        if (fileSize > 20) { // Jei didesnė nei 20MB (galima pamažinti pagal serverio nustatymus)
+             alert('Dėmesio: Nuotrauka labai didelė (' + fileSize.toFixed(2) + ' MB). Tai gali sukelti klaidą išsaugant. Rekomenduojame sumažinti.');
+        }
       }
       
       hiddenBody.value = content;
-      return true; // Leidžia formos siuntimą
+      return true;
     }
     decorateImages();
   </script>
