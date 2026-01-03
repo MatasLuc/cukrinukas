@@ -18,7 +18,15 @@ $recipeList = $pdo->query('SELECT id, title, created_at FROM recipes ORDER BY cr
         <tr>
           <td><?php echo htmlspecialchars($n['title']); ?></td>
           <td><?php echo date('Y-m-d', strtotime($n['created_at'])); ?></td>
-          <td><a class="btn" href="/news_edit.php?id=<?php echo (int)$n['id']; ?>">Redaguoti</a></td>
+          <td style="display:flex; gap: 8px;">
+            <a class="btn" href="/news_edit.php?id=<?php echo (int)$n['id']; ?>">Redaguoti</a>
+            <form method="POST" onsubmit="return confirm('Ar tikrai norite ištrinti šią naujieną?');" style="margin:0;">
+                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+                <input type="hidden" name="action" value="delete_news">
+                <input type="hidden" name="id" value="<?php echo (int)$n['id']; ?>">
+                <button type="submit" class="btn" style="background-color: #d32f2f; color: white; border: none; cursor: pointer;">Ištrinti</button>
+            </form>
+          </td>
         </tr>
       <?php endforeach; ?>
     </tbody>
@@ -38,7 +46,15 @@ $recipeList = $pdo->query('SELECT id, title, created_at FROM recipes ORDER BY cr
         <tr>
           <td><?php echo htmlspecialchars($r['title']); ?></td>
           <td><?php echo date('Y-m-d', strtotime($r['created_at'])); ?></td>
-          <td><a class="btn" href="/recipe_edit.php?id=<?php echo (int)$r['id']; ?>">Redaguoti</a></td>
+          <td style="display:flex; gap: 8px;">
+            <a class="btn" href="/recipe_edit.php?id=<?php echo (int)$r['id']; ?>">Redaguoti</a>
+            <form method="POST" onsubmit="return confirm('Ar tikrai norite ištrinti šį receptą?');" style="margin:0;">
+                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+                <input type="hidden" name="action" value="delete_recipe">
+                <input type="hidden" name="id" value="<?php echo (int)$r['id']; ?>">
+                <button type="submit" class="btn" style="background-color: #d32f2f; color: white; border: none; cursor: pointer;">Ištrinti</button>
+            </form>
+          </td>
         </tr>
       <?php endforeach; ?>
     </tbody>
