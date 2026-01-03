@@ -89,11 +89,6 @@ $isLoggedIn = isset($_SESSION['user_id']);
           <?php endif; ?>
         </div>
       </div>
-      <div class="hero__card">
-        <span style="font-size:13px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase;"><?php echo htmlspecialchars($siteContent['recipes_hero_card_meta'] ?? 'Šio mėnesio skonis'); ?></span>
-        <strong><?php echo htmlspecialchars($siteContent['recipes_hero_card_title'] ?? 'Mėtos ir pistacijos'); ?></strong>
-        <span style="color:var(--muted);"><?php echo htmlspecialchars($siteContent['recipes_hero_card_body'] ?? 'Gaivus duetas desertams ir užkandžiams'); ?></span>
-      </div>
     </section>
 
     <div class="page__head" id="recipes">
