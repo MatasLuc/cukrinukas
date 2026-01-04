@@ -1,281 +1,496 @@
 <?php
-// admin/products.php
+session_start();
+require __DIR__ . '/db.php';
+require __DIR__ . '/layout.php';
 
-// Užtikriname parent_id
-try { $pdo->query("SELECT parent_id FROM categories LIMIT 1"); } 
-catch (Exception $e) { $pdo->exec("ALTER TABLE categories ADD COLUMN parent_id INT NULL DEFAULT NULL AFTER id"); }
-$pdo->exec("CREATE TABLE IF NOT EXISTS product_category_relations (product_id INT NOT NULL, category_id INT NOT NULL, PRIMARY KEY (product_id, category_id))");
+$pdo = getPdo();
+ensureUsersTable($pdo);
+ensureCategoriesTable($pdo);
+ensureProductsTable($pdo);
+ensureCartTables($pdo);
+ensureSavedContentTables($pdo);
+ensureAdminAccount($pdo);
 
-// Pagalbinė nuotraukoms
-function handleNewProductUploads(PDO $pdo, int $productId, array $files): void {
-    if (empty($files['name'][0]) || !function_exists('saveUploadedFile')) return;
-    $allowedMimeMap = ['image/jpeg'=>'jpg','image/png'=>'png','image/gif'=>'gif','image/webp'=>'webp'];
-    $count = count($files['name']); $hasPrimary = 0;
-    for ($i=0; $i<$count; $i++) {
-        if ($files['error'][$i] !== UPLOAD_ERR_OK) continue;
-        $f = ['name'=>$files['name'][$i],'type'=>$files['type'][$i]??'','tmp_name'=>$files['tmp_name'][$i],'error'=>$files['error'][$i],'size'=>$files['size'][$i]??0];
-        $rel = saveUploadedFile($f, $allowedMimeMap, 'img_');
-        if ($rel) {
-            $isP = ($hasPrimary===0)?1:0;
-            $pdo->prepare('INSERT INTO product_images (product_id,path,is_primary) VALUES (?,?,?)')->execute([$productId,$rel,$isP]);
-            if ($isP) { $pdo->prepare('UPDATE products SET image_url=? WHERE id=?')->execute([$rel,$productId]); $hasPrimary=1; }
-        }
-    }
-}
+// Užtikriname, kad egzistuoja ryšių lentelė (jei netyčia nebūtų)
+$pdo->exec("CREATE TABLE IF NOT EXISTS product_category_relations (
+    product_id INT NOT NULL,
+    category_id INT NOT NULL,
+    PRIMARY KEY (product_id, category_id)
+)");
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    validateCsrfToken();
-    $action = $_POST['action'] ?? '';
+$globalDiscount = getGlobalDiscount($pdo);
+$categoryDiscounts = getCategoryDiscounts($pdo);
+$freeShippingIds = getFreeShippingProductIds($pdo);
 
-    if ($action === 'new_product') {
-        $title = trim($_POST['title'] ?? '');
-        $desc = trim($_POST['description'] ?? '');
-        $price = (float)($_POST['price'] ?? 0);
-        $qty = (int)($_POST['quantity'] ?? 0);
-        $salePrice = isset($_POST['sale_price']) && $_POST['sale_price']!=='' ? (float)$_POST['sale_price'] : null;
-        $cats = $_POST['categories'] ?? [];
-        $mainCat = !empty($cats) ? (int)$cats[0] : null;
+$selectedSlug = $_GET['category'] ?? null;
+$searchQuery = $_GET['query'] ?? null;
 
-        if ($title && $price > 0) {
-            $pdo->prepare("INSERT INTO products (title, subtitle, description, ribbon_text, price, sale_price, quantity, category_id, meta_tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-                ->execute([$title, $_POST['subtitle']??'', $desc, $_POST['ribbon_text']??'', $price, $salePrice, $qty, $mainCat, $_POST['meta_tags']??'']);
-            $newId = $pdo->lastInsertId();
-            
-            if ($cats) {
-                $relS = $pdo->prepare('INSERT INTO product_category_relations (product_id, category_id) VALUES (?, ?)');
-                foreach ($cats as $c) $relS->execute([$newId, (int)$c]);
-            }
-            if (isset($_FILES['images'])) handleNewProductUploads($pdo, $newId, $_FILES['images']);
-            
-            // Attributes
-            $al = $_POST['attr_label']??[]; $av=$_POST['attr_value']??[];
-            $ia = $pdo->prepare("INSERT INTO product_attributes (product_id, label, value) VALUES (?, ?, ?)");
-            foreach($al as $k=>$v){ if(trim($v)||$av[$k]) $ia->execute([$newId, trim($v), trim($av[$k]??'')]); }
-
-            // Vars
-            $vn = $_POST['variation_name']??[]; $vp=$_POST['variation_price']??[];
-            $iv = $pdo->prepare("INSERT INTO product_variations (product_id, name, price_delta) VALUES (?, ?, ?)");
-            foreach($vn as $k=>$v){ if(trim($v)) $iv->execute([$newId, trim($v), (float)($vp[$k]??0)]); }
-
-            // Relations
-            $rp = $_POST['related_products']??[];
-            $ir = $pdo->prepare("INSERT IGNORE INTO product_related (product_id, related_product_id) VALUES (?, ?)");
-            foreach($rp as $r) $ir->execute([$newId, (int)$r]);
-
-            echo "<script>window.location='/admin.php?view=products';</script>"; exit;
-        }
-    }
-    if ($action === 'delete_product') {
-        $id = (int)$_POST['id'];
-        $tables = ['product_images','product_attributes','product_variations','product_related','product_category_relations','products'];
-        foreach($tables as $t) $pdo->prepare("DELETE FROM $t WHERE ".($t=='products'?'id':'product_id')."=?")->execute([$id]);
-    }
-    if ($action === 'featured_remove') { $pdo->prepare("DELETE FROM homepage_featured WHERE product_id=?")->execute([(int)$_POST['remove_id']]); }
-    if ($action === 'featured_add') {
-        $fid = $pdo->query("SELECT id FROM products WHERE title='".trim($_POST['featured_query']??'')."'")->fetchColumn();
-        if ($fid) $pdo->prepare("INSERT IGNORE INTO homepage_featured (product_id) VALUES (?)")->execute([$fid]);
-    }
-}
-
-// Data fetching
-$products = $pdo->query('SELECT p.*, c.name AS category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id ORDER BY p.created_at DESC')->fetchAll();
-// Fetch Categories for Tree
-$allCats = $pdo->query('SELECT * FROM categories ORDER BY parent_id ASC, name ASC')->fetchAll();
+// 1. KATEGORIJŲ MEDŽIO SUDARYMAS
+$allCats = $pdo->query('SELECT id, name, slug, parent_id FROM categories ORDER BY parent_id ASC, name ASC')->fetchAll();
 $catTree = [];
+// Pirmiausia sudedame tėvines
 foreach ($allCats as $c) {
-    if (empty($c['parent_id'])) { $catTree[$c['id']]['self']=$c; $catTree[$c['id']]['children']=[]; }
+    if (empty($c['parent_id'])) {
+        $catTree[$c['id']]['self'] = $c;
+        $catTree[$c['id']]['children'] = [];
+    }
 }
+// Tada sudedame vaikus
 foreach ($allCats as $c) {
-    if (!empty($c['parent_id']) && isset($catTree[$c['parent_id']])) { $catTree[$c['parent_id']]['children'][]=$c; }
+    if (!empty($c['parent_id']) && isset($catTree[$c['parent_id']])) {
+        $catTree[$c['parent_id']]['children'][] = $c;
+    }
 }
 
-$fIds = getFeaturedProductIds($pdo);
-$fProds = [];
-if ($fIds) {
-    $in = implode(',', array_fill(0, count($fIds), '?'));
-    $s = $pdo->prepare("SELECT id, title, price FROM products WHERE id IN ($in)");
-    $s->execute($fIds);
-    $rows = $s->fetchAll(); $m=[]; foreach($rows as $r)$m[$r['id']]=$r;
-    foreach($fIds as $i) if(isset($m[$i])) $fProds[]=$m[$i];
+// 2. FILTRAVIMO LOGIKA
+$params = [];
+$whereClauses = [];
+
+// Jei pasirinkta kategorija (pagal slug)
+if ($selectedSlug) {
+    // Pirmiausia gauname kategorijos ID pagal slug
+    $stmtCat = $pdo->prepare("SELECT id FROM categories WHERE slug = ?");
+    $stmtCat->execute([$selectedSlug]);
+    $catId = $stmtCat->fetchColumn();
+
+    if ($catId) {
+        // Filtruojame prekes, kurios turi šį ID kaip pagrindinį ARBA yra ryšių lentelėje
+        // Taip veiks ir pasirinkus subkategoriją
+        $whereClauses[] = '(p.category_id = ? OR p.id IN (SELECT product_id FROM product_category_relations WHERE category_id = ?))';
+        $params[] = $catId;
+        $params[] = $catId;
+    } else {
+        // Jei slug neteisingas, nieko nerodome (arba galima ignoruoti)
+        $whereClauses[] = '1=0'; 
+    }
+}
+
+if ($searchQuery) {
+    $whereClauses[] = 'p.title LIKE ?';
+    $params[] = '%' . $searchQuery . '%';
+}
+
+$where = $whereClauses ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
+
+// Pagrindinė prekių užklausa
+// Pastaba: Paliekame LEFT JOIN categories tik dėl atvaizdavimo (primary category name),
+// bet filtravimui naudojame aukščiau aprašytą logiką.
+$stmt = $pdo->prepare(
+    'SELECT p.*, c.name AS category_name, c.slug AS category_slug,
+        (SELECT path FROM product_images WHERE product_id = p.id AND is_primary = 1 ORDER BY id DESC LIMIT 1) AS primary_image
+     FROM products p
+     LEFT JOIN categories c ON c.id = p.category_id
+     ' . $where . '
+     ORDER BY p.created_at DESC'
+);
+$stmt->execute($params);
+$products = $stmt->fetchAll();
+
+$cartData = getCartData($pdo, $_SESSION['cart'] ?? [], $_SESSION['cart_variations'] ?? []);
+
+// Krepšelio / Norų sąrašo veiksmai
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
+    validateCsrfToken();
+    $pid = (int) $_POST['product_id'];
+    if (($_POST['action'] ?? '') === 'wishlist') {
+        if (empty($_SESSION['user_id'])) {
+            header('Location: /login.php');
+            exit;
+        }
+        saveItemForUser($pdo, (int)$_SESSION['user_id'], 'product', $pid);
+        header('Location: /saved.php');
+        exit;
+    }
+
+    $qty = max(1, (int) ($_POST['quantity'] ?? 1));
+    $_SESSION['cart'][$pid] = ($_SESSION['cart'][$pid] ?? 0) + $qty;
+    if (!empty($_SESSION['user_id'])) {
+        saveCartItem($pdo, (int)$_SESSION['user_id'], $pid, $qty);
+    }
+    header('Location: /cart.php');
+    exit;
 }
 ?>
+<!doctype html>
+<html lang="lt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Parduotuvė | Cukrinukas</title>
+  <?php echo headerStyles(); ?>
+  <style>
+    :root {
+      --bg: #f7f7fb;
+      --card: #ffffff;
+      --border: #e4e7ec;
+      --text: #1f2937;
+      --muted: #52606d;
+      --accent: #7c3aed;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    a { color:inherit; text-decoration:none; }
 
-<style>
-    .toolbar { background:#f8f9fa; padding:8px; border:1px solid #d7d7e2; border-bottom:none; border-radius:8px 8px 0 0; display:flex; gap:5px; flex-wrap:wrap; }
-    .toolbar button { cursor:pointer; padding:6px 10px; font-weight:bold; border:1px solid #ccc; border-radius:6px; background:#fff; font-size:14px; }
-    .rich-editor { min-height:160px; border:1px solid #d7d7e2; border-radius:0 0 12px 12px; padding:12px; background:#fff; margin-bottom:12px; line-height:1.6; }
-    .rich-editor ul, .rich-editor ol { padding-left:20px; }
-    .mini-editor { min-height:42px; max-height:100px; overflow-y:auto; border:1px solid #d7d7e2; border-radius:8px; padding:8px; background:#fff; font-size:14px; }
-    
-    .cat-grid { border: 1px solid #d7d7e2; padding: 12px; border-radius: 12px; background: #fff; max-height: 250px; overflow-y: auto; margin-bottom:12px; }
-    .cat-group { margin-bottom:8px; border-bottom:1px solid #f0f0f0; padding-bottom:4px; }
-    .cat-group:last-child { border-bottom:none; }
-    .cat-parent { font-weight:bold; display:block; margin-bottom:4px; font-size:14px; }
-    .cat-children { display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:5px; padding-left:20px; }
-    .cat-item { display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:normal; font-size:13px; }
-    
-    .chip-input { width:100%; box-sizing:border-box; }
-    .input-row { display:flex; gap:10px; margin-bottom:8px; }
-</style>
+    .page { 
+      max-width: 1200px; 
+      margin: 0 auto; 
+      padding: 32px 20px 72px; 
+      display: grid; 
+      gap: 28px; 
+    }
 
-<div class="card">
-  <h3>Nauja prekė</h3>
-  <form method="post" enctype="multipart/form-data" onsubmit="return syncNewProductForm()">
-    <?php echo csrfField(); ?>
-    <input type="hidden" name="action" value="new_product">
+    .hero {
+      padding: 26px 26px 30px;
+      border-radius: 28px;
+      background: linear-gradient(135deg, #eef2ff, #e0f2fe);
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 18px 48px rgba(0,0,0,0.08);
+      display: grid;
+      grid-template-columns: 1.4fr 0.6fr;
+      align-items: center;
+      gap: 22px;
+    }
     
-    <label>Pavadinimas</label>
-    <input name="title" placeholder="Pavadinimas" required>
-    <label>Paantraštė</label>
-    <input name="subtitle" placeholder="Paantraštė">
-    
-    <label>Aprašymas</label>
-    <div class="toolbar">
-        <button type="button" onmousedown="event.preventDefault()" onclick="format('bold')">B</button>
-        <button type="button" onmousedown="event.preventDefault()" onclick="format('italic')">I</button>
-        <button type="button" onmousedown="event.preventDefault()" onclick="format('insertUnorderedList')">• Sąrašas</button>
-        <button type="button" onmousedown="event.preventDefault()" onclick="createLink()">🔗</button>
-    </div>
-    <div id="new-desc-editor" class="rich-editor" contenteditable="true"></div>
-    <textarea name="description" id="new-desc-textarea" hidden></textarea>
+    .hero__pill {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      background:#ffffff;
+      border:1px solid #e4e7ec;
+      padding:10px 14px;
+      border-radius:999px;
+      font-weight:700;
+      box-shadow:0 12px 30px rgba(0,0,0,0.08);
+      font-size: 15px;
+      color: #0f172a;
+    }
 
-    <input name="ribbon_text" placeholder="Juostelė (pvz.: Naujiena)">
+    .hero h1 { 
+        margin: 10px 0 8px; 
+        font-size: clamp(26px, 5vw, 36px); 
+        letter-spacing: -0.02em; 
+        color: #0f172a; 
+    }
+    .hero p { margin: 0; color: var(--muted); line-height: 1.6; }
+    .hero-cta { margin-top: 14px; display:flex; gap:10px; flex-wrap:wrap; }
     
-    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
-        <input name="price" type="number" step="0.01" placeholder="Kaina" required>
-        <input name="sale_price" type="number" step="0.01" placeholder="Akcija">
-        <input name="quantity" type="number" min="0" placeholder="Kiekis" required>
-    </div>
+    .btn-large {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 11px 24px;
+      border-radius: 12px;
+      border: 1px solid #4338ca;
+      background: #ffffff;
+      color: #4338ca;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all .2s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .btn-large:hover {
+      background: #ffffff; 
+      color: #312e81;
+      border-color: #312e81;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(67, 56, 202, 0.12);
+    }
 
-    <label>Kategorijos (Tėvinės > Subkategorijos)</label>
-    <div class="cat-grid">
-      <?php foreach ($catTree as $branch): ?>
-        <div class="cat-group">
-            <label class="cat-parent cat-item">
-                <input type="checkbox" name="categories[]" value="<?php echo (int)$branch['self']['id']; ?>">
-                <?php echo htmlspecialchars($branch['self']['name']); ?>
-            </label>
-            <?php if(!empty($branch['children'])): ?>
-            <div class="cat-children">
-                <?php foreach ($branch['children'] as $child): ?>
-                    <label class="cat-item">
-                        <input type="checkbox" name="categories[]" value="<?php echo (int)$child['id']; ?>">
-                        <?php echo htmlspecialchars($child['name']); ?>
-                    </label>
-                <?php endforeach; ?>
-            </div>
+    /* FILTRAVIMAS IR PAIEŠKA */
+    .filter-bar {
+      display:flex;
+      justify-content: space-between;
+      align-items:center;
+      gap:16px;
+      flex-wrap: wrap;
+    }
+    .filter-title { font-size: 18px; letter-spacing: 0.01em; color: #111827; }
+    
+    .search-input {
+      flex-grow: 1;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #fff;
+      font-size: 15px;
+      min-width: 200px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+      transition: all .18s ease;
+    }
+    .search-input:focus { border-color: rgba(124, 58, 237, 0.45); outline: none; }
+
+    /* DROPDOWN STILIAI KATEGORIJOMS */
+    .chips { display:flex; flex-wrap:wrap; gap:12px; }
+    
+    .chip-container {
+        position: relative;
+        display: inline-block;
+    }
+    .chip {
+      display: inline-block;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: #fff;
+      border: 1px solid var(--border);
+      font-weight: 600;
+      color: var(--muted);
+      transition: all .18s ease;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .chip:hover, .chip.active {
+      border-color: rgba(124, 58, 237, 0.45);
+      color: #111827;
+      box-shadow: 0 10px 26px rgba(0,0,0,0.08);
+      background: #fbfbff;
+    }
+    
+    /* Išskleidžiamas meniu */
+    .dropdown-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        background-color: #fff;
+        min-width: 180px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+        z-index: 100;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        padding: 8px 0;
+        margin-top: 4px;
+        animation: fadeIn 0.2s ease;
+    }
+    .chip-container:hover .dropdown-menu {
+        display: block;
+    }
+    .dropdown-item {
+        display: block;
+        padding: 8px 16px;
+        color: var(--text);
+        text-decoration: none;
+        font-size: 14px;
+        transition: background 0.1s;
+    }
+    .dropdown-item:hover {
+        background-color: #f3f4f6;
+        color: var(--accent);
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+
+    /* GRID PREKĖMS */
+    .grid { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:20px; justify-items:stretch; }
+    @media (max-width: 1080px) { .grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+    @media (max-width: 860px) { .grid { grid-template-columns: repeat(2, minmax(0,1fr)); } .hero { grid-template-columns: 1fr; } }
+    @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+
+    .card {
+      position:relative;
+      background: var(--card);
+      border:1px solid var(--border);
+      border-radius:20px;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      min-height: 440px;
+      box-shadow: 0 14px 32px rgba(0,0,0,0.08);
+      transition: transform .18s ease, box-shadow .2s ease, border-color .18s ease;
+    }
+    .card:hover { transform: translateY(-4px); border-color: rgba(124, 58, 237, 0.35); box-shadow: 0 22px 48px rgba(0,0,0,0.12); }
+    
+    .card-image-wrapper { position: relative; }
+    .card img { width:100%; height:210px; object-fit:cover; transition: transform .18s ease; display: block; }
+    .card:hover img { transform: scale(1.03); }
+    
+    .ribbon {
+      position:absolute;
+      top:12px; left:12px;
+      background: linear-gradient(135deg, #4338ca, #7c3aed);
+      color:#ffffff;
+      padding:6px 12px;
+      border-radius:8px;
+      font-weight:700;
+      font-size:12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 2;
+    }
+    
+    .gift-badge {
+        position: absolute; top: 12px; right: 12px;
+        background: rgba(255, 255, 255, 0.95);
+        color: #4338ca;
+        font-weight: 700;
+        font-size: 12px;
+        padding: 6px 12px;
+        border-radius: 99px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        z-index: 2;
+        display: flex; align-items: center; gap: 4px;
+        border: 1px solid #eef2ff;
+    }
+
+    .card__body { padding:18px; display:flex; flex-direction:column; gap:10px; flex:1; }
+    .badge { display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border-radius:999px; background: #f9fafb; color:#0f172a; font-size:12px; border:1px solid #e5e7eb; width: fit-content; }
+    
+    .card h3 { margin:2px 0 0; font-size:20px; letter-spacing:-0.01em; color:#0f172a; }
+    .card p { margin:0; color: var(--muted); line-height:1.5; }
+    .price-row { display:flex; justify-content: space-between; align-items:center; gap:10px; margin-top:auto; flex-wrap:wrap; }
+    .price { display:flex; flex-direction:column; gap:4px; }
+    .old { font-size:13px; color:#9ca3af; text-decoration:line-through; }
+    .current { font-size:22px; font-weight:800; letter-spacing:-0.02em; color:#111827; }
+
+    .form-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .qty { width:72px; padding:10px; border-radius:12px; border:1px solid var(--border); background: #f9fafb; color: #111827; }
+    .btn {
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:10px 14px; border-radius:12px; border:1px solid transparent;
+      background: linear-gradient(135deg, #4338ca, #7c3aed);
+      color:#ffffff; font-weight:700; cursor:pointer;
+      box-shadow: 0 14px 36px rgba(124,58,237,0.18);
+      transition: transform .16s ease, box-shadow .16s ease;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 18px 46px rgba(124,58,237,0.26); }
+    .heart-btn {
+      width:40px; height:40px; border-radius:12px; border:1px solid var(--border);
+      background: #f8fafc; color:#0f172a;
+      display:inline-flex; align-items:center; justify-content:center;
+      font-size:17px; cursor:pointer;
+      box-shadow: 0 10px 26px rgba(0,0,0,0.08);
+      transition: border-color .18s ease, transform .16s ease;
+    }
+    .heart-btn:hover { border-color: rgba(124,58,237,0.5); transform: translateY(-2px); }
+  </style>
+</head>
+<body>
+  <?php renderHeader($pdo, 'products'); ?>
+  <div class="page">
+
+    <section class="hero">
+      <div>
+        <div class="hero__pill">🛍️ Mūsų produktai</div>
+        <h1>Parduotuvė</h1>
+        <p>Čia galite rasti visus mūsų turimus produktus.</p>
+        <div class="hero-cta">
+          <a class="btn-large" href="/products.php">Visi produktai</a>
+          <a class="btn-large" href="/saved.php">Norų sąrašas</a>
+        </div>
+      </div>
+    </section>
+
+    <div class="filter-bar">
+        <form method="get" class="search-form" style="display: flex; gap: 10px; align-items: center; flex-grow: 1;">
+            <input type="text" name="query" placeholder="Ieškoti prekių pagal pavadinimą..." class="search-input" value="<?php echo htmlspecialchars($searchQuery ?? ''); ?>">
+            <?php if ($selectedSlug): ?>
+                <input type="hidden" name="category" value="<?php echo htmlspecialchars($selectedSlug); ?>">
             <?php endif; ?>
-        </div>
-      <?php endforeach; ?>
+            <button type="submit" class="btn" style="padding: 10px 14px; border-radius: 12px; background: #0b0b0b; color: #fff; border-color: #0b0b0b;">Ieškoti</button>
+            <?php if ($searchQuery || $selectedSlug): ?>
+                <a href="/products.php" class="btn secondary" style="padding: 10px 14px; border-radius: 12px; background:#fff; color:#0b0b0b; border:1px solid var(--border);">Valyti filtrus</a>
+            <?php endif; ?>
+        </form>
     </div>
 
-    <label>SEO žymės</label>
-    <input name="meta_tags" placeholder="Raktiniai žodžiai">
-    
-    <label>Susijusios prekės</label>
-    <select name="related_products[]" multiple size="4" style="width:100%; border:1px solid #d7d7e2; border-radius:8px;">
-      <?php foreach ($products as $p): ?>
-        <option value="<?php echo (int)$p['id']; ?>"><?php echo htmlspecialchars($p['title']); ?></option>
-      <?php endforeach; ?>
-    </select>
-    
-    <div class="card" style="margin-top:10px; padding:15px; border:1px solid #eee;">
-      <h4>Papildomi laukeliai</h4>
-      <div id="attrs-create-container">
-          <div class="attr-row" style="display:grid; grid-template-columns:1fr 2fr; gap:8px; margin-bottom:8px;">
-            <input name="attr_label[]" placeholder="Pavadinimas">
-            <div class="mini-editor" contenteditable="true" data-target="new-attr-0"></div>
-            <input type="hidden" name="attr_value[]" id="new-attr-0">
+    <div class="filter-bar">
+      <div class="filter-title">Kategorijos</div>
+      <div class="chips">
+        <a class="chip <?php echo !$selectedSlug ? 'active' : ''; ?>" href="/products.php<?php echo $searchQuery ? '?query=' . urlencode($searchQuery) : ''; ?>">Visos</a>
+        
+        <?php foreach ($catTree as $branch): ?>
+          <div class="chip-container">
+              <?php 
+                  $parentSlug = $branch['self']['slug'];
+                  $isActive = ($selectedSlug === $parentSlug);
+                  $queryPart = $searchQuery ? '&query=' . urlencode($searchQuery) : '';
+              ?>
+              <a class="chip <?php echo $isActive ? 'active' : ''; ?>" href="/products.php?category=<?php echo urlencode($parentSlug) . $queryPart; ?>">
+                  <?php echo htmlspecialchars($branch['self']['name']); ?>
+                  <?php if(!empty($branch['children'])): ?> ▾<?php endif; ?>
+              </a>
+              
+              <?php if (!empty($branch['children'])): ?>
+                <div class="dropdown-menu">
+                    <?php foreach ($branch['children'] as $child): ?>
+                        <?php 
+                            $childSlug = $child['slug'];
+                            $isChildActive = ($selectedSlug === $childSlug);
+                        ?>
+                        <a class="dropdown-item" href="/products.php?category=<?php echo urlencode($childSlug) . $queryPart; ?>" 
+                           style="<?php echo $isChildActive ? 'font-weight:bold; color:var(--accent);' : ''; ?>">
+                            <?php echo htmlspecialchars($child['name']); ?>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+              <?php endif; ?>
           </div>
+        <?php endforeach; ?>
       </div>
-      <button type="button" class="btn" onclick="addNewAttrRow()" style="background:#fff; border-color:#d7d7e2; color:#000;">+ Pridėti</button>
     </div>
 
-    <div class="card" style="margin-top:10px; padding:15px; border:1px solid #eee;">
-      <h4>Variacijos</h4>
-      <div id="vars-create">
-        <div class="input-row">
-            <input class="chip-input" name="variation_name[]" placeholder="Pavadinimas">
-            <input class="chip-input" name="variation_price[]" type="number" step="0.01" placeholder="Kainos pokytis">
+    <div class="grid" id="products">
+      <?php if (empty($products)): ?>
+        <div style="grid-column: 1 / -1; text-align:center; padding: 40px; color:#666;">
+            <h3>Prekių nerasta :(</h3>
+            <p>Pabandykite pakeisti filtrus arba paieškos frazę.</p>
         </div>
-      </div>
-      <button type="button" class="btn" onclick="addVarRow('vars-create')" style="background:#fff; border-color:#d7d7e2; color:#000;">+ Pridėti</button>
-    </div>
+      <?php endif; ?>
 
-    <label style="margin-top:10px;">Nuotraukos</label>
-    <input type="file" name="images[]" multiple accept="image/*">
-    <button class="btn" type="submit" style="margin-top:15px; width:100%;">Sukurti prekę</button>
-  </form>
-</div>
+      <?php foreach ($products as $product): $priceDisplay = buildPriceDisplay($product, $globalDiscount, $categoryDiscounts); $isGift = in_array((int)$product['id'], $freeShippingIds, true); ?>
+        <article class="card">
+          <?php $cardImage = $product['primary_image'] ?: $product['image_url']; ?>
+          
+          <div class="card-image-wrapper">
+              <?php if (!empty($product['ribbon_text'])): ?>
+                <div class="ribbon"><?php echo htmlspecialchars($product['ribbon_text']); ?></div>
+              <?php endif; ?>
 
-<div class="card" style="margin-top:18px;">
-  <h3>Prekių sąrašas</h3>
-  <table style="width:100%; border-collapse:collapse;">
-    <thead><tr style="border-bottom:2px solid #eee;"><th style="text-align:left; padding:8px;">Pavadinimas</th><th>Kateg.</th><th>Kaina</th><th>Vnt.</th><th></th></tr></thead>
-    <tbody>
-      <?php foreach ($products as $p): ?>
-        <tr style="border-bottom:1px solid #f0f0f0;">
-          <td style="padding:8px;"><?php echo htmlspecialchars($p['title']); ?></td>
-          <td style="color:#666;"><?php echo htmlspecialchars($p['category_name']??'-'); ?></td>
-          <td><?php echo number_format($p['sale_price']?:$p['price'], 2); ?> €</td>
-          <td><?php echo (int)$p['quantity']; ?></td>
-          <td style="text-align:right;">
-            <a class="btn" href="/product_edit.php?id=<?php echo $p['id']; ?>" style="font-size:12px; padding:4px 8px;">Redaguoti</a>
-            <form method="post" style="display:inline;" onsubmit="return confirm('Trinti?');">
+              <?php if ($isGift): ?>
+                <div class="gift-badge">
+                   <span>🎁</span> Nemokamas siuntimas
+                </div>
+              <?php endif; ?>
+
+              <a href="/product.php?id=<?php echo (int)$product['id']; ?>" aria-label="<?php echo htmlspecialchars($product['title']); ?>">
+                <img src="<?php echo htmlspecialchars($cardImage); ?>" alt="<?php echo htmlspecialchars($product['title']); ?>" loading="lazy">
+              </a>
+          </div>
+
+          <div class="card__body">
+            <span class="badge">
+              <span style="width:6px; height:6px; border-radius:50%; background: var(--accent);"></span>
+              <?php echo htmlspecialchars($product['category_name'] ?? ''); ?>
+            </span>
+            
+            <h3><a href="/product.php?id=<?php echo (int)$product['id']; ?>"><?php echo htmlspecialchars($product['title']); ?></a></h3>
+            <?php if (!empty($product['subtitle'])): ?><p style="color:#6b21a8;"><?php echo htmlspecialchars($product['subtitle']); ?></p><?php endif; ?>
+            <p><?php echo htmlspecialchars(mb_substr(strip_tags($product['description']), 0, 100)); ?><?php echo mb_strlen($product['description']) > 100 ? '…' : ''; ?></p>
+            <div class="price-row">
+              <div class="price">
+                <?php if ($priceDisplay['has_discount']): ?>
+                  <div class="old"><?php echo number_format($priceDisplay['original'], 2); ?> €</div>
+                <?php endif; ?>
+                <strong class="current"><?php echo number_format($priceDisplay['current'], 2); ?> €</strong>
+              </div>
+              <form method="post" class="form-row">
                 <?php echo csrfField(); ?>
-                <input type="hidden" name="action" value="delete_product">
-                <input type="hidden" name="id" value="<?php echo $p['id']; ?>">
-                <button class="btn" style="background:#fff; color:red; border-color:red; font-size:12px; padding:4px 8px;">Trinti</button>
-            </form>
-          </td>
-        </tr>
-      <?php endforeach; ?>
-    </tbody>
-  </table>
-  
-  <div style="margin-top:20px; border-top:1px solid #eee; padding-top:15px;">
-    <h4>Pagrindinio puslapio prekės</h4>
-    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-      <?php foreach ($fProds as $fp): ?>
-        <div style="border:1px solid #eee; padding:5px 10px; border-radius:8px; background:#f9f9ff; display:flex; gap:8px; align-items:center;">
-          <span><?php echo htmlspecialchars($fp['title']); ?></span>
-          <form method="post" style="margin:0;">
-            <?php echo csrfField(); ?><input type="hidden" name="action" value="featured_remove"><input type="hidden" name="remove_id" value="<?php echo $fp['id']; ?>">
-            <button class="btn" style="padding:2px 6px; font-size:10px; background:#fff; color:#000;">✕</button>
-          </form>
-        </div>
+                <input type="hidden" name="product_id" value="<?php echo (int)$product['id']; ?>">
+                <input class="qty" type="number" name="quantity" min="1" value="1">
+                <button class="btn" type="submit">Į krepšelį</button>
+                <button class="heart-btn" name="action" value="wishlist" type="submit" aria-label="Į norų sąrašą">♥</button>
+              </form>
+            </div>
+          </div>
+        </article>
       <?php endforeach; ?>
     </div>
-    <?php if(count($fProds)<3): ?>
-      <form method="post" style="margin-top:10px; display:flex; gap:5px;">
-        <?php echo csrfField(); ?><input type="hidden" name="action" value="featured_add">
-        <input name="featured_query" list="pl" placeholder="Prekės pavadinimas" style="flex:1;">
-        <datalist id="pl"><?php foreach($products as $p) echo "<option value='".htmlspecialchars($p['title'])."'>"; ?></datalist>
-        <button class="btn">Pridėti</button>
-      </form>
-    <?php endif; ?>
   </div>
-</div>
 
-<script>
-function format(c,v=null){document.execCommand(c,false,v);}
-function createLink(){const u=prompt('URL:');if(u)format('createLink',u);}
-function syncNewProductForm(){
-    document.getElementById('new-desc-textarea').value=document.getElementById('new-desc-editor').innerHTML;
-    document.querySelectorAll('#attrs-create-container .mini-editor').forEach(e=>{
-        const t=e.getAttribute('data-target'); if(t)document.getElementById(t).value=e.innerHTML;
-    });
-    return true;
-}
-function addNewAttrRow(){
-    const c=document.getElementById('attrs-create-container'), id='new-attr-'+Date.now(), d=document.createElement('div');
-    d.style.cssText="display:grid; grid-template-columns:1fr 2fr; gap:8px; margin-bottom:10px;";
-    d.innerHTML=`<input name="attr_label[]" placeholder="Pavadinimas"><div class="mini-editor" contenteditable="true" data-target="${id}"></div><input type="hidden" name="attr_value[]" id="${id}">`;
-    c.appendChild(d);
-}
-function addVarRow(id){
-    const c=document.getElementById(id), d=document.createElement('div'); d.className='input-row';
-    d.innerHTML=`<input class="chip-input" name="variation_name[]" placeholder="Pavadinimas"><input class="chip-input" name="variation_price[]" type="number" step="0.01" placeholder="Kainos pokytis">`;
-    c.appendChild(d);
-}
-</script>
+  <?php renderFooter($pdo); ?>
+</body>
+</html>
