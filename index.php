@@ -161,32 +161,58 @@ if ($heroMedia['type'] === 'image') {
 <!doctype html>
 <html lang="lt">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="generator" content="Hostinger Website Builder">
-<title>Cukrinukas.lt – diabeto priemonės ir žinios</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cukrinukas.lt – diabeto priemonės ir naujienos</title>
+
   <?php echo headerStyles($headerShadowIntensity ?? null); ?>
-<meta name="description" content="Cukrinukas.lt rasite gliukometrus, sensorius, juosteles, mažo GI užkandžius ir patarimus gyvenimui su diabetu.">
-<link rel="icon" href="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=48,h=48,fit=crop,f=png/YZ9VqrOVpxS49M9g/favicon-32x32-YbNvQ81bK5S5reOP.png">
-<link rel="apple-touch-icon" href="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=48,h=48,fit=crop,f=png/YZ9VqrOVpxS49M9g/favicon-32x32-YbNvQ81bK5S5reOP.png">
-<meta content="https://cukrinukas.lt/" property="og:url">
-<link rel="canonical" href="https://cukrinukas.lt/">
-<meta content="Cukrinukas.lt – diabeto priemonės ir žinios" property="og:title">
-<meta name="twitter:title" content="Cukrinukas.lt – diabeto priemonės ir žinios">
-<meta content="website" property="og:type">
-<meta property="og:description" content="Gliukometrų, sensorių ir subalansuotos mitybos priemonių parduotuvė su naujienomis apie diabetą.">
-<meta name="twitter:description" content="Gliukometrų, sensorių ir subalansuotos mitybos priemonių parduotuvė su naujienomis apie diabetą.">
-<meta property="og:site_name" content="cukrinukas.lt">
-<meta name="keywords" content="monetos, banknotai, numizmatika">
-<meta content="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=1200,h=630,fit=crop,f=jpeg/YZ9VqrOVpxS49M9g/logo-m2Wp732ga7FolMLe.png" property="og:image">
-<meta content="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=1200,h=630,fit=crop,f=jpeg/YZ9VqrOVpxS49M9g/logo-m2Wp732ga7FolMLe.png" name="twitter:image">
-<meta content="" property="og:image:alt">
-<meta content="" name="twitter:image:alt">
-<meta name="twitter:card" content="summary_large_image">
-<link rel="preconnect">
-<link rel="preconnect">
-<link rel="alternate" hreflang="x-default" href="https://cukrinukas.lt/">
-<link rel="stylesheet" href="/_astro-1733393565931/_slug_.DlClk9-n.css">
+
+  <meta name="description" content="Cukrinukas.lt rasite gliukometrus, sensorius, juosteles, mažo GI užkandžius ir patarimus gyvenimui su diabetu.">
+  <meta name="keywords" content="diabetas, gliukometrai, sensoriai, cukrinis diabetas, mityba, cukrinukas">
+
+  <link rel="icon" type="image/png" href="/uploads/icon-192.png">
+  <link rel="apple-touch-icon" href="/uploads/icon-192.png">
+  <link rel="canonical" href="https://cukrinukas.lt/">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#f7f7fb">
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://cukrinukas.lt/">
+  <meta property="og:title" content="Cukrinukas.lt – diabeto priemonės ir naujienos">
+  <meta property="og:description" content="Diabeto priemonių, sensorių apsaugų ir subalansuotos mitybos priemonių parduotuvė su naujienomis apie diabetą.">
+  <meta property="og:site_name" content="Cukrinukas.lt">
+  <meta property="og:image" content="https://cukrinukas.lt/uploads/icon-512.png">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Cukrinukas.lt – diabeto priemonės ir naujienos">
+  <meta name="twitter:description" content="Diabeto priemonių, sensorių apsaugų ir subalansuotos mitybos priemonių parduotuvė su naujienomis apie diabetą.">
+  <meta name="twitter:image" content="https://cukrinukas.lt/uploads/icon-512.png">
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(reg => console.log('Service Worker registruotas:', reg.scope))
+          .catch(err => console.log('Service Worker klaida:', err));
+      });
+    }
+
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    // Pakeiskite 'JUSU_PIXEL_ID' į savo tikrą Pixel ID, jei turite
+    fbq('init', 'JUSU_PIXEL_ID'); 
+    fbq('track', 'PageView');
+  </script>
+  <noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=JUSU_PIXEL_ID&ev=PageView&noscript=1"
+  /></noscript>
+    
 <style>
 :root {
   --color-primary: #0b0b0b;
@@ -438,6 +464,7 @@ img { max-width: 100%; display: block; }
 </style>
 
 </head>
+    
 <body>
   <?php renderHeader($pdo, 'home'); ?>
 
