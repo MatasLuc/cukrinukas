@@ -204,13 +204,12 @@ $meta = [
         <div class="info-grid">
           <?php if ($isFreeShippingGift): ?>
             <div class="info-card" style="display:flex; align-items:center; gap:8px; background:#f0fdf4; border-color:#bbf7d0; color:#166534;">
-              <span class="badge gift">🎁 Nemokamas pristatymas</span>
-              <span>Įsidėkite šią prekę ir gausite pristatymą dovanų.</span>
+              <span>🎁Pirkite šią prekę ir gausite nemokamą viso užsakymo pristatymą dovanų.</span>
             </div>
           <?php endif; ?>
           <div class="info-card">🚚 Pristatymas 1–3 darbo dienos</div>
           <div class="info-card">🔄 14 dienų grąžinimo garantija</div>
-          <div class="info-card">💬 Asmeninė konsultacija</div>
+          <div class="info-card">💬 Turite klausimų? Drąsiai rašykite labas@cukrinukas.lt</div>
         </div>
       </div>
     </div>
