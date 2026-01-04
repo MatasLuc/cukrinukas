@@ -60,21 +60,26 @@ $meta = [
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <?php echo headerStyles(); ?>
   <style>
+    /* Violetinė/Indigo paletė (kaip news.php) */
     :root { --color-bg: #f7f7fb; --color-primary: #0b0b0b; --pill:#f0f2ff; --border:#e4e6f0; }
     * { box-sizing: border-box; }
     a { color:inherit; text-decoration:none; }
     body { background: var(--color-bg); }
     .shell { max-width:1080px; margin:32px auto 64px; padding:0 20px; display:flex; flex-direction:column; gap:18px; }
     
-    .hero { background:linear-gradient(135deg,#ffffff 0%,#f0fdf4 100%); border:1px solid var(--border); border-radius:20px; box-shadow:0 16px 40px rgba(0,0,0,0.06); padding:22px; display:flex; flex-direction:column; gap:12px; }
+    /* Hero fonas pakeistas iš žalio į melsvą/violetinį */
+    .hero { background:linear-gradient(135deg,#ffffff 0%,#eef0ff 100%); border:1px solid var(--border); border-radius:20px; box-shadow:0 16px 40px rgba(0,0,0,0.06); padding:22px; display:flex; flex-direction:column; gap:12px; }
     .crumb { display:flex; align-items:center; gap:10px; color:#6b6b7a; font-size:14px; }
     .meta { display:flex; align-items:center; gap:10px; color:#6b6b7a; font-size:14px; flex-wrap:wrap; }
     
     .badge { padding:6px 12px; border-radius:999px; background:var(--pill); border:1px solid var(--border); font-weight:600; font-size:13px; color:#2b2f4c; }
-    .badge-cat { background:#dcfce7; border-color:#bbf7d0; color:#166534; text-decoration:none; transition:0.2s; }
-    .badge-cat:hover { background:#bbf7d0; }
     
-    .heart-btn { width:44px; height:44px; border-radius:14px; border:1px solid var(--border); background:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; box-shadow:0 10px 22px rgba(0,0,0,0.08); }
+    /* Kategorijų stilius suderintas su news.php */
+    .badge-cat { background:#f0f7ff; border-color:#dbeafe; color:#1e40af; text-decoration:none; transition:0.2s; }
+    .badge-cat:hover { background:#dbeafe; }
+    
+    .heart-btn { width:44px; height:44px; border-radius:14px; border:1px solid var(--border); background:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; box-shadow:0 10px 22px rgba(0,0,0,0.08); transition: transform .16s ease, border-color .18s ease; }
+    .heart-btn:hover { border-color: rgba(124,58,237,0.55); transform: translateY(-2px); }
     
     .media { overflow:hidden; border-radius:18px; border:1px solid var(--border); background:#fff; box-shadow:0 16px 38px rgba(0,0,0,0.06); }
     .media img { width:100%; object-fit:cover; max-height:460px; display:block; }
