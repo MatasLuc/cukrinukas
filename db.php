@@ -194,31 +194,55 @@ function ensureSystemUser(PDO $pdo): int {
     return (int)$pdo->lastInsertId();
 }
 
+// Raskite funkciją ensureNewsTable ir pakeiskite ją bei pridėkite naują funkciją:
+
+function ensureNewsCategoriesTable(PDO $pdo): void {
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS news_categories (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            slug VARCHAR(120) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+    );
+}
+
 function ensureNewsTable(PDO $pdo): void {
+    ensureNewsCategoriesTable($pdo); // Užtikriname, kad kategorijų lentelė egzistuoja
+
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS news (
             id INT AUTO_INCREMENT PRIMARY KEY,
+            category_id INT NULL,
             title VARCHAR(200) NOT NULL,
             summary TEXT NULL,
+            author VARCHAR(100) DEFAULT NULL,
             image_url VARCHAR(500) NOT NULL,
             body TEXT NOT NULL,
             visibility ENUM("public","members") NOT NULL DEFAULT "public",
             is_featured TINYINT(1) NOT NULL DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (category_id) REFERENCES news_categories(id) ON DELETE SET NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
 
     $columns = $pdo->query("SHOW COLUMNS FROM news")->fetchAll(PDO::FETCH_COLUMN);
     
+    // Egzistuojančių stulpelių patikra (kaip buvo anksčiau)
     if (!in_array('summary', $columns, true)) {
         $pdo->exec('ALTER TABLE news ADD COLUMN summary TEXT NULL AFTER title');
     }
     if (!in_array('visibility', $columns, true)) {
         $pdo->exec('ALTER TABLE news ADD COLUMN visibility ENUM("public","members") NOT NULL DEFAULT "public" AFTER body');
     }
-    // NAUJA: Pridedame autoriaus stulpelį, jei jo nėra
     if (!in_array('author', $columns, true)) {
         $pdo->exec('ALTER TABLE news ADD COLUMN author VARCHAR(100) DEFAULT NULL AFTER summary');
+    }
+    
+    // NAUJA: Pridedame category_id, jei nėra
+    if (!in_array('category_id', $columns, true)) {
+        $pdo->exec('ALTER TABLE news ADD COLUMN category_id INT NULL AFTER id');
+        $pdo->exec('ALTER TABLE news ADD CONSTRAINT fk_news_category FOREIGN KEY (category_id) REFERENCES news_categories(id) ON DELETE SET NULL');
     }
 }
 
