@@ -1,68 +1,94 @@
-# Cukrinukas – Projekto Būsena ir Vystymo Planas
+# Cukrinukas – E-komercijos ir Bendruomenės Platforma
 
-Šiame dokumente pateikiama išsami projekto apžvalga: kas jau yra įgyvendinta (testavimui) ir kas dar planuojama (vystymui).
+**Cukrinukas** yra specializuota internetinė parduotuvė ir bendruomenės platforma, sukurta naudojant „gryną“ (native) **PHP**, orientuota į desertus, sveiką mitybą bei diabetui draugiškus produktus. Projektas apjungia elektroninę prekybą, receptų dalinimąsi ir vartotojų bendruomenę.
 
 ---
 
-## ✅ 1. Atlikti Darbai (Ready for Testing)
-Šios funkcijos jau yra įdiegtos kode. Prašome patikrinti jų veikimą.
+## 🚀 Pagrindinis Funkcionalumas
+
+### 🛒 El. Parduotuvė (`products.php`, `cart.php`, `checkout.php`)
+Pilnai veikianti e-komercijos sistema:
+- **Prekių katalogas:** Filtravimas pagal kategorijas, paieška realiu laiku, „Lazy Loading“ nuotraukoms.
+- **Prekės kortelė:** Išsamus aprašymas, nuotraukų galerija, susijusios prekės, likučių atvaizdavimas.
+- **Krepšelis ir Pirkimas:**
+  - Prekių krepšelio valdymas (kiekio keitimas, šalinimas).
+  - Integruotas **Paysera (libwebtopay)** mokėjimų modulis.
+  - Užsakymų istorija ir statusų sekimas vartotojo paskyroje (`orders.php`).
+- **Norų sąrašas (Wishlist):** Galimybė išsaugoti patikusias prekes vėlesniam laikui (`saved.php`).
+- **Nuolaidų sistema:** Globalios nuolaidos ir kategorijų nuolaidos, valdomos per admin panelę.
+
+### 🍽️ Receptų Sistema (`recipes.php`, `recipe_view.php`)
+Turinio kūrimo ir dalinimosi modulis:
+- **Receptų katalogas:** Vizualus receptų sąrašas su "Naujiena" žymomis.
+- **Struktūruoti duomenys:** Automatinis **Schema.org/Recipe** generavimas (Google Rich Snippets).
+- **Interakcijos:** Vartotojai gali išsisaugoti receptus į savo paskyrą (Mėgstamiausi).
+- **Kūrimas:** Galimybė kurti ir redaguoti receptus (Admin/Moderatoriams).
+
+### 👥 Bendruomenė ir Turgelis (`community.php`)
+Erdvė narių bendravimui:
+- **Diskusijos:** Forumo tipo susirašinėjimas įvairiomis temomis (`community_discussions.php`).
+- **Turgelis:** Vartotojų tarpusavio prekybos/mainų skelbimų lenta (`community_market.php`).
+- **Saugumas:** Taisyklės ir moderavimo įrankiai netinkamo turinio kontrolei.
+
+### 🔐 Vartotojų Sistema
+- **Autentifikacija:** Registracija, prisijungimas, slaptažodžio atkūrimas (`forgot_password.php`).
+- **Paskyra:** Vartotojo profilio valdymas, užsakymų istorija, išsaugoti receptai ir prekės.
+- **Rolės:** Administratoriaus ir paprasto vartotojo teisės (`security.php`).
+
+---
+
+## 🛠️ Techniniai Sprendimai ir SEO
 
 ### 🔍 SEO Optimizacija
-- [x] **Dinaminiai Meta Tagai:** - `layout.php` automatiškai generuoja `<title>`, `description` pagal puslapio turinį.
-  - Įdiegti **Open Graph** (Facebook) ir **Twitter Card** tagai gražiam dalinimuisi socialiniuose tinkluose.
-- [x] **Struktūruoti duomenys (Schema.org):**
-  - `product.php`: Google supranta prekės kainą, valiutą ir likutį.
-  - `recipe_view.php`: Google supranta recepto autorių, pavadinimą ir datą.
-- [x] **Techninis SEO:**
-  - Sukurtas dinaminis `sitemap.php` (XML žemėlapis paieškos sistemoms).
-  - Sukurtas `.htaccess` failas „draugiškoms“ nuorodoms (pvz., `/produktas/pavadinimas-123`).
-  - Įjungtas **Lazy Loading** nuotraukoms kataloge (`products.php`) ir prekės puslapyje.
-  - Išplėsta „Breadcrumbs“ navigacija prekės puslapyje.
+Projektas yra stipriai optimizuotas paieškos sistemoms:
+- **Friendly URLs:** Naudojamas `.htaccess` gražioms nuorodoms (pvz., `/produktas/pavadinimas`).
+- **Dinaminiai Meta Tagai:** Automatiškai generuojami `<title>`, `description` ir **Open Graph** (Facebook/Twitter) duomenys `layout.php`.
+- **Sitemap:** Automatiškai generuojamas `sitemap.php` XML formatu.
+- **Greitaveika:** Optimizuotas paveikslėlių krovimas ir CSS/JS minimizavimas.
 
-### 📊 Facebook Pixel Integracija
-- [x] **Base Code:** Įdėtas į `layout.php` (veikia visuose puslapiuose).
-- [x] **Įvykių sekimas (Standard Events):**
-  - `PageView`: Visi puslapiai.
-  - `ViewContent`: Atidarius konkrečią prekę (`product.php`).
-  - `AddToCart`: Paspaudus mygtuką „Į krepšelį“ (`product.php`).
-  - `InitiateCheckout`: Paspaudus „Apmokėti“ krepšelyje (`cart.php`).
-  - `Purchase`: Sėkmingai grįžus iš banko (`orders.php`).
+### 📱 PWA (Progressive Web App)
+Svetainė pritaikyta veikimui mobiliuosiuose įrenginiuose ir offline režimu:
+- **Manifest:** `manifest.json` leidžia įdiegti svetainę kaip programėlę į telefoną.
+- **Service Worker:** `service-worker.js` kešuoja pagrindinius failus (CSS, JS, Fonts) ir užtikrina veikimą be interneto (rodomas `offline.php`).
+
+### ⚙️ Administravimas (`/admin`)
+Išsamus valdymo pultas savininkui:
+- **Dashboard:** Pardavimų statistika, naujausi užsakymai, vartotojų skaičius (`hero_stats.php`).
+- **Turinio valdymas:** Prekių, kategorijų, receptų, naujienų ir DUK redagavimas.
+- **Užsakymų valdymas:** Statusų keitimas, sąskaitų peržiūra.
+- **Nustatymai:** Dizaino, meniu ir pristatymo būdų konfigūracija.
+
+### 💻 Naudojamos Technologijos
+- **Backend:** PHP 8+ (PDO Database Connection).
+- **Database:** MySQL / MariaDB.
+- **Frontend:** HTML5, CSS3 (Custom Variables + Flexbox/Grid), Vanilla JS.
+- **Libraries:**
+  - `PHPMailer` – laiškų siuntimui.
+  - `libwebtopay` – Paysera mokėjimų integracijai.
 
 ---
 
-## 🚧 2. Planuojami Darbai (To-Do List)
+## 📂 Projekto Struktūra
 
-### 🚨 Skubūs Taisymai (Critical)
-- [ ] **Apmokėjimo sistema:** Peržiūrėti `checkout.php` ir `libwebtopay` logiką – užtikrinti sklandų mokėjimo iniciavimą ir statusų atnaujinimą.
+/ ├── admin/ # Administratoriaus valdymo pulto failai ├── lib/ # Išorinės bibliotekos (PHPMailer) ├── libwebtopay/ # Mokėjimų sistemos biblioteka ├── uploads/ # Vartotojų ir prekių nuotraukos ├── .htaccess # Maršrutizavimo taisyklės ├── db.php # Duomenų bazės prisijungimas ├── layout.php # Pagrindinis šablonas (Header/Footer/SEO) ├── service-worker.js # PWA funkcionalumas ├── index.php # Pagrindinis puslapis ├── products.php # Parduotuvės katalogas ├── recipes.php # Receptų katalogas └── ... (kiti failai)
 
-### 🎨 Vartotojo Patirtis (UX/UI)
-- [ ] **AJAX veiksmai (Be perkrovimo):**
-    - Prekių įdėjimas į krepšelį.
-    - „Norų sąrašo“ (Wishlist) paspaudimas.
-    - Dinaminis krepšelio skaičiuko atnaujinimas header'yje.
-- [ ] **Nemokamo pristatymo juosta:** Krepšelyje atvaizduoti „Progress Bar“, rodantį, kiek eurų trūksta iki nemokamo pristatymo.
-- [ ] **Likučių atvaizdavimas:** Prekės kortelėje rodyti įspėjimą (pvz., raudona spalva), kai likutis yra mažas (pvz., < 5 vnt.).
-- [ ] **PWA (Progressive Web App):** Pritaikyti svetainę diegimui į telefonus (manifest.json, service workers) veikimui offline.
 
-### 🛒 Parduotuvės Funkcionalumas
-- [ ] **Svečio pirkimas:** Leisti pirkti be privalomos registracijos (Guest Checkout).
-- [ ] **Atsiliepimų sistema:** Sukurti DB lentelę ir formą vertinimams žvaigždutėmis bei komentarams.
-- [ ] **Lojalumo sistema („Cukrinukai“):** Kaupiamieji taškai už pirkinius/veiksmus ir jų panaudojimas nuolaidoms.
-- [ ] **Dovanų kuponai:** Galimybė įsigyti ir panaudoti elektroninius dovanų kuponus.
+---
 
-### 👥 Bendruomenė ir Turgelis
-- [ ] **Turinio moderavimas:** Mygtukas „Pranešti“ (Report) netinkamam turiniui.
-- [ ] **Kategorija „Dovanoju“:** Turgelyje atskiras filtras prekėms, kurių kaina 0.00 €.
-- [ ] **Narių reputacija:** Reitingavimo sistema po sėkmingų sandorių.
-- [ ] **Privačios žinutės (Live):** `messages.php` atnaujinimas realiu laiku (AJAX/WebSocket).
+## ✅ Įgyvendinimo Būsena (Status)
 
-### 🩸 Skaitmeniniai Įrankiai Diabetui
-- [ ] **Angliavandenių skaičiuoklė:** Įrankis AV (angliavandenių vienetų) skaičiavimui pagal produkto svorį.
-- [ ] **Glikemijos dienoraštis:** Vartotojo paskyros skiltis rodiklių sekimui ir grafikai.
+### Atlikta (Ready)
+- [x] Pilna el. parduotuvės logika (Prekės, Krepšelis, Užsakymai).
+- [x] Paysera mokėjimų integracija (`libwebtopay`).
+- [x] SEO optimizacija (Schema.org, Meta tags, Sitemap).
+- [x] PWA bazinis funkcionalumas (Installable, Offline page).
+- [x] Vartotojų registracija ir profiliai.
+- [x] Receptų sistema su išsaugojimo funkcija.
+- [x] Admin panelė su statistika ir turinio valdymu.
+- [x] Bendruomenės (Community) puslapiai.
 
-### 🛠️ Administravimas
-- [ ] **Likučių ataskaita:** Admin skydelyje lentelė „Prekės, kurios baigiasi“.
-- [ ] **Masinis nuotraukų įkėlimas:** Drag & Drop zona prekių redagavime (`product_edit.php`).
-
-### 🔐 Autentifikacija
-- [ ] **Socialinis prisijungimas:** Google ir Facebook (OAuth) integracija.
+### Planuojama (To-Do / Improvements)
+- [ ] **AJAX krepšelis:** Prekių įdėjimas be puslapio perkrovimo.
+- [ ] **Live Chat:** Žinučių sistema tarp vartotojų (`messages.php` WebSocket).
+- [ ] **Diabeto įrankiai:** Angliavandenių skaičiuoklė (Frontend dalis).
+- [ ] **Guest Checkout:** Pirkimas be registracijos.
