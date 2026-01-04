@@ -10,20 +10,59 @@ ensureProductsTable($pdo);
 ensureCartTables($pdo);
 ensureSavedContentTables($pdo);
 ensureAdminAccount($pdo);
+
+// Užtikriname, kad egzistuoja ryšių lentelė (jei netyčia nebūtų)
+$pdo->exec("CREATE TABLE IF NOT EXISTS product_category_relations (
+    product_id INT NOT NULL,
+    category_id INT NOT NULL,
+    PRIMARY KEY (product_id, category_id)
+)");
+
 $globalDiscount = getGlobalDiscount($pdo);
 $categoryDiscounts = getCategoryDiscounts($pdo);
 $freeShippingIds = getFreeShippingProductIds($pdo);
 
 $selectedSlug = $_GET['category'] ?? null;
 $searchQuery = $_GET['query'] ?? null;
-$categories = $pdo->query('SELECT id, name, slug FROM categories ORDER BY name ASC')->fetchAll();
 
+// 1. KATEGORIJŲ MEDŽIO SUDARYMAS
+$allCats = $pdo->query('SELECT id, name, slug, parent_id FROM categories ORDER BY parent_id ASC, name ASC')->fetchAll();
+$catTree = [];
+// Pirmiausia sudedame tėvines
+foreach ($allCats as $c) {
+    if (empty($c['parent_id'])) {
+        $catTree[$c['id']]['self'] = $c;
+        $catTree[$c['id']]['children'] = [];
+    }
+}
+// Tada sudedame vaikus
+foreach ($allCats as $c) {
+    if (!empty($c['parent_id']) && isset($catTree[$c['parent_id']])) {
+        $catTree[$c['parent_id']]['children'][] = $c;
+    }
+}
+
+// 2. FILTRAVIMO LOGIKA
 $params = [];
 $whereClauses = [];
 
+// Jei pasirinkta kategorija (pagal slug)
 if ($selectedSlug) {
-    $whereClauses[] = 'c.slug = ?';
-    $params[] = $selectedSlug;
+    // Pirmiausia gauname kategorijos ID pagal slug
+    $stmtCat = $pdo->prepare("SELECT id FROM categories WHERE slug = ?");
+    $stmtCat->execute([$selectedSlug]);
+    $catId = $stmtCat->fetchColumn();
+
+    if ($catId) {
+        // Filtruojame prekes, kurios turi šį ID kaip pagrindinį ARBA yra ryšių lentelėje
+        // Taip veiks ir pasirinkus subkategoriją
+        $whereClauses[] = '(p.category_id = ? OR p.id IN (SELECT product_id FROM product_category_relations WHERE category_id = ?))';
+        $params[] = $catId;
+        $params[] = $catId;
+    } else {
+        // Jei slug neteisingas, nieko nerodome (arba galima ignoruoti)
+        $whereClauses[] = '1=0'; 
+    }
 }
 
 if ($searchQuery) {
@@ -33,6 +72,9 @@ if ($searchQuery) {
 
 $where = $whereClauses ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
 
+// Pagrindinė prekių užklausa
+// Pastaba: Paliekame LEFT JOIN categories tik dėl atvaizdavimo (primary category name),
+// bet filtravimui naudojame aukščiau aprašytą logiką.
 $stmt = $pdo->prepare(
     'SELECT p.*, c.name AS category_name, c.slug AS category_slug,
         (SELECT path FROM product_images WHERE product_id = p.id AND is_primary = 1 ORDER BY id DESC LIMIT 1) AS primary_image
@@ -46,6 +88,7 @@ $products = $stmt->fetchAll();
 
 $cartData = getCartData($pdo, $_SESSION['cart'] ?? [], $_SESSION['cart_variations'] ?? []);
 
+// Krepšelio / Norų sąrašo veiksmai
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     validateCsrfToken();
     $pid = (int) $_POST['product_id'];
@@ -93,17 +136,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     }
     a { color:inherit; text-decoration:none; }
 
-    /* Atnaujintas puslapio išdėstymas (Grid) - identiškas news.php */
     .page { 
       max-width: 1200px; 
       margin: 0 auto; 
-      padding: 32px 20px 72px; /* Padidintas bottom padding kaip news.php */
+      padding: 32px 20px 72px; 
       display: grid; 
-      gap: 28px; /* Vienodas tarpas visiems elementams */
+      gap: 28px; 
     }
 
     .hero {
-      /* margin-top pašalintas, tarpus valdo .page grid */
       padding: 26px 26px 30px;
       border-radius: 28px;
       background: linear-gradient(135deg, #eef2ff, #e0f2fe);
@@ -135,9 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
         letter-spacing: -0.02em; 
         color: #0f172a; 
     }
-    
     .hero p { margin: 0; color: var(--muted); line-height: 1.6; }
-    
     .hero-cta { margin-top: 14px; display:flex; gap:10px; flex-wrap:wrap; }
     
     .btn-large {
@@ -163,7 +202,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
       box-shadow: 0 6px 16px rgba(67, 56, 202, 0.12);
     }
 
-    /* .filter-bar marginai pašalinti, nes tarpus valdo grid */
+    /* FILTRAVIMAS IR PAIEŠKA */
     .filter-bar {
       display:flex;
       justify-content: space-between;
@@ -171,19 +210,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
       gap:16px;
       flex-wrap: wrap;
     }
-    
     .filter-title { font-size: 18px; letter-spacing: 0.01em; color: #111827; }
-    .chips { display:flex; flex-wrap:wrap; gap:12px; }
-    .chip {
-      padding:10px 14px;
-      border-radius:12px;
-      background: #fff;
-      border:1px solid var(--border);
-      font-weight:600;
-      color: var(--muted);
-      transition: all .18s ease;
-    }
-    .chip:hover, .chip:focus-visible { border-color: rgba(124, 58, 237, 0.45); color: #111827; box-shadow: 0 10px 26px rgba(0,0,0,0.08); }
+    
     .search-input {
       flex-grow: 1;
       padding: 10px 14px;
@@ -195,11 +223,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
       box-shadow: 0 4px 10px rgba(0,0,0,0.04);
       transition: all .18s ease;
     }
-    .search-input:focus {
-      border-color: rgba(124, 58, 237, 0.45);
-      outline: none;
-    }
+    .search-input:focus { border-color: rgba(124, 58, 237, 0.45); outline: none; }
 
+    /* DROPDOWN STILIAI KATEGORIJOMS */
+    .chips { display:flex; flex-wrap:wrap; gap:12px; }
+    
+    .chip-container {
+        position: relative;
+        display: inline-block;
+    }
+    .chip {
+      display: inline-block;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: #fff;
+      border: 1px solid var(--border);
+      font-weight: 600;
+      color: var(--muted);
+      transition: all .18s ease;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .chip:hover, .chip.active {
+      border-color: rgba(124, 58, 237, 0.45);
+      color: #111827;
+      box-shadow: 0 10px 26px rgba(0,0,0,0.08);
+      background: #fbfbff;
+    }
+    
+    /* Išskleidžiamas meniu */
+    .dropdown-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        background-color: #fff;
+        min-width: 180px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+        z-index: 100;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        padding: 8px 0;
+        margin-top: 4px;
+        animation: fadeIn 0.2s ease;
+    }
+    .chip-container:hover .dropdown-menu {
+        display: block;
+    }
+    .dropdown-item {
+        display: block;
+        padding: 8px 16px;
+        color: var(--text);
+        text-decoration: none;
+        font-size: 14px;
+        transition: background 0.1s;
+    }
+    .dropdown-item:hover {
+        background-color: #f3f4f6;
+        color: var(--accent);
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+
+    /* GRID PREKĖMS */
     .grid { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:20px; justify-items:stretch; }
     @media (max-width: 1080px) { .grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
     @media (max-width: 860px) { .grid { grid-template-columns: repeat(2, minmax(0,1fr)); } .hero { grid-template-columns: 1fr; } }
@@ -225,8 +311,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     
     .ribbon {
       position:absolute;
-      top:12px;
-      left:12px;
+      top:12px; left:12px;
       background: linear-gradient(135deg, #4338ca, #7c3aed);
       color:#ffffff;
       padding:6px 12px;
@@ -238,9 +323,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     }
     
     .gift-badge {
-        position: absolute;
-        top: 12px;
-        right: 12px;
+        position: absolute; top: 12px; right: 12px;
         background: rgba(255, 255, 255, 0.95);
         color: #4338ca;
         font-weight: 700;
@@ -249,9 +332,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
         border-radius: 99px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         z-index: 2;
-        display: flex;
-        align-items: center;
-        gap: 4px;
+        display: flex; align-items: center; gap: 4px;
         border: 1px solid #eef2ff;
     }
 
@@ -268,32 +349,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     .form-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
     .qty { width:72px; padding:10px; border-radius:12px; border:1px solid var(--border); background: #f9fafb; color: #111827; }
     .btn {
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      padding:10px 14px;
-      border-radius:12px;
-      border:1px solid transparent;
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:10px 14px; border-radius:12px; border:1px solid transparent;
       background: linear-gradient(135deg, #4338ca, #7c3aed);
-      color:#ffffff;
-      font-weight:700;
-      cursor:pointer;
+      color:#ffffff; font-weight:700; cursor:pointer;
       box-shadow: 0 14px 36px rgba(124,58,237,0.18);
       transition: transform .16s ease, box-shadow .16s ease;
     }
     .btn:hover { transform: translateY(-2px); box-shadow: 0 18px 46px rgba(124,58,237,0.26); }
     .heart-btn {
-      width:40px;
-      height:40px;
-      border-radius:12px;
-      border:1px solid var(--border);
-      background: #f8fafc;
-      color:#0f172a;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      font-size:17px;
-      cursor:pointer;
+      width:40px; height:40px; border-radius:12px; border:1px solid var(--border);
+      background: #f8fafc; color:#0f172a;
+      display:inline-flex; align-items:center; justify-content:center;
+      font-size:17px; cursor:pointer;
       box-shadow: 0 10px 26px rgba(0,0,0,0.08);
       transition: border-color .18s ease, transform .16s ease;
     }
@@ -310,7 +378,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
         <h1>Parduotuvė</h1>
         <p>Čia galite rasti visus mūsų turimus produktus.</p>
         <div class="hero-cta">
-          <a class="btn-large" href="#products">Visi produktai</a>
+          <a class="btn-large" href="/products.php">Visi produktai</a>
           <a class="btn-large" href="/saved.php">Norų sąrašas</a>
         </div>
       </div>
@@ -332,14 +400,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     <div class="filter-bar">
       <div class="filter-title">Kategorijos</div>
       <div class="chips">
-        <a class="chip" href="/products.php<?php echo $searchQuery ? '?query=' . urlencode($searchQuery) : ''; ?>">Visos</a>
-        <?php foreach ($categories as $cat): ?>
-          <a class="chip" href="/products.php?category=<?php echo urlencode($cat['slug']); ?><?php echo $searchQuery ? '&query=' . urlencode($searchQuery) : ''; ?>"><?php echo htmlspecialchars($cat['name']); ?></a>
+        <a class="chip <?php echo !$selectedSlug ? 'active' : ''; ?>" href="/products.php<?php echo $searchQuery ? '?query=' . urlencode($searchQuery) : ''; ?>">Visos</a>
+        
+        <?php foreach ($catTree as $branch): ?>
+          <div class="chip-container">
+              <?php 
+                  $parentSlug = $branch['self']['slug'];
+                  $isActive = ($selectedSlug === $parentSlug);
+                  $queryPart = $searchQuery ? '&query=' . urlencode($searchQuery) : '';
+              ?>
+              <a class="chip <?php echo $isActive ? 'active' : ''; ?>" href="/products.php?category=<?php echo urlencode($parentSlug) . $queryPart; ?>">
+                  <?php echo htmlspecialchars($branch['self']['name']); ?>
+                  <?php if(!empty($branch['children'])): ?> ▾<?php endif; ?>
+              </a>
+              
+              <?php if (!empty($branch['children'])): ?>
+                <div class="dropdown-menu">
+                    <?php foreach ($branch['children'] as $child): ?>
+                        <?php 
+                            $childSlug = $child['slug'];
+                            $isChildActive = ($selectedSlug === $childSlug);
+                        ?>
+                        <a class="dropdown-item" href="/products.php?category=<?php echo urlencode($childSlug) . $queryPart; ?>" 
+                           style="<?php echo $isChildActive ? 'font-weight:bold; color:var(--accent);' : ''; ?>">
+                            <?php echo htmlspecialchars($child['name']); ?>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+              <?php endif; ?>
+          </div>
         <?php endforeach; ?>
       </div>
     </div>
 
     <div class="grid" id="products">
+      <?php if (empty($products)): ?>
+        <div style="grid-column: 1 / -1; text-align:center; padding: 40px; color:#666;">
+            <h3>Prekių nerasta :(</h3>
+            <p>Pabandykite pakeisti filtrus arba paieškos frazę.</p>
+        </div>
+      <?php endif; ?>
+
       <?php foreach ($products as $product): $priceDisplay = buildPriceDisplay($product, $globalDiscount, $categoryDiscounts); $isGift = in_array((int)$product['id'], $freeShippingIds, true); ?>
         <article class="card">
           <?php $cardImage = $product['primary_image'] ?: $product['image_url']; ?>
@@ -368,7 +469,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
             
             <h3><a href="/product.php?id=<?php echo (int)$product['id']; ?>"><?php echo htmlspecialchars($product['title']); ?></a></h3>
             <?php if (!empty($product['subtitle'])): ?><p style="color:#6b21a8;"><?php echo htmlspecialchars($product['subtitle']); ?></p><?php endif; ?>
-            <p><?php echo htmlspecialchars(mb_substr($product['description'], 0, 120)); ?><?php echo mb_strlen($product['description']) > 120 ? '…' : ''; ?></p>
+            <p><?php echo htmlspecialchars(mb_substr(strip_tags($product['description']), 0, 100)); ?><?php echo mb_strlen($product['description']) > 100 ? '…' : ''; ?></p>
             <div class="price-row">
               <div class="price">
                 <?php if ($priceDisplay['has_discount']): ?>
@@ -378,7 +479,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
               </div>
               <form method="post" class="form-row">
                 <?php echo csrfField(); ?>
-<input type="hidden" name="product_id" value="<?php echo (int)$product['id']; ?>">
+                <input type="hidden" name="product_id" value="<?php echo (int)$product['id']; ?>">
                 <input class="qty" type="number" name="quantity" min="1" value="1">
                 <button class="btn" type="submit">Į krepšelį</button>
                 <button class="heart-btn" name="action" value="wishlist" type="submit" aria-label="Į norų sąrašą">♥</button>
