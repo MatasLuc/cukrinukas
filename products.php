@@ -95,7 +95,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
 
     .page { max-width:1200px; margin:0 auto; padding:32px 20px 56px; }
 
-    /* Hero sekcija suvienodinta su news.php ir recipes.php */
     .hero {
       margin-top: 12px;
       padding: 24px 22px;
@@ -112,19 +111,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     .hero p { margin: 0; color: var(--muted); line-height: 1.6; }
     
     .hero-cta { margin-top: 14px; display:flex; gap:10px; flex-wrap:wrap; }
-    .ghost { border:1px solid #c7d2fe; color:#4338ca; background:transparent; }
+    
+    /* Atnaujinti mygtukai - lengvesnis stilius */
     .btn-large {
-      padding: 12px 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 11px 24px;
       border-radius: 12px;
-      border:none;
-      background: linear-gradient(135deg, #4338ca, #7c3aed);
-      color: #fff;
-      font-weight: 700;
+      border: 1px solid #4338ca; /* Indigo */
+      background: transparent;
+      color: #4338ca;
+      font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 16px 44px rgba(124, 58, 237, 0.25);
-      transition: transform .18s ease, box-shadow .18s ease;
+      text-decoration: none;
+      transition: all .2s ease;
+      box-shadow: none;
     }
-    .btn-large:hover { transform: translateY(-1px); box-shadow: 0 18px 60px rgba(67, 56, 202, 0.35); }
+    .btn-large:hover {
+      background: #4338ca;
+      color: #ffffff;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(67, 56, 202, 0.2);
+    }
+
+    .ghost {
+      border-color: #94a3b8; /* Slate 400 - neutralus rėmelis */
+      color: #475467; /* Slate 600 - neutralus tekstas */
+    }
+    .ghost:hover {
+      background: transparent;
+      border-color: #4338ca;
+      color: #4338ca;
+      box-shadow: 0 4px 12px rgba(67, 56, 202, 0.1);
+    }
 
     .filter-bar {
       display:flex;
@@ -187,7 +207,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     .card img { width:100%; height:210px; object-fit:cover; transition: transform .18s ease; display: block; }
     .card:hover img { transform: scale(1.03); }
     
-    /* Atnaujinta juostelė (violetinė) */
     .ribbon {
       position:absolute;
       top:12px;
@@ -202,7 +221,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
       z-index: 2;
     }
     
-    /* Nemokamo siuntimo ženklelis ant nuotraukos */
     .gift-badge {
         position: absolute;
         top: 12px;
