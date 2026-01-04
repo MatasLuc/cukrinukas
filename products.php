@@ -25,21 +25,21 @@ $freeShippingIds = getFreeShippingProductIds($pdo);
 $selectedSlug = $_GET['category'] ?? null;
 $searchQuery = $_GET['query'] ?? null;
 
-// --- 1. GRIEŽTAS KATEGORIJŲ GRUPAVIMAS ---
+// --- 1. KATEGORIJŲ MEDŽIO SUDARYMAS ---
 $allCats = $pdo->query('SELECT id, name, slug, parent_id FROM categories ORDER BY name ASC')->fetchAll();
 
-$catsById = [];      // Visos kategorijos pagal ID
-$catsByParent = [];  // Kategorijos sugrupuotos pagal tėvą
+$catsByParent = [];
+$catsById = [];
 
 foreach ($allCats as $c) {
     $c['id'] = (int)$c['id'];
-    $c['parent_id'] = !empty($c['parent_id']) ? (int)$c['parent_id'] : 0; // 0 reiškia pagrindinė
+    $parentId = !empty($c['parent_id']) ? (int)$c['parent_id'] : 0;
     
     $catsById[$c['id']] = $c;
-    $catsByParent[$c['parent_id']][] = $c;
+    $catsByParent[$parentId][] = $c;
 }
 
-// Pagrindinės kategorijos yra tos, kurių parent_id = 0
+// Pagrindinės kategorijos (kurios neturi tėvo)
 $rootCats = $catsByParent[0] ?? [];
 
 // --- 2. FILTRAVIMO LOGIKA ---
@@ -47,16 +47,14 @@ $params = [];
 $whereClauses = [];
 
 if ($selectedSlug) {
-    // Randame pasirinktos kategorijos ID
+    // Randame kategorijos ID
     $stmtCat = $pdo->prepare("SELECT id FROM categories WHERE slug = ?");
     $stmtCat->execute([$selectedSlug]);
     $catId = (int)$stmtCat->fetchColumn();
 
     if ($catId) {
-        // Sudarome sąrašą ID, kurių prekes reikia rodyti.
-        // Įtraukiame pačią kategoriją ir visus tiesioginius jos vaikus.
+        // Jei tai tėvinė kategorija, įtraukiame ir jos vaikus
         $targetIds = [$catId];
-        
         if (isset($catsByParent[$catId])) {
             foreach ($catsByParent[$catId] as $child) {
                 $targetIds[] = $child['id'];
@@ -65,19 +63,17 @@ if ($selectedSlug) {
         
         $placeholders = implode(',', array_fill(0, count($targetIds), '?'));
         
-        // Filtruojame: Prekė turi category_id iš sąrašo ARBA yra relations lentelėje
+        // Filtruojame prekes
         $whereClauses[] = "(
             p.category_id IN ($placeholders) 
             OR 
             p.id IN (SELECT product_id FROM product_category_relations WHERE category_id IN ($placeholders))
         )";
         
-        // Parametrus dubliuojame (viena porcija pagrindinei užklausai, kita sub-query)
         foreach ($targetIds as $tid) $params[] = $tid;
         foreach ($targetIds as $tid) $params[] = $tid;
-        
     } else {
-        $whereClauses[] = '1=0'; 
+        $whereClauses[] = '1=0';
     }
 }
 
@@ -146,6 +142,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     /* FILTRAI */
     .filter-bar { display:flex; justify-content: space-between; align-items:center; gap:16px; flex-wrap: wrap; }
     .filter-title { font-size: 18px; font-weight: 600; color: #111827; }
+    
+    .search-form { display: flex; gap: 10px; align-items: center; flex-grow: 1; }
     .search-input { flex-grow: 1; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); min-width: 200px; font-size: 15px; background: #fff; }
     .search-input:focus { border-color: var(--accent); outline: none; }
 
@@ -153,17 +151,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     .btn:hover { opacity: 0.9; }
     .btn.secondary { background: #fff; color: #0b0b0b; border-color: var(--border); }
 
-    /* KATEGORIJOS IR DROPDOWN */
+    /* KATEGORIJOS */
     .chips { display:flex; flex-wrap:wrap; gap:10px; }
-    
-    .chip-container { position: relative; display: inline-block; }
+    .chip-container { position: relative; display: inline-block; padding-bottom: 0px; }
     
     .chip {
       display: inline-flex; align-items: center; gap: 6px;
       padding: 8px 16px; border-radius: 99px;
       background: #fff; border: 1px solid var(--border);
       font-weight: 600; color: var(--muted); cursor: pointer; transition: all .2s;
-      white-space: nowrap; user-select: none; z-index: 10;
+      white-space: nowrap; user-select: none;
+      position: relative; z-index: 20; /* Kad būtų virš dropdown */
     }
     .chip:hover, .chip.active {
       border-color: var(--accent); color: var(--accent); background: #fdfaff;
@@ -173,10 +171,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
 
     .dropdown-menu {
         display: none; position: absolute; top: 100%; left: 0;
-        background: #fff; min-width: 200px; padding: 8px 0; margin-top: 6px;
+        background: #fff; min-width: 200px; padding: 8px 0;
+        margin-top: 8px; /* Tarpas vizualiai */
         border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.12);
         border: 1px solid var(--border); z-index: 100;
     }
+
+    /* PATAISYMAS: Nematomas tiltelis, kad meniu neužsidarytų vedant pelę */
+    .dropdown-menu::before {
+        content: "";
+        position: absolute;
+        top: -10px; /* Užpildome tarpą virš meniu */
+        left: 0;
+        width: 100%;
+        height: 10px;
+        background: transparent;
+    }
+
     .chip-container:hover .dropdown-menu { display: block; animation: slideDown 0.2s ease; }
     
     .dropdown-item {
@@ -198,7 +209,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     .ribbon { position:absolute; top:12px; left:12px; background: var(--accent); color:#fff; padding:4px 10px; border-radius:8px; font-size:12px; font-weight:700; }
     .price-row { display:flex; justify-content: space-between; align-items:center; margin-top:auto; gap: 8px; }
     .price { font-size:20px; font-weight:700; color:#111827; }
-    
     .btn-cart { flex: 1; padding:10px; border-radius:12px; background: linear-gradient(135deg, #4338ca, #7c3aed); color:#fff; border:none; font-weight:700; cursor:pointer; font-size: 14px; transition: transform .1s; }
     .btn-cart:hover { transform: scale(1.02); }
     .heart-btn { width:40px; height:40px; border-radius:12px; border:1px solid var(--border); background:#fff; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; }
@@ -223,7 +233,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     </section>
 
     <div class="filter-bar">
-        <form method="get" style="display: flex; gap: 10px; align-items: center; flex-grow: 1;">
+        <form method="get" class="search-form">
             <input type="text" name="query" placeholder="Ieškoti prekių pagal pavadinimą..." class="search-input" value="<?php echo htmlspecialchars($searchQuery ?? ''); ?>">
             <?php if ($selectedSlug): ?>
                 <input type="hidden" name="category" value="<?php echo htmlspecialchars($selectedSlug); ?>">
@@ -242,9 +252,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
         
         <?php foreach ($rootCats as $root): ?>
           <?php 
+              // Subkategorijos
               $subCats = $catsByParent[$root['id']] ?? [];
               
-              // Patikrinam ar aktyvi pati kategorija arba jos vaikas
+              // Tikriname aktyvumą
               $isActive = ($selectedSlug === $root['slug']);
               $childActive = false;
               foreach ($subCats as $child) {
