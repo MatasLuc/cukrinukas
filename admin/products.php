@@ -80,6 +80,13 @@ if ($featuredIds) {
           <td><?php echo (int)$product['quantity']; ?> vnt</td>
           <td style="display:flex; gap:8px;">
             <a class="btn" href="/product_edit.php?id=<?php echo (int)$product['id']; ?>">Redaguoti</a>
+            <form method="post" style="margin:0;" onsubmit="return confirm('Ar tikrai norite ištrinti šią prekę?');">
+                <?php echo csrfField(); ?>
+                <input type="hidden" name="action" value="delete_product">
+                <input type="hidden" name="id" value="<?php echo (int)$product['id']; ?>">
+                <button class="btn" type="submit" style="background:#e74c3c; color:#fff; border-color:#c0392b;">Ištrinti</button>
+            </form>
+            </td>
           </td>
         </tr>
       <?php endforeach; ?>
