@@ -20,7 +20,7 @@ if (!$news) {
     exit;
 }
 
-// 2. Gauname priskirtas kategorijas per ryšių lentelę
+// 2. Gauname priskirtas kategorijas
 $catStmt = $pdo->prepare("
     SELECT c.name, c.id 
     FROM news_categories c 
@@ -30,7 +30,10 @@ $catStmt = $pdo->prepare("
 $catStmt->execute([$id]);
 $categories = $catStmt->fetchAll();
 
-// Teisių tikrinimas
+// Teisių tikrinimas: ar vartotojas gali matyti pilną turinį
+// Gali matyti, jei:
+// - Straipsnis yra 'public' (viešas)
+// - ARBA vartotojas yra prisijungęs (net jei straipsnis 'members')
 $canViewFull = ($news['visibility'] ?? 'public') !== 'members' || !empty($_SESSION['user_id']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save') {
@@ -60,6 +63,7 @@ $meta = [
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <?php echo headerStyles(); ?>
   <style>
+    /* Violetinė/Indigo paletė */
     :root { --color-bg: #f7f7fb; --color-primary: #0b0b0b; --pill:#f0f2ff; --border:#e4e6f0; }
     * { box-sizing: border-box; }
     a { color:inherit; text-decoration:none; }
@@ -74,7 +78,8 @@ $meta = [
     .badge-cat { background:#f0f7ff; border-color:#dbeafe; color:#1e40af; text-decoration:none; transition:0.2s; }
     .badge-cat:hover { background:#dbeafe; }
     
-    .heart-btn { width:44px; height:44px; border-radius:14px; border:1px solid var(--border); background:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; box-shadow:0 10px 22px rgba(0,0,0,0.08); }
+    .heart-btn { width:44px; height:44px; border-radius:14px; border:1px solid var(--border); background:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; box-shadow:0 10px 22px rgba(0,0,0,0.08); transition: transform .16s ease, border-color .18s ease; }
+    .heart-btn:hover { border-color: rgba(124,58,237,0.55); transform: translateY(-2px); }
     
     .media { overflow:hidden; border-radius:18px; border:1px solid var(--border); background:#fff; box-shadow:0 16px 38px rgba(0,0,0,0.06); }
     .media img { width:100%; object-fit:cover; max-height:460px; display:block; }
@@ -144,10 +149,13 @@ $meta = [
         <?php if ($canViewFull): ?>
           <?php echo sanitizeHtml($news['body']); ?>
         <?php else: ?>
-          <p style="margin-top:0;">Norėdami skaityti visą straipsnį, prašome prisijungti.</p>
-          <h5 class="text-center text-muted" style="text-align:center; color:#6b6b7a; margin-top:24px;">
-            <a href="/login.php" style="text-decoration:underline;">Prisijunkite</a> arba <a href="/register.php" style="text-decoration:underline;">registruokitės</a>
-          </h5>
+          <div style="text-align:center; padding: 40px 0;">
+              <p style="font-size:1.1em; color:#4b5563; margin-bottom:20px;">Norėdami skaityti visą straipsnį, prašome prisijungti.</p>
+              <a href="/login.php" style="display:inline-block; padding:10px 20px; background:#0b0b0b; color:#fff; border-radius:8px; text-decoration:none; font-weight:bold;">Prisijungti</a>
+              <p style="margin-top:15px; font-size:0.9em; color:#6b6b7a;">
+                  Neturite paskyros? <a href="/register.php" style="text-decoration:underline; color:#4338ca;">Registruokitės</a>
+              </p>
+          </div>
         <?php endif; ?>
       </article>
       
