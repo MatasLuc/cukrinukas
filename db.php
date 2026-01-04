@@ -194,7 +194,9 @@ function ensureSystemUser(PDO $pdo): int {
     return (int)$pdo->lastInsertId();
 }
 
-// Raskite funkciją ensureNewsTable ir pakeiskite ją bei pridėkite naują funkciją:
+// -------------------------------------------------------------------------
+// NAUJIENŲ FUNKCIJOS
+// -------------------------------------------------------------------------
 
 function ensureNewsCategoriesTable(PDO $pdo): void {
     $pdo->exec(
@@ -207,13 +209,25 @@ function ensureNewsCategoriesTable(PDO $pdo): void {
     );
 }
 
+// NAUJA: Ryšių lentelė
+function ensureNewsCategoryRelationsTable(PDO $pdo): void {
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS news_category_relations (
+            news_id INT NOT NULL,
+            category_id INT NOT NULL,
+            PRIMARY KEY (news_id, category_id),
+            FOREIGN KEY (news_id) REFERENCES news(id) ON DELETE CASCADE,
+            FOREIGN KEY (category_id) REFERENCES news_categories(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+    );
+}
+
 function ensureNewsTable(PDO $pdo): void {
-    ensureNewsCategoriesTable($pdo); // Užtikriname, kad kategorijų lentelė egzistuoja
+    ensureNewsCategoriesTable($pdo);
 
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS news (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            category_id INT NULL,
             title VARCHAR(200) NOT NULL,
             summary TEXT NULL,
             author VARCHAR(100) DEFAULT NULL,
@@ -221,14 +235,15 @@ function ensureNewsTable(PDO $pdo): void {
             body TEXT NOT NULL,
             visibility ENUM("public","members") NOT NULL DEFAULT "public",
             is_featured TINYINT(1) NOT NULL DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (category_id) REFERENCES news_categories(id) ON DELETE SET NULL
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
 
+    // Sukuriame ryšių lentelę
+    ensureNewsCategoryRelationsTable($pdo);
+
     $columns = $pdo->query("SHOW COLUMNS FROM news")->fetchAll(PDO::FETCH_COLUMN);
     
-    // Egzistuojančių stulpelių patikra (kaip buvo anksčiau)
     if (!in_array('summary', $columns, true)) {
         $pdo->exec('ALTER TABLE news ADD COLUMN summary TEXT NULL AFTER title');
     }
@@ -239,12 +254,19 @@ function ensureNewsTable(PDO $pdo): void {
         $pdo->exec('ALTER TABLE news ADD COLUMN author VARCHAR(100) DEFAULT NULL AFTER summary');
     }
     
-    // NAUJA: Pridedame category_id, jei nėra
+    // Jei senas stulpelis 'category_id' dar egzistuoja (iš senos versijos), galime jį palikti 
+    // dėl suderinamumo arba leisti jam egzistuoti kaip NULL. Čia jo netriname.
     if (!in_array('category_id', $columns, true)) {
+        // Galime pridėti dėl viso pikto, jei kažkur senas kodas dar kreipiasi, 
+        // bet naujame kode jo nebenaudojame.
         $pdo->exec('ALTER TABLE news ADD COLUMN category_id INT NULL AFTER id');
-        $pdo->exec('ALTER TABLE news ADD CONSTRAINT fk_news_category FOREIGN KEY (category_id) REFERENCES news_categories(id) ON DELETE SET NULL');
+        // $pdo->exec('ALTER TABLE news ADD CONSTRAINT fk_news_category FOREIGN KEY (category_id) REFERENCES news_categories(id) ON DELETE SET NULL');
     }
 }
+
+// -------------------------------------------------------------------------
+// KITOS FUNKCIJOS
+// -------------------------------------------------------------------------
 
 function ensureRecipesTable(PDO $pdo): void {
     $pdo->exec(
@@ -570,7 +592,6 @@ function ensureFooterLinksTable(PDO $pdo): void {
 }
 
 function ensureFooterLinks(PDO $pdo): void {
-    // Backwards-compatible wrapper for callers expecting ensureFooterLinks.
     ensureFooterLinksTable($pdo);
 }
 
