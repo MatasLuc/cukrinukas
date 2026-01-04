@@ -67,7 +67,7 @@ $meta = [
     body { background: var(--color-bg); }
     .shell { max-width:1080px; margin:32px auto 64px; padding:0 20px; display:flex; flex-direction:column; gap:18px; }
     
-    /* Hero fonas pakeistas iš žalio į melsvą/violetinį */
+    /* Hero fonas melsvas/violetinis */
     .hero { background:linear-gradient(135deg,#ffffff 0%,#eef0ff 100%); border:1px solid var(--border); border-radius:20px; box-shadow:0 16px 40px rgba(0,0,0,0.06); padding:22px; display:flex; flex-direction:column; gap:12px; }
     .crumb { display:flex; align-items:center; gap:10px; color:#6b6b7a; font-size:14px; }
     .meta { display:flex; align-items:center; gap:10px; color:#6b6b7a; font-size:14px; flex-wrap:wrap; }
@@ -162,6 +162,17 @@ $meta = [
         <div style="display:flex; flex-direction:column; gap:6px; font-size:14px; color:#2b2f4c;">
           <span>Autorius: <strong><?php echo htmlspecialchars($authorName); ?></strong></span>
           <span>Data: <strong><?php echo date('Y-m-d', strtotime($recipe['created_at'])); ?></strong></span>
+          
+          <?php if ($categories): ?>
+            <span>Kategorijos: 
+                <strong>
+                <?php 
+                    $catNames = array_map(function($c) { return htmlspecialchars($c['name']); }, $categories);
+                    echo implode(', ', $catNames); 
+                ?>
+                </strong>
+            </span>
+          <?php endif; ?>
         </div>
         <a class="ghost-btn" href="/recipes.php">Kiti receptai</a>
       </aside>
