@@ -5,6 +5,11 @@ require __DIR__ . '/layout.php';
 
 $pdo = getPdo();
 ensureNewsTable($pdo);
+// Užtikriname, kad kategorijų lentelė egzistuoja
+if (function_exists('ensureNewsCategoriesTable')) {
+    ensureNewsCategoriesTable($pdo);
+}
+
 seedNewsExamples($pdo);
 ensureProductsTable($pdo);
 ensureSavedContentTables($pdo);
@@ -22,8 +27,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['news_id'])) {
     exit;
 }
 
-$stmt = $pdo->query('SELECT id, title, image_url, body, is_featured, created_at FROM news ORDER BY created_at DESC');
+// 1. Gauname kategorijas, kurios turi bent vieną naujieną
+$activeCategories = $pdo->query("
+    SELECT c.id, c.name, COUNT(n.id) as count 
+    FROM news_categories c 
+    JOIN news n ON n.category_id = c.id 
+    GROUP BY c.id 
+    HAVING count > 0 
+    ORDER BY c.name ASC
+")->fetchAll();
+
+// 2. Filtravimo logika
+$selectedCatId = isset($_GET['cat']) ? (int)$_GET['cat'] : null;
+
+$sql = 'SELECT n.id, n.title, n.image_url, n.body, n.is_featured, n.created_at, n.category_id 
+        FROM news n ';
+$params = [];
+
+if ($selectedCatId) {
+    $sql .= 'WHERE n.category_id = ? ';
+    $params[] = $selectedCatId;
+}
+
+$sql .= 'ORDER BY n.created_at DESC';
+
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
 $allNews = $stmt->fetchAll();
+
 $isLoggedIn = isset($_SESSION['user_id']);
 $isAdmin = !empty($_SESSION['is_admin']);
 ?>
@@ -60,7 +91,8 @@ $isAdmin = !empty($_SESSION['is_admin']);
     .hero__card strong { display:block; font-size:24px; letter-spacing:-0.02em; margin-top:6px; }
     .page__head { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
     .page__title { margin:0; font-size:28px; letter-spacing:-0.01em; }
-    .pill { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:12px; background:#eef2ff; color:#4338ca; font-weight:700; font-size:13px; }
+    .pill { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:12px; background:#eef2ff; color:#4338ca; font-weight:700; font-size:13px; transition: all 0.2s ease; }
+    .pill:hover { opacity: 0.9; transform: translateY(-1px); }
     .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:18px; }
     .card { background: var(--card); border-radius:20px; overflow:hidden; border:1px solid var(--border); box-shadow:0 14px 32px rgba(0,0,0,0.08); display:grid; grid-template-rows:auto 1fr; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
     .card:hover { transform: translateY(-3px); box-shadow:0 18px 46px rgba(0,0,0,0.12); border-color: rgba(124,58,237,0.35); }
@@ -73,7 +105,6 @@ $isAdmin = !empty($_SESSION['is_admin']);
     .heart-btn { width:38px; height:38px; border-radius:12px; border:1px solid var(--border); background:#f8fafc; display:inline-flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; box-shadow:0 10px 24px rgba(0,0,0,0.08); transition: transform .16s ease, border-color .18s ease; }
     .heart-btn:hover { border-color: rgba(124,58,237,0.55); transform: translateY(-2px); }
     footer { text-align: center; padding: 28px 0; color: #777; font-size: 14px; }
-
   </style>
 </head>
 <body>
@@ -89,6 +120,7 @@ $isAdmin = !empty($_SESSION['is_admin']);
           <a class="cta" href="<?php echo htmlspecialchars($siteContent['news_hero_cta_url'] ?? '#news'); ?>"><?php echo htmlspecialchars($siteContent['news_hero_cta_label'] ?? 'Peržiūrėti straipsnius'); ?></a>
           <?php if ($isAdmin): ?>
             <a class="cta secondary" href="/news_create.php">+ Pridėti naujieną</a>
+            <a class="cta secondary" href="/admin/news_categories.php">Kategorijos</a>
           <?php endif; ?>
         </div>
       </div>
@@ -102,41 +134,58 @@ $isAdmin = !empty($_SESSION['is_admin']);
       <span class="pill">Atnaujinimai kiekvieną savaitę</span>
     </div>
 
-    <div class="grid">
-      <?php foreach ($allNews as $news): ?>
-        <article class="card">
-          <a href="/news_view.php?id=<?php echo (int)$news['id']; ?>">
-            <img src="<?php echo htmlspecialchars($news['image_url']); ?>" alt="<?php echo htmlspecialchars($news['title']); ?>">
-          </a>
-          <div class="card__body">
-            <div style="display:flex;align-items:center;gap:10px;justify-content:space-between;">
-              <h2 class="card__title"><a href="/news_view.php?id=<?php echo (int)$news['id']; ?>"><?php echo htmlspecialchars($news['title']); ?></a></h2>
-              <?php if ((int)$news['is_featured'] === 1): ?>
-                <span class="badge">Titulinė</span>
-              <?php endif; ?>
-            </div>
-            <p class="card__meta"><?php echo date('Y-m-d', strtotime($news['created_at'])); ?></p>
-            <p class="card__excerpt"><?php $plain = trim(strip_tags($news['body'])); echo mb_substr($plain, 0, 240); ?><?php echo mb_strlen($plain) > 240 ? '…' : ''; ?></p>
-              <div style="display:flex; gap:10px; align-items:center; justify-content:space-between;">
-                <div style="display:flex; gap:8px; align-items:center;">
-                  <a class="cta" style="padding:9px 12px; font-size:14px;" href="/news_view.php?id=<?php echo (int)$news['id'];?>">Skaityti</a>
-                  <?php if ($isLoggedIn): ?>
-                    <form method="post" style="margin:0;">
-                      <?php echo csrfField(); ?>
-<input type="hidden" name="news_id" value="<?php echo (int)$news['id']; ?>">
-                      <button class="heart-btn" type="submit" aria-label="Išsaugoti naujieną">♥</button>
-                    </form>
-                  <?php else: ?>
-                    <a class="heart-btn" href="/login.php" aria-label="Prisijunkite, kad išsaugotumėte" style="text-decoration:none; color:var(--text); display:inline-flex; align-items:center; justify-content:center;">♥</a>
-                  <?php endif; ?>
-                </div>
-                <?php if ($isAdmin): ?>
-                  <a style="font-weight:600; color:var(--text);" href="/news_edit.php?id=<?php echo (int)$news['id']; ?>">Redaguoti</a>
-                <?php endif; ?>
-              </div>
-            </div>
-          </article>
+    <?php if (!empty($activeCategories)): ?>
+    <div class="categories-nav" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom: -10px;">
+        <a href="/news.php" class="pill" style="text-decoration:none; background: <?php echo $selectedCatId === null ? '#4338ca' : '#eef2ff'; ?>; color: <?php echo $selectedCatId === null ? '#fff' : '#4338ca'; ?>;">
+            Visos naujienos
+        </a>
+        <?php foreach ($activeCategories as $cat): ?>
+            <a href="/news.php?cat=<?php echo $cat['id']; ?>" class="pill" style="text-decoration:none; background: <?php echo $selectedCatId === $cat['id'] ? '#4338ca' : '#eef2ff'; ?>; color: <?php echo $selectedCatId === $cat['id'] ? '#fff' : '#4338ca'; ?>;">
+                <?php echo htmlspecialchars($cat['name']); ?>
+            </a>
         <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+
+    <div class="grid">
+      <?php if (empty($allNews)): ?>
+        <p style="grid-column: 1/-1; text-align:center; padding: 40px; color: var(--muted);">Šioje kategorijoje naujienų kol kas nėra.</p>
+      <?php else: ?>
+        <?php foreach ($allNews as $news): ?>
+            <article class="card">
+            <a href="/news_view.php?id=<?php echo (int)$news['id']; ?>">
+                <img src="<?php echo htmlspecialchars($news['image_url']); ?>" alt="<?php echo htmlspecialchars($news['title']); ?>">
+            </a>
+            <div class="card__body">
+                <div style="display:flex;align-items:center;gap:10px;justify-content:space-between;">
+                <h2 class="card__title"><a href="/news_view.php?id=<?php echo (int)$news['id']; ?>"><?php echo htmlspecialchars($news['title']); ?></a></h2>
+                <?php if ((int)$news['is_featured'] === 1): ?>
+                    <span class="badge">Titulinė</span>
+                <?php endif; ?>
+                </div>
+                <p class="card__meta"><?php echo date('Y-m-d', strtotime($news['created_at'])); ?></p>
+                <p class="card__excerpt"><?php $plain = trim(strip_tags($news['body'])); echo mb_substr($plain, 0, 240); ?><?php echo mb_strlen($plain) > 240 ? '…' : ''; ?></p>
+                <div style="display:flex; gap:10px; align-items:center; justify-content:space-between;">
+                    <div style="display:flex; gap:8px; align-items:center;">
+                    <a class="cta" style="padding:9px 12px; font-size:14px;" href="/news_view.php?id=<?php echo (int)$news['id'];?>">Skaityti</a>
+                    <?php if ($isLoggedIn): ?>
+                        <form method="post" style="margin:0;">
+                        <?php echo csrfField(); ?>
+    <input type="hidden" name="news_id" value="<?php echo (int)$news['id']; ?>">
+                        <button class="heart-btn" type="submit" aria-label="Išsaugoti naujieną">♥</button>
+                        </form>
+                    <?php else: ?>
+                        <a class="heart-btn" href="/login.php" aria-label="Prisijunkite, kad išsaugotumėte" style="text-decoration:none; color:var(--text); display:inline-flex; align-items:center; justify-content:center;">♥</a>
+                    <?php endif; ?>
+                    </div>
+                    <?php if ($isAdmin): ?>
+                    <a style="font-weight:600; color:var(--text);" href="/news_edit.php?id=<?php echo (int)$news['id']; ?>">Redaguoti</a>
+                    <?php endif; ?>
+                </div>
+                </div>
+            </article>
+            <?php endforeach; ?>
+        <?php endif; ?>
     </div>
   </main>
 
