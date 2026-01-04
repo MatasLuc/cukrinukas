@@ -213,7 +213,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     /* KREPŠELIO IKONA - BALTAS FONAS + MĖLYNA IKONA */
     .btn-cart-icon {
         background: #ffffff;
-        color: #829ed6;
+        color: #1f2937;
         border: 1px solid #e4e7ec;
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
