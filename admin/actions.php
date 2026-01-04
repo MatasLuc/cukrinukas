@@ -247,7 +247,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $messages[] = 'Prekė nuimta nuo pagrindinių.';
         $view = 'products';
     }
-
+    
+    // NAUJAS KODAS: Prekės ištrynimas
+    if ($action === 'delete_product') {
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id) {
+            $pdo->prepare('DELETE FROM products WHERE id = ?')->execute([$id]);
+            $messages[] = 'Prekė sėkmingai ištrinta';
+        }
+        $view = 'products';
+    }
+    
     // --- VARTOTOJAI IR UŽSAKYMAI ---
     if ($action === 'toggle_admin') {
         $userId = (int)$_POST['user_id'];
