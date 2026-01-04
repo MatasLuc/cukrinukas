@@ -9,7 +9,6 @@ ensureSavedContentTables($pdo);
 
 $id = (int)($_GET['id'] ?? 0);
 
-// 1. Gauname recepto informaciją
 $stmt = $pdo->prepare('SELECT * FROM recipes WHERE id = ?');
 $stmt->execute([$id]);
 $recipe = $stmt->fetch();
@@ -20,7 +19,7 @@ if (!$recipe) {
     exit;
 }
 
-// 2. Gauname priskirtas kategorijas
+// Kategorijos
 $catStmt = $pdo->prepare("
     SELECT c.name, c.id 
     FROM recipe_categories c 
@@ -30,7 +29,6 @@ $catStmt = $pdo->prepare("
 $catStmt->execute([$id]);
 $categories = $catStmt->fetchAll();
 
-// Teisių tikrinimas
 $canViewFull = ($recipe['visibility'] ?? 'public') !== 'members' || !empty($_SESSION['user_id']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save') {
@@ -46,7 +44,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
 
 $authorName = !empty($recipe['author']) ? $recipe['author'] : 'Cukrinukas';
 
-// SEO
 $meta = [
     'title' => $recipe['title'] . ' | Receptai',
     'description' => $recipe['summary'] ?: mb_substr(strip_tags($recipe['body']), 0, 160),
@@ -60,7 +57,6 @@ $meta = [
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <?php echo headerStyles(); ?>
   <style>
-    /* Violetinė/Indigo paletė */
     :root { --color-bg: #f7f7fb; --color-primary: #0b0b0b; --pill:#f0f2ff; --border:#e4e6f0; }
     * { box-sizing: border-box; }
     a { color:inherit; text-decoration:none; }
@@ -85,14 +81,8 @@ $meta = [
     .content-card img { max-width:100%; height:auto; display:block; margin:12px auto; border-radius:14px; }
     .content-card ul, .content-card ol { padding-left:20px; }
     
-    .grid { display:grid; grid-template-columns: minmax(0,1fr) 320px; gap:18px; align-items:start; }
-    
-    .info-card { background:#fff; border:1px solid var(--border); border-radius:18px; padding:16px; box-shadow:0 12px 26px rgba(0,0,0,0.05); display:flex; flex-direction:column; gap:10px; }
-    .info-title { font-weight:700; font-size:15px; color:#1c1c28; }
-    .info-note { color:#6b6b7a; font-size:13px; line-height:1.5; }
-    .ghost-btn { padding:10px 16px; border-radius:12px; border:1px solid var(--border); background:#fff; color:#0b0b0b; box-shadow:0 8px 22px rgba(0,0,0,0.05); cursor:pointer; text-align:center; }
-    
-    @media(max-width: 900px){ .grid { grid-template-columns:1fr; } }
+    /* Grid stilius supaprastintas - viena kolona */
+    .grid { display:grid; grid-template-columns: 1fr; gap:18px; }
   </style>
 </head>
 <body>
@@ -103,13 +93,11 @@ $meta = [
       <div class="crumb"><a href="/recipes.php">← Visi receptai</a></div>
       
       <div style="display:flex; align-items:flex-start; gap:14px; justify-content:space-between;">
-        
         <div style="display:flex; flex-direction:column; gap:8px; flex: 1; min-width: 0;">
           <h1 style="margin:0; font-size:30px; line-height:1.2; color:#0b0b0b; word-wrap: break-word;"><?php echo htmlspecialchars($recipe['title']); ?></h1>
           <div class="meta">
             <span class="badge">Įkelta <?php echo date('Y-m-d', strtotime($recipe['created_at'])); ?></span>
             <span class="badge" style="background:#fff7ed; border-color:#ffedd5; color:#c2410c;"><?php echo htmlspecialchars($authorName); ?></span>
-            
             <?php if ($categories): ?>
                 <?php foreach ($categories as $cat): ?>
                     <a href="/recipes.php?cat=<?php echo $cat['id']; ?>" class="badge badge-cat"><?php echo htmlspecialchars($cat['name']); ?></a>
@@ -155,28 +143,7 @@ $meta = [
           </h5>
         <?php endif; ?>
       </article>
-      
-      <aside class="info-card">
-        <div class="info-title">Informacija</div>
-        <div class="info-note">Turi klausimų dėl šio recepto? Parašyk mums arba pasitark su bendruomene.</div>
-        <div style="display:flex; flex-direction:column; gap:6px; font-size:14px; color:#2b2f4c;">
-          <span>Autorius: <strong><?php echo htmlspecialchars($authorName); ?></strong></span>
-          <span>Data: <strong><?php echo date('Y-m-d', strtotime($recipe['created_at'])); ?></strong></span>
-          
-          <?php if ($categories): ?>
-            <span>Kategorijos: 
-                <strong>
-                <?php 
-                    $catNames = array_map(function($c) { return htmlspecialchars($c['name']); }, $categories);
-                    echo implode(', ', $catNames); 
-                ?>
-                </strong>
-            </span>
-          <?php endif; ?>
-        </div>
-        <a class="ghost-btn" href="/recipes.php">Kiti receptai</a>
-      </aside>
-    </section>
+      </section>
   </main>
 
   <?php renderFooter($pdo); ?>
