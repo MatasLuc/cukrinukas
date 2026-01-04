@@ -9,6 +9,7 @@ $recipeList = $pdo->query('SELECT id, title, created_at FROM recipes ORDER BY cr
   <h3>Naujienos</h3>
   <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:10px;">
     <p style="margin:0; color:#6b6b7a;">Redaguokite diabeto naujienų įrašus.</p>
+    <a class="btn" style="background:#fff; color:#0b0b0b; border:1px solid #ccc;" href="/admin/news_categories.php">Valdyti kategorijas</a>
     <a class="btn" href="/news_create.php">+ Nauja naujiena</a>
   </div>
   <table>
