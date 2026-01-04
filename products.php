@@ -83,7 +83,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
       --text: #1f2937;
       --muted: #52606d;
       --accent: #7c3aed;
-      --accent-2: #22c55e;
     }
     * { box-sizing: border-box; }
     body {
@@ -96,13 +95,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
 
     .page { max-width:1200px; margin:0 auto; padding:32px 20px 56px; }
 
+    /* Hero sekcija suvienodinta su news.php ir recipes.php */
     .hero {
       margin-top: 12px;
       padding: 24px 22px;
       border-radius: 28px;
-      background: linear-gradient(135deg, #f1ecff, #e7f5ff);
+      background: linear-gradient(135deg, #eef2ff, #e0f2fe);
       border: 1px solid #e5e7eb;
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 18px 48px rgba(0,0,0,0.08);
       display: grid;
       grid-template-columns: 1.3fr 0.7fr;
       align-items: center;
@@ -110,18 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     }
     .hero h1 { margin: 0 0 10px; font-size: clamp(26px, 5vw, 36px); letter-spacing: -0.02em; color: #0f172a; }
     .hero p { margin: 0; color: var(--muted); line-height: 1.6; }
-    .hero .pill {
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      background: #ffffff;
-      border: 1px solid #e4e7ec;
-      padding: 10px 16px;
-      border-radius: 999px;
-      font-weight: 600;
-      color: #0f172a;
-      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.08);
-    }
+    
     .hero-cta { margin-top: 14px; display:flex; gap:10px; flex-wrap:wrap; }
     .ghost { border:1px solid #c7d2fe; color:#4338ca; background:transparent; }
     .btn-large {
@@ -191,23 +180,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
       transition: transform .18s ease, box-shadow .2s ease, border-color .18s ease;
     }
     .card:hover { transform: translateY(-4px); border-color: rgba(124, 58, 237, 0.35); box-shadow: 0 22px 48px rgba(0,0,0,0.12); }
-    .card img { width:100%; height:210px; object-fit:cover; transition: transform .18s ease; }
+    
+    .card-image-wrapper {
+        position: relative;
+    }
+    .card img { width:100%; height:210px; object-fit:cover; transition: transform .18s ease; display: block; }
     .card:hover img { transform: scale(1.03); }
+    
+    /* Atnaujinta juostelė (violetinė) */
     .ribbon {
       position:absolute;
       top:12px;
       left:12px;
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      background: linear-gradient(135deg, #4338ca, #7c3aed);
       color:#ffffff;
-      padding:8px 12px;
-      border-radius:12px;
+      padding:6px 12px;
+      border-radius:8px;
       font-weight:700;
-      font-size:13px;
-      box-shadow: 0 10px 22px rgba(0,0,0,0.12);
+      font-size:12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 2;
     }
+    
+    /* Nemokamo siuntimo ženklelis ant nuotraukos */
+    .gift-badge {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: rgba(255, 255, 255, 0.95);
+        color: #4338ca;
+        font-weight: 700;
+        font-size: 12px;
+        padding: 6px 12px;
+        border-radius: 99px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        border: 1px solid #eef2ff;
+    }
+
     .card__body { padding:18px; display:flex; flex-direction:column; gap:10px; flex:1; }
-    .badge { display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border-radius:999px; background: #f9fafb; color:#0f172a; font-size:12px; border:1px solid #e5e7eb; }
-    .gift { background: #ecfdf3; color:#166534; border-color:#bbf7d0; }
+    .badge { display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border-radius:999px; background: #f9fafb; color:#0f172a; font-size:12px; border:1px solid #e5e7eb; width: fit-content; }
+    
     .card h3 { margin:2px 0 0; font-size:20px; letter-spacing:-0.01em; color:#0f172a; }
     .card p { margin:0; color: var(--muted); line-height:1.5; }
     .price-row { display:flex; justify-content: space-between; align-items:center; gap:10px; margin-top:auto; flex-wrap:wrap; }
@@ -291,18 +307,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
       <?php foreach ($products as $product): $priceDisplay = buildPriceDisplay($product, $globalDiscount, $categoryDiscounts); $isGift = in_array((int)$product['id'], $freeShippingIds, true); ?>
         <article class="card">
           <?php $cardImage = $product['primary_image'] ?: $product['image_url']; ?>
-          <?php if (!empty($product['ribbon_text'])): ?><div class="ribbon"><?php echo htmlspecialchars($product['ribbon_text']); ?></div><?php endif; ?>
-          <a href="/product.php?id=<?php echo (int)$product['id']; ?>" aria-label="<?php echo htmlspecialchars($product['title']); ?>">
-            <img src="<?php echo htmlspecialchars($cardImage); ?>" alt="<?php echo htmlspecialchars($product['title']); ?>" loading="lazy">
-          </a>
+          
+          <div class="card-image-wrapper">
+              <?php if (!empty($product['ribbon_text'])): ?>
+                <div class="ribbon"><?php echo htmlspecialchars($product['ribbon_text']); ?></div>
+              <?php endif; ?>
+
+              <?php if ($isGift): ?>
+                <div class="gift-badge">
+                   <span>🎁</span> Nemokamas siuntimas
+                </div>
+              <?php endif; ?>
+
+              <a href="/product.php?id=<?php echo (int)$product['id']; ?>" aria-label="<?php echo htmlspecialchars($product['title']); ?>">
+                <img src="<?php echo htmlspecialchars($cardImage); ?>" alt="<?php echo htmlspecialchars($product['title']); ?>" loading="lazy">
+              </a>
+          </div>
+
           <div class="card__body">
             <span class="badge">
-              <span style="width:6px; height:6px; border-radius:50%; background: var(--accent-2);"></span>
+              <span style="width:6px; height:6px; border-radius:50%; background: var(--accent);"></span>
               <?php echo htmlspecialchars($product['category_name'] ?? ''); ?>
             </span>
-            <?php if ($isGift): ?>
-              <span class="badge gift">🎁 Nemokamas pristatymas perkant šią prekę</span>
-            <?php endif; ?>
+            
             <h3><a href="/product.php?id=<?php echo (int)$product['id']; ?>"><?php echo htmlspecialchars($product['title']); ?></a></h3>
             <?php if (!empty($product['subtitle'])): ?><p style="color:#6b21a8;"><?php echo htmlspecialchars($product['subtitle']); ?></p><?php endif; ?>
             <p><?php echo htmlspecialchars(mb_substr($product['description'], 0, 120)); ?><?php echo mb_strlen($product['description']) > 120 ? '…' : ''; ?></p>
