@@ -11,7 +11,7 @@ ensureCartTables($pdo);
 ensureSavedContentTables($pdo);
 ensureAdminAccount($pdo);
 
-// Užtikriname, kad egzistuoja ryšių lentelė (jei netyčia dar nebūtų)
+// Užtikriname, kad egzistuoja ryšių lentelė
 $pdo->exec("CREATE TABLE IF NOT EXISTS product_category_relations (
     product_id INT NOT NULL,
     category_id INT NOT NULL,
@@ -25,69 +25,58 @@ $freeShippingIds = getFreeShippingProductIds($pdo);
 $selectedSlug = $_GET['category'] ?? null;
 $searchQuery = $_GET['query'] ?? null;
 
-// --- 1. KATEGORIJŲ MEDŽIO SUDARYMAS ---
-// Gauname visas kategorijas
-$allCats = $pdo->query('SELECT id, name, slug, parent_id FROM categories ORDER BY parent_id ASC, name ASC')->fetchAll();
+// --- 1. GRIEŽTAS KATEGORIJŲ GRUPAVIMAS ---
+$allCats = $pdo->query('SELECT id, name, slug, parent_id FROM categories ORDER BY name ASC')->fetchAll();
 
-$catTree = [];
-$catIndex = []; // Pagalbinis masyvas greitai paieškai
+$catsById = [];      // Visos kategorijos pagal ID
+$catsByParent = [];  // Kategorijos sugrupuotos pagal tėvą
 
-// Pirmas praėjimas: sudedame visas kategorijas į indeksą
 foreach ($allCats as $c) {
-    $catIndex[$c['id']] = $c;
-    $catIndex[$c['id']]['children'] = [];
+    $c['id'] = (int)$c['id'];
+    $c['parent_id'] = !empty($c['parent_id']) ? (int)$c['parent_id'] : 0; // 0 reiškia pagrindinė
+    
+    $catsById[$c['id']] = $c;
+    $catsByParent[$c['parent_id']][] = $c;
 }
 
-// Antras praėjimas: formuojame hierarchiją
-foreach ($catIndex as $id => $c) {
-    if (!empty($c['parent_id'])) {
-        // Jei turi tėvą - dedame į tėvo 'children' masyvą
-        if (isset($catIndex[$c['parent_id']])) {
-            $catIndex[$c['parent_id']]['children'][] = $catIndex[$id];
-        }
-    } else {
-        // Jei neturi tėvo - tai pagrindinė kategorija, dedame į medžio šaknį
-        $catTree[$id] = &$catIndex[$id];
-    }
-}
+// Pagrindinės kategorijos yra tos, kurių parent_id = 0
+$rootCats = $catsByParent[0] ?? [];
 
 // --- 2. FILTRAVIMO LOGIKA ---
 $params = [];
 $whereClauses = [];
 
 if ($selectedSlug) {
-    // Randame pasirinktos kategorijos ID pagal slug
+    // Randame pasirinktos kategorijos ID
     $stmtCat = $pdo->prepare("SELECT id FROM categories WHERE slug = ?");
     $stmtCat->execute([$selectedSlug]);
-    $catId = $stmtCat->fetchColumn();
+    $catId = (int)$stmtCat->fetchColumn();
 
     if ($catId) {
-        // Jei pasirenkama tėvinė kategorija, įtraukiame ir jos vaikus
-        // Jei pasirenkama vaiko kategorija, $catIndex[$catId]['children'] bus tuščias, tad ims tik tą vieną
+        // Sudarome sąrašą ID, kurių prekes reikia rodyti.
+        // Įtraukiame pačią kategoriją ir visus tiesioginius jos vaikus.
         $targetIds = [$catId];
         
-        if (isset($catIndex[$catId]['children'])) {
-            foreach ($catIndex[$catId]['children'] as $child) {
+        if (isset($catsByParent[$catId])) {
+            foreach ($catsByParent[$catId] as $child) {
                 $targetIds[] = $child['id'];
             }
         }
         
-        // Formuojame užklausą: prekė tinka, jei jos category_id yra tarp tų ID
-        // ARBA ji yra priskirta per ryšių lentelę (relations)
         $placeholders = implode(',', array_fill(0, count($targetIds), '?'));
         
+        // Filtruojame: Prekė turi category_id iš sąrašo ARBA yra relations lentelėje
         $whereClauses[] = "(
             p.category_id IN ($placeholders) 
             OR 
             p.id IN (SELECT product_id FROM product_category_relations WHERE category_id IN ($placeholders))
         )";
         
-        // Parametrus pridedame du kartus (vieną pagrindinei lentelei, kitą relations subquery)
+        // Parametrus dubliuojame (viena porcija pagrindinei užklausai, kita sub-query)
         foreach ($targetIds as $tid) $params[] = $tid;
         foreach ($targetIds as $tid) $params[] = $tid;
         
     } else {
-        // Jei slug neteisingas, nieko nerodome
         $whereClauses[] = '1=0'; 
     }
 }
@@ -160,14 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     .search-input { flex-grow: 1; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); min-width: 200px; font-size: 15px; background: #fff; }
     .search-input:focus { border-color: var(--accent); outline: none; }
 
-    /* Mygtukas (sutvarkytas) */
-    .btn {
-      display: inline-flex; align-items: center; justify-content: center;
-      padding: 10px 14px; border-radius: 12px;
-      background: #0b0b0b; color: #fff; border: 1px solid #0b0b0b;
-      font-weight: 600; cursor: pointer; white-space: nowrap;
-      transition: opacity 0.2s;
-    }
+    .btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 12px; background: #0b0b0b; color: #fff; border: 1px solid #0b0b0b; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; }
     .btn:hover { opacity: 0.9; }
     .btn.secondary { background: #fff; color: #0b0b0b; border-color: var(--border); }
 
@@ -181,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
       padding: 8px 16px; border-radius: 99px;
       background: #fff; border: 1px solid var(--border);
       font-weight: 600; color: var(--muted); cursor: pointer; transition: all .2s;
-      white-space: nowrap; user-select: none;
+      white-space: nowrap; user-select: none; z-index: 10;
     }
     .chip:hover, .chip.active {
       border-color: var(--accent); color: var(--accent); background: #fdfaff;
@@ -193,9 +175,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
         display: none; position: absolute; top: 100%; left: 0;
         background: #fff; min-width: 200px; padding: 8px 0; margin-top: 6px;
         border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.12);
-        border: 1px solid var(--border); z-index: 50;
+        border: 1px solid var(--border); z-index: 100;
     }
-    /* Rodyti tik užvedus ant tėvinio elemento */
     .chip-container:hover .dropdown-menu { display: block; animation: slideDown 0.2s ease; }
     
     .dropdown-item {
@@ -218,15 +199,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     .price-row { display:flex; justify-content: space-between; align-items:center; margin-top:auto; gap: 8px; }
     .price { font-size:20px; font-weight:700; color:#111827; }
     
-    /* Krepšelio mygtukas kortelėje */
-    .btn-cart {
-        flex: 1; padding:10px; border-radius:12px;
-        background: linear-gradient(135deg, #4338ca, #7c3aed); color:#fff;
-        border:none; font-weight:700; cursor:pointer; font-size: 14px;
-        transition: transform .1s;
-    }
+    .btn-cart { flex: 1; padding:10px; border-radius:12px; background: linear-gradient(135deg, #4338ca, #7c3aed); color:#fff; border:none; font-weight:700; cursor:pointer; font-size: 14px; transition: transform .1s; }
     .btn-cart:hover { transform: scale(1.02); }
-
     .heart-btn { width:40px; height:40px; border-radius:12px; border:1px solid var(--border); background:#fff; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; }
     .heart-btn:hover { color: var(--accent); border-color: var(--accent); }
     
@@ -254,9 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
             <?php if ($selectedSlug): ?>
                 <input type="hidden" name="category" value="<?php echo htmlspecialchars($selectedSlug); ?>">
             <?php endif; ?>
-            
             <button type="submit" class="btn">Ieškoti</button>
-            
             <?php if ($searchQuery || $selectedSlug): ?>
                 <a href="/products.php" class="btn secondary">Valyti</a>
             <?php endif; ?>
@@ -268,35 +240,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
       <div class="chips">
         <a class="chip <?php echo !$selectedSlug ? 'active' : ''; ?>" href="/products.php<?php echo $searchQuery ? '?query=' . urlencode($searchQuery) : ''; ?>">Visos</a>
         
-        <?php foreach ($catTree as $parentCat): ?>
+        <?php foreach ($rootCats as $root): ?>
           <?php 
-              // Tikriname, ar ši kategorija ARBA jos vaikas yra aktyvūs
-              $isActive = ($selectedSlug === $parentCat['slug']);
-              $hasActiveChild = false;
-              if (!empty($parentCat['children'])) {
-                  foreach ($parentCat['children'] as $child) {
-                      if ($selectedSlug === $child['slug']) {
-                          $hasActiveChild = true;
-                          break;
-                      }
+              $subCats = $catsByParent[$root['id']] ?? [];
+              
+              // Patikrinam ar aktyvi pati kategorija arba jos vaikas
+              $isActive = ($selectedSlug === $root['slug']);
+              $childActive = false;
+              foreach ($subCats as $child) {
+                  if ($selectedSlug === $child['slug']) {
+                      $childActive = true; 
+                      break;
                   }
               }
-              $chipClass = ($isActive || $hasActiveChild) ? 'active' : '';
+              $chipClass = ($isActive || $childActive) ? 'active' : '';
               $queryPart = $searchQuery ? '&query=' . urlencode($searchQuery) : '';
           ?>
           
           <div class="chip-container">
-              <a class="chip <?php echo $chipClass; ?>" href="/products.php?category=<?php echo urlencode($parentCat['slug']) . $queryPart; ?>">
-                  <?php echo htmlspecialchars($parentCat['name']); ?>
-                  <?php if (!empty($parentCat['children'])): ?><span class="chip-arrow">▼</span><?php endif; ?>
+              <a class="chip <?php echo $chipClass; ?>" href="/products.php?category=<?php echo urlencode($root['slug']) . $queryPart; ?>">
+                  <?php echo htmlspecialchars($root['name']); ?>
+                  <?php if ($subCats): ?><span class="chip-arrow">▼</span><?php endif; ?>
               </a>
               
-              <?php if (!empty($parentCat['children'])): ?>
+              <?php if ($subCats): ?>
                 <div class="dropdown-menu">
-                    <?php foreach ($parentCat['children'] as $child): ?>
-                        <a class="dropdown-item <?php echo ($selectedSlug === $child['slug']) ? 'active' : ''; ?>" 
-                           href="/products.php?category=<?php echo urlencode($child['slug']) . $queryPart; ?>">
-                            <?php echo htmlspecialchars($child['name']); ?>
+                    <?php foreach ($subCats as $sub): ?>
+                        <a class="dropdown-item <?php echo ($selectedSlug === $sub['slug']) ? 'active' : ''; ?>" 
+                           href="/products.php?category=<?php echo urlencode($sub['slug']) . $queryPart; ?>">
+                            <?php echo htmlspecialchars($sub['name']); ?>
                         </a>
                     <?php endforeach; ?>
                 </div>
@@ -308,10 +280,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
 
     <div class="grid">
       <?php if (empty($products)): ?>
-        <div style="grid-column: 1 / -1; text-align:center; padding: 40px; color:#666; background:#fff; border-radius:16px; border:1px solid #eee;">
+        <div style="grid-column: 1 / -1; text-align:center; padding: 40px; background:#fff; border-radius:16px; border:1px solid #eee;">
             <h3>Prekių nerasta :(</h3>
-            <p>Pabandykite pakeisti filtrus arba paieškos frazę.</p>
-            <a href="/products.php" class="btn secondary" style="margin-top:10px;">Rodyti visas prekes</a>
+            <p style="color:#666;">Pabandykite pakeisti filtrus.</p>
         </div>
       <?php endif; ?>
 
@@ -334,7 +305,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
           </div>
 
           <div class="card__body">
-            <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
+            <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase;">
                 <?php echo htmlspecialchars($product['category_name'] ?? ''); ?>
             </div>
             <h3 style="margin:0; font-size:18px; line-height:1.3;"><a href="/product.php?id=<?php echo (int)$product['id']; ?>"><?php echo htmlspecialchars($product['title']); ?></a></h3>
