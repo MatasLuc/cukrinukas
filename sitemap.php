@@ -4,7 +4,7 @@ require __DIR__ . '/db.php';
 header("Content-Type: application/xml; charset=utf-8");
 
 $pdo = getPdo();
-$baseUrl = 'https://nauja.apdaras.lt'; // Pasitikrinkite savo domeną!
+$baseUrl = 'https://cukrinukas.lt'; // Pasitikrinkite savo domeną!
 
 echo '<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL;
 echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . PHP_EOL;
