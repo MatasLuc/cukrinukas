@@ -107,16 +107,63 @@ function saveUploadedFile(array $file, array $allowedMimeMap, string $prefix = '
         return null;
     }
 
-    $extension = $allowedMimeMap[$mime];
     $uploadDir = ensureUploadsDir();
-    $targetName = uniqid($prefix, true) . '.' . $extension;
+    // Generuojame failo pavadinimą. Naudojame .webp, nes konvertuosime.
+    $targetName = uniqid($prefix, true) . '.webp';
     $destination = $uploadDir . '/' . $targetName;
 
-    if (!move_uploaded_file($file['tmp_name'], $destination)) {
+    // Bandome optimizuoti ir sumažinti
+    if (in_array($mime, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
+        try {
+            $image = null;
+            switch ($mime) {
+                case 'image/jpeg': $image = @imagecreatefromjpeg($file['tmp_name']); break;
+                case 'image/png':  $image = @imagecreatefrompng($file['tmp_name']); break;
+                case 'image/gif':  $image = @imagecreatefromgif($file['tmp_name']); break;
+                case 'image/webp': $image = @imagecreatefromwebp($file['tmp_name']); break;
+            }
+
+            if ($image) {
+                // 1. Sumažiname, jei plotis didesnis nei 1200px
+                $width = imagesx($image);
+                $height = imagesy($image);
+                $maxWidth = 1200;
+                
+                if ($width > $maxWidth) {
+                    $newWidth = $maxWidth;
+                    $newHeight = floor($height * ($maxWidth / $width));
+                    $newImage = imagecreatetruecolor($newWidth, $newHeight);
+                    
+                    // Išlaikome skaidrumą (PNG/WebP)
+                    imagealphablending($newImage, false);
+                    imagesavealpha($newImage, true);
+                    
+                    imagecopyresampled($newImage, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                    imagedestroy($image);
+                    $image = $newImage;
+                }
+
+                // 2. Išsaugome kaip WebP su 80% kokybe (sutaupo ~60-80% vietos)
+                imagewebp($image, $destination, 80);
+                imagedestroy($image);
+                return '/uploads/' . $targetName;
+            }
+        } catch (Throwable $e) {
+            // Jei optimizavimas nepavyko, tęsiame su originaliu failu (fallback)
+        }
+    }
+
+    // Jei optimizavimas nepavyko arba tai ne paveikslėlis, tiesiog perkeliame originalų failą
+    // Pastaba: grąžiname originalų plėtinį
+    $extension = $allowedMimeMap[$mime];
+    $targetNameOriginal = uniqid($prefix, true) . '.' . $extension;
+    $destinationOriginal = $uploadDir . '/' . $targetNameOriginal;
+    
+    if (!move_uploaded_file($file['tmp_name'], $destinationOriginal)) {
         return null;
     }
 
-    return '/uploads/' . $targetName;
+    return '/uploads/' . $targetNameOriginal;
 }
 
 function ensureAdminAccount(PDO $pdo): void {
