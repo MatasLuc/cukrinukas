@@ -256,21 +256,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
 
     <section class="hero">
       <div>
-        <div class="pill">✨ Nauji atradimai jūsų kasdienai</div>
-        <h1>Moderni parduotuvė, kurią įsimylėsite</h1>
-        <p>Rinktiniai produktai, kuriuos paruošėme su meile. Atraskite nuolaidas, sezoninius pasiūlymus ir mėgstamas kategorijas vienoje vietoje.</p>
+        <h1>Parduotuvė</h1>
+        <p>Čia galite rasti visus mūsų turimus produktus.</p>
         <div class="hero-cta">
-          <a class="btn-large" href="#products">Peržiūrėti kolekciją</a>
-          <a class="btn-large ghost" href="/saved.php">Peržvelgti norus</a>
+          <a class="btn-large" href="#products">Visi produktai</a>
+          <a class="btn-large ghost" href="/saved.php">Norų sąrašas</a>
         </div>
       </div>
-        <div style="text-align:right;">
-          <div style="display:inline-flex; flex-direction:column; gap:10px; background: #ffffff; padding:16px 18px; border-radius:16px; border:1px solid #e5e7eb; box-shadow: 0 12px 30px rgba(0,0,0,0.08);">
-            <span style="font-size:13px; letter-spacing:0.08em; color: var(--muted); text-transform: uppercase;">Kolekcijos tonas</span>
-            <strong style="font-size:26px; letter-spacing:-0.02em; color:#1f2937;">„Neon Night“</strong>
-            <span style="color: var(--muted);">Įkvėpta šiuolaikinės miesto estetikos</span>
-          </div>
-        </div>
     </section>
 
     <div class="filter-bar">
@@ -286,7 +278,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
         </form>
     </div>
     <div class="filter-bar" style="margin-top: -10px;">
-      <div class="filter-title">Atrinktos kategorijos</div>
+      <div class="filter-title">Kategorijos</div>
       <div class="chips">
         <a class="chip" href="/products.php<?php echo $searchQuery ? '?query=' . urlencode($searchQuery) : ''; ?>">Visos</a>
         <?php foreach ($categories as $cat): ?>
