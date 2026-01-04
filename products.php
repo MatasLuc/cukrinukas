@@ -93,23 +93,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     }
     a { color:inherit; text-decoration:none; }
 
-    .page { max-width:1200px; margin:0 auto; padding:32px 20px 56px; }
+    /* Atnaujintas puslapio išdėstymas (Grid) - identiškas news.php */
+    .page { 
+      max-width: 1200px; 
+      margin: 0 auto; 
+      padding: 32px 20px 72px; /* Padidintas bottom padding kaip news.php */
+      display: grid; 
+      gap: 28px; /* Vienodas tarpas visiems elementams */
+    }
 
-    /* Hero stilius identiškas news.php/recipes.php */
     .hero {
-      margin-top: 12px;
-      padding: 26px 26px 30px; /* Atnaujinta */
+      /* margin-top pašalintas, tarpus valdo .page grid */
+      padding: 26px 26px 30px;
       border-radius: 28px;
       background: linear-gradient(135deg, #eef2ff, #e0f2fe);
       border: 1px solid #e5e7eb;
       box-shadow: 0 18px 48px rgba(0,0,0,0.08);
       display: grid;
-      grid-template-columns: 1.4fr 0.6fr; /* Atnaujinta */
+      grid-template-columns: 1.4fr 0.6fr;
       align-items: center;
-      gap: 22px; /* Atnaujinta */
+      gap: 22px;
     }
     
-    /* Nauja klasė pill elementui */
     .hero__pill {
       display:inline-flex;
       align-items:center;
@@ -124,7 +129,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
       color: #0f172a;
     }
 
-    /* Pakeistas H1 marginas, kad atitiktų news.php */
     .hero h1 { 
         margin: 10px 0 8px; 
         font-size: clamp(26px, 5vw, 36px); 
@@ -136,7 +140,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     
     .hero-cta { margin-top: 14px; display:flex; gap:10px; flex-wrap:wrap; }
     
-    /* Mygtukai Hero sekcijoje (balti, kaip prašėte) */
     .btn-large {
       display: inline-flex;
       align-items: center;
@@ -160,14 +163,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
       box-shadow: 0 6px 16px rgba(67, 56, 202, 0.12);
     }
 
+    /* .filter-bar marginai pašalinti, nes tarpus valdo grid */
     .filter-bar {
       display:flex;
       justify-content: space-between;
       align-items:center;
       gap:16px;
-      margin: 28px 0 18px;
       flex-wrap: wrap;
     }
+    
     .filter-title { font-size: 18px; letter-spacing: 0.01em; color: #111827; }
     .chips { display:flex; flex-wrap:wrap; gap:12px; }
     .chip {
@@ -324,7 +328,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
             <?php endif; ?>
         </form>
     </div>
-    <div class="filter-bar" style="margin-top: -10px;">
+
+    <div class="filter-bar">
       <div class="filter-title">Kategorijos</div>
       <div class="chips">
         <a class="chip" href="/products.php<?php echo $searchQuery ? '?query=' . urlencode($searchQuery) : ''; ?>">Visos</a>
