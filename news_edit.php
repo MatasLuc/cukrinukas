@@ -11,11 +11,17 @@ if (!isset($_SESSION['user_id']) || empty($_SESSION['is_admin'])) {
 
 $pdo = getPdo();
 ensureNewsTable($pdo);
+// Užtikriname, kad kategorijų lentelė sukurta
+if (function_exists('ensureNewsCategoriesTable')) {
+    ensureNewsCategoriesTable($pdo);
+}
 ensureAdminAccount($pdo);
 
+// Gauname kategorijas
+$categories = $pdo->query("SELECT * FROM news_categories ORDER BY name ASC")->fetchAll();
+
 $id = (int)($_GET['id'] ?? 0);
-// NAUJA: Įtrauktas 'author' į SELECT užklausą
-$stmt = $pdo->prepare('SELECT id, title, summary, author, image_url, body, visibility, is_featured FROM news WHERE id = ?');
+$stmt = $pdo->prepare('SELECT id, title, summary, author, category_id, image_url, body, visibility, is_featured FROM news WHERE id = ?');
 $stmt->execute([$id]);
 $item = $stmt->fetch();
 
@@ -28,14 +34,16 @@ if (!$item) {
 $errors = [];
 $message = '';
 $summary = $item['summary'] ?? '';
-$author = $item['author'] ?? ''; // NAUJA: Autoriaus kintamasis
+$author = $item['author'] ?? '';
+$categoryId = $item['category_id'] ?? null;
 $visibility = $item['visibility'] ?? 'public';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     validateCsrfToken();
     $title = trim($_POST['title'] ?? '');
     $summary = trim($_POST['summary'] ?? '');
-    $author = trim($_POST['author'] ?? ''); // NAUJA: Gauname autorių iš formos
+    $author = trim($_POST['author'] ?? '');
+    $categoryId = !empty($_POST['category_id']) ? (int)$_POST['category_id'] : null;
     $body = trim($_POST['body'] ?? '');
     $visibility = $_POST['visibility'] === 'members' ? 'members' : 'public';
     $isFeatured = isset($_POST['is_featured']) ? 1 : 0;
@@ -52,13 +60,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errors) {
         try {
-            // NAUJA: Atnaujinta UPDATE užklausa su author stulpeliu
-            $stmt = $pdo->prepare('UPDATE news SET title = ?, summary = ?, author = ?, image_url = ?, body = ?, visibility = ?, is_featured = ? WHERE id = ?');
-            $stmt->execute([$title, $summary, $author, $imagePath, $body, $visibility, $isFeatured, $item['id']]);
+            $stmt = $pdo->prepare('UPDATE news SET title = ?, summary = ?, author = ?, category_id = ?, image_url = ?, body = ?, visibility = ?, is_featured = ? WHERE id = ?');
+            $stmt->execute([$title, $summary, $author, $categoryId, $imagePath, $body, $visibility, $isFeatured, $item['id']]);
             $message = 'Naujiena atnaujinta';
             $item['title'] = $title;
             $item['summary'] = $summary;
             $item['author'] = $author;
+            $item['category_id'] = $categoryId;
             $item['body'] = $body;
             $item['visibility'] = $visibility;
             $item['image_url'] = $imagePath;
@@ -88,14 +96,13 @@ $safeBody = sanitizeHtml($currentBody);
     .card { background: #fff; padding: 28px; border-radius: 16px; box-shadow: 0 14px 32px rgba(0,0,0,0.08); width: min(720px, 100%); }
     .card h1 { margin: 0 0 8px; font-size: 26px; }
     label { display: block; margin: 14px 0 6px; font-weight: 600; }
-    input, textarea { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #d7d7e2; background: #f9f9ff; font-size: 15px; }
+    input, textarea, select { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #d7d7e2; background: #f9f9ff; font-size: 15px; }
     textarea { min-height: 160px; resize: vertical; }
-    input:focus, textarea:focus { outline: 2px solid #0b0b0b; }
+    input:focus, textarea:focus, select:focus { outline: 2px solid #0b0b0b; }
     button { padding: 12px 18px; border-radius: 12px; border: none; background: #0b0b0b; color: #fff; font-weight: 600; cursor:pointer; margin-top: 14px; }
     .notice { padding: 12px; border-radius: 12px; margin-top: 12px; }
     .notice.error { background: #fff1f1; border: 1px solid #f3b7b7; color: #991b1b; }
     .notice.success { background: #edf9f0; border: 1px solid #b8e2c4; color: #0f5132; }
-    /* Pataisytas toolbar stilius, kad mygtukai neatrodytų paspausti */
     .toolbar button, .toolbar input, .toolbar select { border-radius:10px; padding:8px 10px; border:1px solid #d7d7e2; background:#fff; cursor:pointer; color:#0b0b0b; font-weight:600; user-select: none; }
     .toolbar input[type=color] { padding:0; width:40px; height:36px; }
     .rich-editor { min-height:220px; padding:12px; border:1px solid #d7d7e2; border-radius:12px; background:#f9f9ff; }
@@ -129,6 +136,16 @@ $safeBody = sanitizeHtml($currentBody);
 
         <label for="author">Autorius</label>
         <input id="author" name="author" type="text" value="<?php echo htmlspecialchars($author); ?>" placeholder="Įveskite autoriaus vardą (pvz. Redakcija)">
+
+        <label for="category_id">Kategorija</label>
+        <select id="category_id" name="category_id">
+            <option value="">-- Be kategorijos --</option>
+            <?php foreach ($categories as $cat): ?>
+                <option value="<?php echo $cat['id']; ?>" <?php echo ($item['category_id'] == $cat['id']) ? 'selected' : ''; ?>>
+                    <?php echo htmlspecialchars($cat['name']); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
 
         <label for="summary">Santrauka</label>
         <textarea id="summary" name="summary" required style="min-height:90px; "><?php echo htmlspecialchars($summary); ?></textarea>
@@ -217,6 +234,14 @@ $safeBody = sanitizeHtml($currentBody);
       if (!file) return;
       const formData = new FormData();
       formData.append('image', file);
+      // Svarbu: Jei naudojate CSRF, čia reikia jį pridėti, kaip create faile.
+      // Paprastai redaguojant užtenka paties image įkėlimo logikos serveryje, 
+      // bet geriausia praktika pridėti token'ą.
+      try {
+          const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+          formData.append('csrf_token', csrfToken);
+      } catch(e) {}
+
       try {
         const res = await fetch('/editor_upload.php', { method: 'POST', body: formData });
         const data = await res.json();
