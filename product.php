@@ -89,7 +89,7 @@ $priceDisplay = buildPriceDisplay($product, $globalDiscount, $categoryDiscounts)
 $meta = [
     'title' => $product['title'] . ' | Cukrinukas',
     'description' => mb_substr(strip_tags($product['description']), 0, 160),
-    'image' => 'https://e-kolekcija.lt' . $product['image_url']
+    'image' => 'https://cukrinukas.lt' . $product['image_url']
 ];
 ?>
 <!doctype html>
@@ -287,12 +287,12 @@ $meta = [
     "@context": "https://schema.org/",
     "@type": "Product",
     "name": <?php echo json_encode($product['title']); ?>,
-    "image": [<?php echo json_encode('https://e-kolekcija.lt' . $product['image_url']); ?>],
+    "image": [<?php echo json_encode('https://cukrinukas.lt' . $product['image_url']); ?>],
     "description": <?php echo json_encode(mb_substr(strip_tags($product['description']), 0, 300)); ?>,
     "sku": <?php echo json_encode($product['id']); ?>,
     "offers": {
       "@type": "Offer",
-      "url": <?php echo json_encode("https://e-kolekcija.lt/product.php?id=" . $product['id']); ?>,
+      "url": <?php echo json_encode("https://cukrinukas.lt/product.php?id=" . $product['id']); ?>,
       "priceCurrency": "EUR",
       "price": <?php echo json_encode($priceDisplay['current']); ?>,
       "availability": <?php echo ((int)$product['quantity'] > 0) ? '"https://schema.org/InStock"' : '"https://schema.org/OutOfStock"'; ?>,
