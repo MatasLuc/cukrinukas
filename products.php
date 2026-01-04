@@ -287,6 +287,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
 
     <section class="hero">
       <div>
+        <div class="hero__pill"><?php echo htmlspecialchars($siteContent['faq_hero_pill'] ?? '💡 Test'); ?></div>
         <h1>Parduotuvė</h1>
         <p>Čia galite rasti visus mūsų turimus produktus.</p>
         <div class="hero-cta">
