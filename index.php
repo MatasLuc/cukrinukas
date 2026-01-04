@@ -169,14 +169,14 @@ if ($heroMedia['type'] === 'image') {
 <meta name="description" content="Cukrinukas.lt rasite gliukometrus, sensorius, juosteles, mažo GI užkandžius ir patarimus gyvenimui su diabetu.">
 <link rel="icon" href="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=48,h=48,fit=crop,f=png/YZ9VqrOVpxS49M9g/favicon-32x32-YbNvQ81bK5S5reOP.png">
 <link rel="apple-touch-icon" href="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=48,h=48,fit=crop,f=png/YZ9VqrOVpxS49M9g/favicon-32x32-YbNvQ81bK5S5reOP.png">
-<meta content="https://e-kolekcija.lt/" property="og:url">
-<link rel="canonical" href="https://e-kolekcija.lt/">
+<meta content="https://cukrinukas.lt/" property="og:url">
+<link rel="canonical" href="https://cukrinukas.lt/">
 <meta content="Cukrinukas.lt – diabeto priemonės ir žinios" property="og:title">
 <meta name="twitter:title" content="Cukrinukas.lt – diabeto priemonės ir žinios">
 <meta content="website" property="og:type">
 <meta property="og:description" content="Gliukometrų, sensorių ir subalansuotos mitybos priemonių parduotuvė su naujienomis apie diabetą.">
 <meta name="twitter:description" content="Gliukometrų, sensorių ir subalansuotos mitybos priemonių parduotuvė su naujienomis apie diabetą.">
-<meta property="og:site_name" content="e-kolekcija.lt">
+<meta property="og:site_name" content="cukrinukas.lt">
 <meta name="keywords" content="monetos, banknotai, numizmatika">
 <meta content="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=1200,h=630,fit=crop,f=jpeg/YZ9VqrOVpxS49M9g/logo-m2Wp732ga7FolMLe.png" property="og:image">
 <meta content="https://assets.zyrosite.com/cdn-cgi/image/format=auto,w=1200,h=630,fit=crop,f=jpeg/YZ9VqrOVpxS49M9g/logo-m2Wp732ga7FolMLe.png" name="twitter:image">
@@ -185,7 +185,7 @@ if ($heroMedia['type'] === 'image') {
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect">
 <link rel="preconnect">
-<link rel="alternate" hreflang="x-default" href="https://e-kolekcija.lt/">
+<link rel="alternate" hreflang="x-default" href="https://cukrinukas.lt/">
 <link rel="stylesheet" href="/_astro-1733393565931/_slug_.DlClk9-n.css">
 <style>
 :root {
