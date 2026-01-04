@@ -109,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     }
     .hero h1 { margin: 0 0 10px; font-size: clamp(26px, 5vw, 36px); letter-spacing: -0.02em; color: #0f172a; }
     .hero p { margin: 0; color: var(--muted); line-height: 1.6; }
-    
+    .hero__pill { display:inline-flex; align-items:center; gap:8px; padding:9px 14px; background:#fff; border:1px solid #e4e7ec; border-radius:999px; font-weight:700; box-shadow:0 10px 26px rgba(0,0,0,0.08); }
     .hero-cta { margin-top: 14px; display:flex; gap:10px; flex-wrap:wrap; }
     
     /* Atnaujinti mygtukai - baltas fonas, vienodos spalvos */
@@ -287,7 +287,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
 
     <section class="hero">
       <div>
-        <div class="hero__pill"><?php echo htmlspecialchars($siteContent['faq_hero_pill'] ?? '💡 Test'); ?></div>
+        <div class="hero__pill"><?php echo htmlspecialchars($siteContent['faq_hero_pill'] ?? '🛒 Mūsų parduotuvė'); ?></div>
         <h1>Parduotuvė</h1>
         <p>Čia galite rasti visus mūsų turimus produktus.</p>
         <div class="hero-cta">
