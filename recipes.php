@@ -9,7 +9,7 @@ ensureSavedContentTables($pdo);
 ensureAdminAccount($pdo);
 $siteContent = getSiteContent($pdo);
 
-// Išsaugoti receptą (Mėgstamiausi)
+// Išsaugoti receptą
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['recipe_id'])) {
     validateCsrfToken();
     if (empty($_SESSION['user_id'])) {
@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['recipe_id'])) {
     exit;
 }
 
-// 1. Gauname aktyvias receptų kategorijas
+// 1. Gauname kategorijas
 $activeCategories = $pdo->query("
     SELECT c.id, c.name, COUNT(r.recipe_id) as count 
     FROM recipe_categories c 
@@ -31,10 +31,9 @@ $activeCategories = $pdo->query("
     ORDER BY c.name ASC
 ")->fetchAll();
 
-// 2. Filtravimo logika
+// 2. Filtravimas
 $selectedCatId = isset($_GET['cat']) ? (int)$_GET['cat'] : null;
 
-// Pagrindinė užklausa
 $sql = 'SELECT r.id, r.title, r.image_url, r.summary, r.body, r.created_at, r.visibility 
         FROM recipes r ';
 $params = [];
@@ -61,49 +60,51 @@ $isAdmin = !empty($_SESSION['is_admin']);
   <title>Receptai | Cukrinukas</title>
   <?php echo headerStyles(); ?>
   <style>
+    /* Naudojama ta pati paletė kaip ir news.php */
     :root {
       --bg: #f7f7fb;
       --card: #ffffff;
       --border: #e4e7ec;
       --text: #0f172a;
       --muted: #475467;
-      --accent: #22c55e;
+      --accent: #7c3aed;
     }
     * { box-sizing: border-box; }
     body { margin:0; background: var(--bg); color: var(--text); }
     .page { max-width: 1200px; margin: 0 auto; padding: 32px 20px 72px; display:grid; gap:28px; }
     
-    .hero { background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-radius: 28px; padding: 26px 26px 30px; border:1px solid #bbf7d0; box-shadow:0 18px 48px rgba(0,0,0,0.04); display:grid; grid-template-columns: 1.4fr 0.6fr; gap:22px; align-items:center; }
-    .hero__pill { display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid #bbf7d0; padding:10px 14px; border-radius:999px; font-weight:700; color: #166534; box-shadow:0 12px 30px rgba(0,0,0,0.04); }
-    .hero h1 { margin:10px 0 8px; font-size: clamp(26px, 4vw, 36px); letter-spacing:-0.02em; color:#14532d; }
-    .hero p { margin:0; color: #3f6212; line-height:1.6; }
+    /* Hero sekcija (identiška news.php) */
+    .hero { background: linear-gradient(135deg, #eef2ff, #e0f2fe); border-radius: 28px; padding: 26px 26px 30px; border:1px solid #e5e7eb; box-shadow:0 18px 48px rgba(0,0,0,0.08); display:grid; grid-template-columns: 1.4fr 0.6fr; gap:22px; align-items:center; }
+    .hero__pill { display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid #e4e7ec; padding:10px 14px; border-radius:999px; font-weight:700; box-shadow:0 12px 30px rgba(0,0,0,0.08); }
+    .hero h1 { margin:10px 0 8px; font-size: clamp(26px, 4vw, 36px); letter-spacing:-0.02em; }
+    .hero p { margin:0; color: var(--muted); line-height:1.6; }
     .hero__actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
     
-    .cta { display:inline-flex; align-items:center; gap:10px; padding:12px 16px; border-radius:12px; border:none; background: linear-gradient(135deg, #16a34a, #15803d); color:#fff; font-weight:700; cursor:pointer; box-shadow:0 14px 36px rgba(22,163,74,0.25); text-decoration:none; }
-    .cta.secondary { background:#fff; color:#166534; border:1px solid #86efac; box-shadow:none; }
+    /* Mygtukai (identiški news.php) */
+    .cta { display:inline-flex; align-items:center; gap:10px; padding:12px 16px; border-radius:12px; border:none; background: linear-gradient(135deg, #4338ca, #7c3aed); color:#fff; font-weight:700; cursor:pointer; box-shadow:0 14px 36px rgba(124,58,237,0.25); text-decoration:none; transition: transform .18s ease, box-shadow .18s ease; }
+    .cta.secondary { background:#fff; color:#4338ca; border:1px solid #c7d2fe; box-shadow:none; }
+    .cta:hover { transform: translateY(-1px); box-shadow:0 18px 52px rgba(124,58,237,0.3); }
     
     .page__head { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
     .page__title { margin:0; font-size:28px; letter-spacing:-0.01em; }
     
-    .pill { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:12px; background:#f0fdf4; color:#15803d; font-weight:700; font-size:13px; transition: all 0.2s ease; text-decoration:none; border:1px solid transparent; }
-    .pill.active { background:#16a34a; color:#fff; }
-    .pill:hover { opacity: 0.9; transform: translateY(-1px); border-color:#bbf7d0; }
+    /* Kategorijų stilius (identiškas news.php) */
+    .pill { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:12px; background:#eef2ff; color:#4338ca; font-weight:700; font-size:13px; transition: all 0.2s ease; text-decoration:none; }
+    .pill:hover { opacity: 0.9; transform: translateY(-1px); }
     
     .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:18px; }
-    .card { background: var(--card); border-radius:20px; overflow:hidden; border:1px solid var(--border); box-shadow:0 14px 32px rgba(0,0,0,0.08); display:grid; grid-template-rows:auto 1fr; transition: transform .18s ease; }
-    .card:hover { transform: translateY(-3px); box-shadow:0 18px 46px rgba(0,0,0,0.12); border-color: #86efac; }
+    .card { background: var(--card); border-radius:20px; overflow:hidden; border:1px solid var(--border); box-shadow:0 14px 32px rgba(0,0,0,0.08); display:grid; grid-template-rows:auto 1fr; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+    .card:hover { transform: translateY(-3px); box-shadow:0 18px 46px rgba(0,0,0,0.12); border-color: rgba(124,58,237,0.35); }
     .card img { width: 100%; height: 190px; object-fit: cover; display: block; }
     .card__body { padding: 16px 18px 20px; display: grid; gap: 10px; }
     .card__title { margin: 0; font-size: 20px; letter-spacing:-0.01em; }
     .card__meta { font-size: 13px; color: var(--muted); }
     
-    /* PAKEITIMAS: Apribojame tekstą iki 5 eilučių */
+    /* Santraukos ribojimas (CSS būdu) */
     .card__excerpt { 
         margin: 0; 
         color: #111827; 
         line-height: 1.55;
-        
-        /* Šios eilutės sukuria 5 eilučių limitą su daugtaškiu */
         display: -webkit-box;
         -webkit-line-clamp: 5;
         -webkit-box-orient: vertical;
@@ -111,7 +112,8 @@ $isAdmin = !empty($_SESSION['is_admin']);
         text-overflow: ellipsis;
     }
     
-    .heart-btn { width:38px; height:38px; border-radius:12px; border:1px solid var(--border); background:#f8fafc; display:inline-flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; }
+    .heart-btn { width:38px; height:38px; border-radius:12px; border:1px solid var(--border); background:#f8fafc; display:inline-flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; transition: transform .16s ease, border-color .18s ease; }
+    .heart-btn:hover { border-color: rgba(124,58,237,0.55); transform: translateY(-2px); }
   </style>
 </head>
 <body>
@@ -141,11 +143,11 @@ $isAdmin = !empty($_SESSION['is_admin']);
 
     <?php if (!empty($activeCategories)): ?>
     <div class="categories-nav" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom: -10px;">
-        <a href="/recipes.php" class="pill <?php echo $selectedCatId === null ? 'active' : ''; ?>">
+        <a href="/recipes.php" class="pill" style="background: <?php echo $selectedCatId === null ? '#4338ca' : '#eef2ff'; ?>; color: <?php echo $selectedCatId === null ? '#fff' : '#4338ca'; ?>;">
             Visi receptai
         </a>
         <?php foreach ($activeCategories as $cat): ?>
-            <a href="/recipes.php?cat=<?php echo $cat['id']; ?>" class="pill <?php echo $selectedCatId === $cat['id'] ? 'active' : ''; ?>">
+            <a href="/recipes.php?cat=<?php echo $cat['id']; ?>" class="pill" style="background: <?php echo $selectedCatId === $cat['id'] ? '#4338ca' : '#eef2ff'; ?>; color: <?php echo $selectedCatId === $cat['id'] ? '#fff' : '#4338ca'; ?>;">
                 <?php echo htmlspecialchars($cat['name']); ?>
             </a>
         <?php endforeach; ?>
@@ -173,12 +175,9 @@ $isAdmin = !empty($_SESSION['is_admin']);
                 <p class="card__excerpt">
                     <?php 
                         $excerpt = trim($r['summary'] ?? '');
-                        // Jei santraukos nėra, imame iš body
                         if (!$excerpt) {
                             $excerpt = strip_tags($r['body']);
                         }
-                        // Apkerpame PHP pusėje tik jei tekstas labai ilgas (kad nekrautų HTML), 
-                        // bet vizualų 5 eilučių limitą sutvarko CSS
                         if (mb_strlen($excerpt) > 400) {
                             $excerpt = mb_substr($excerpt, 0, 400) . '...';
                         }
