@@ -112,38 +112,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     
     .hero-cta { margin-top: 14px; display:flex; gap:10px; flex-wrap:wrap; }
     
-    /* Atnaujinti mygtukai - lengvesnis stilius */
+    /* Atnaujinti mygtukai - baltas fonas, vienodos spalvos */
     .btn-large {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       padding: 11px 24px;
       border-radius: 12px;
-      border: 1px solid #4338ca; /* Indigo */
-      background: transparent;
-      color: #4338ca;
+      border: 1px solid #4338ca; /* Indigo rėmelis */
+      background: #ffffff; /* Baltas fonas */
+      color: #4338ca; /* Indigo tekstas */
       font-weight: 600;
       cursor: pointer;
       text-decoration: none;
       transition: all .2s ease;
-      box-shadow: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     }
+    
+    /* Hover efektas - išlieka baltas, tik patamsėja elementai */
     .btn-large:hover {
-      background: #4338ca;
-      color: #ffffff;
+      background: #ffffff; 
+      color: #312e81; /* Tamsesnė indigo */
+      border-color: #312e81;
       transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(67, 56, 202, 0.2);
+      box-shadow: 0 6px 16px rgba(67, 56, 202, 0.12);
     }
 
+    /* .ghost klasė dabar neturi skirtingų spalvų, kad abu mygtukai būtų vienodi */
     .ghost {
-      border-color: #94a3b8; /* Slate 400 - neutralus rėmelis */
-      color: #475467; /* Slate 600 - neutralus tekstas */
-    }
-    .ghost:hover {
-      background: transparent;
-      border-color: #4338ca;
-      color: #4338ca;
-      box-shadow: 0 4px 12px rgba(67, 56, 202, 0.1);
+      /* Galima palikti tuščią arba naudoti papildomiems nustatymams ateityje */
     }
 
     .filter-bar {
