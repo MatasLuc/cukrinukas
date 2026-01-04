@@ -189,7 +189,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     
     .ribbon { position:absolute; top:12px; left:12px; background: var(--accent); color:#fff; padding:4px 10px; border-radius:8px; font-size:12px; font-weight:700; }
     
-    /* Prekės kaina ir mygtukai */
     .price-row { 
         display:flex; 
         justify-content: space-between; 
@@ -199,27 +198,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     }
     .price { font-size:20px; font-weight:700; color:#111827; flex-grow: 1; }
     
-    /* Nauji mygtukų stiliai - Ikonos */
+    /* AKCIJOS MYGTUKAI */
     .action-btn {
         width: 42px;
         height: 42px;
         border-radius: 12px;
-        border: none;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: transform .1s, background-color .2s;
+        transition: all .2s;
     }
 
+    /* KREPŠELIO IKONA - BALTAS FONAS + MĖLYNA IKONA */
     .btn-cart-icon {
-        background: linear-gradient(135deg, #4338ca, #7c3aed);
-        color: #fff;
-        box-shadow: 0 4px 12px rgba(67, 56, 202, 0.2);
+        background: #ffffff;
+        color: #829ed6;
+        border: 1px solid #e4e7ec;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
     .btn-cart-icon:hover {
+        border-color: #829ed6;
         transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(67, 56, 202, 0.3);
+        box-shadow: 0 4px 12px rgba(130, 158, 214, 0.3);
     }
 
     .btn-wishlist {
