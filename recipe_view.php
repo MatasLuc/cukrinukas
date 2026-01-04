@@ -8,7 +8,8 @@ ensureRecipesTable($pdo);
 ensureSavedContentTables($pdo);
 
 $id = (int)($_GET['id'] ?? 0);
-$stmt = $pdo->prepare('SELECT id, title, image_url, body, created_at FROM recipes WHERE id = ?');
+// Pridedame author į SELECT
+$stmt = $pdo->prepare('SELECT id, title, image_url, body, created_at, author FROM recipes WHERE id = ?');
 $stmt->execute([$id]);
 $recipe = $stmt->fetch();
 
@@ -74,7 +75,13 @@ $meta = [
           <h1 style="margin:0; font-size:30px; line-height:1.2; color:#0b0b0b;"><?php echo htmlspecialchars($recipe['title']); ?></h1>
           <div class="meta">
             <span class="pill">Publikuota <?php echo date('Y-m-d', strtotime($recipe['created_at'])); ?></span>
-            <span class="pill" style="background:#e8fff5; border-color:#cfe8dc; color:#0d8a4d;">Šefų patarimas</span>
+            
+            <?php if (!empty($recipe['author'])): ?>
+                <span class="pill" style="background:#e8fff5; border-color:#cfe8dc; color:#0d8a4d;">Autorius: <?php echo htmlspecialchars($recipe['author']); ?></span>
+            <?php else: ?>
+                <span class="pill" style="background:#e8fff5; border-color:#cfe8dc; color:#0d8a4d;">Šefų patarimas</span>
+            <?php endif; ?>
+            
           </div>
         </div>
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
@@ -102,6 +109,9 @@ $meta = [
         <div style="display:flex; flex-direction:column; gap:6px; font-size:14px; color:#1f2b46;">
           <span>Recepto ID: <strong>#<?php echo (int)$recipe['id']; ?></strong></span>
           <span>Publikuota: <strong><?php echo date('Y-m-d', strtotime($recipe['created_at'])); ?></strong></span>
+          <?php if (!empty($recipe['author'])): ?>
+             <span>Autorius: <strong><?php echo htmlspecialchars($recipe['author']); ?></strong></span>
+          <?php endif; ?>
         </div>
         <a class="pill" href="/recipes.php" style="text-align:center; display:inline-flex; justify-content:center;">Grįžti į receptus</a>
       </aside>
@@ -113,10 +123,10 @@ $meta = [
     "@context": "https://schema.org/",
     "@type": "Recipe",
     "name": <?php echo json_encode($recipe['title']); ?>,
-    "image": [<?php echo json_encode('https://nauja.apdaras.lt.lt' . $recipe['image_url']); ?>],
+    "image": [<?php echo json_encode('https://nauja.apdaras.lt' . $recipe['image_url']); ?>],
     "author": {
-      "@type": "Organization",
-      "name": "Cukrinukas"
+      "@type": "Person",
+      "name": <?php echo json_encode(!empty($recipe['author']) ? $recipe['author'] : 'Cukrinukas'); ?>
     },
     "datePublished": <?php echo json_encode(date('Y-m-d', strtotime($recipe['created_at']))); ?>,
     "description": <?php echo json_encode(mb_substr(strip_tags($recipe['body']), 0, 160)); ?>
