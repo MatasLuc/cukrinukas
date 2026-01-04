@@ -9,7 +9,6 @@ ensureSavedContentTables($pdo);
 
 $id = (int)($_GET['id'] ?? 0);
 
-// 1. Gauname naujienos informaciją
 $stmt = $pdo->prepare('SELECT * FROM news WHERE id = ?');
 $stmt->execute([$id]);
 $news = $stmt->fetch();
@@ -20,7 +19,7 @@ if (!$news) {
     exit;
 }
 
-// 2. Gauname priskirtas kategorijas
+// Kategorijos
 $catStmt = $pdo->prepare("
     SELECT c.name, c.id 
     FROM news_categories c 
@@ -30,7 +29,6 @@ $catStmt = $pdo->prepare("
 $catStmt->execute([$id]);
 $categories = $catStmt->fetchAll();
 
-// Teisių tikrinimas
 $canViewFull = ($news['visibility'] ?? 'public') !== 'members' || !empty($_SESSION['user_id']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save') {
@@ -46,7 +44,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
 
 $authorName = !empty($news['author']) ? $news['author'] : 'Redakcijos naujiena';
 
-// SEO
 $meta = [
     'title' => $news['title'] . ' | Naujienos',
     'description' => $news['summary'] ?: mb_substr(strip_tags($news['body']), 0, 160),
@@ -60,7 +57,6 @@ $meta = [
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <?php echo headerStyles(); ?>
   <style>
-    /* Violetinė/Indigo paletė */
     :root { --color-bg: #f7f7fb; --color-primary: #0b0b0b; --pill:#f0f2ff; --border:#e4e6f0; }
     * { box-sizing: border-box; }
     a { color:inherit; text-decoration:none; }
@@ -84,14 +80,8 @@ $meta = [
     .content-card { background:#fff; border:1px solid var(--border); border-radius:18px; padding:22px; box-shadow:0 14px 30px rgba(0,0,0,0.06); line-height:1.7; color:#2b2f4c; }
     .content-card img { max-width:100%; height:auto; display:block; margin:12px auto; border-radius:14px; }
     
-    .grid { display:grid; grid-template-columns: minmax(0,1fr) 320px; gap:18px; align-items:start; }
-    
-    .info-card { background:#fff; border:1px solid var(--border); border-radius:18px; padding:16px; box-shadow:0 12px 26px rgba(0,0,0,0.05); display:flex; flex-direction:column; gap:10px; }
-    .info-title { font-weight:700; font-size:15px; color:#1c1c28; }
-    .info-note { color:#6b6b7a; font-size:13px; line-height:1.5; }
-    .ghost-btn { padding:10px 16px; border-radius:12px; border:1px solid var(--border); background:#fff; color:#0b0b0b; box-shadow:0 8px 22px rgba(0,0,0,0.05); cursor:pointer; text-align:center; }
-    
-    @media(max-width: 900px){ .grid { grid-template-columns:1fr; } }
+    /* Grid stilius supaprastintas - viena kolona */
+    .grid { display:grid; grid-template-columns: 1fr; gap:18px; }
   </style>
 </head>
 <body>
@@ -102,13 +92,11 @@ $meta = [
       <div class="crumb"><a href="/news.php">← Visos naujienos</a></div>
       
       <div style="display:flex; align-items:flex-start; gap:14px; justify-content:space-between;">
-        
         <div style="display:flex; flex-direction:column; gap:8px; flex: 1; min-width: 0;">
           <h1 style="margin:0; font-size:30px; line-height:1.2; color:#0b0b0b; word-wrap: break-word;"><?php echo htmlspecialchars($news['title']); ?></h1>
           <div class="meta">
             <span class="badge">Publikuota <?php echo date('Y-m-d', strtotime($news['created_at'])); ?></span>
             <span class="badge" style="background:#e8fff5; border-color:#cfe8dc; color:#0d8a4d;"><?php echo htmlspecialchars($authorName); ?></span>
-            
             <?php if ($categories): ?>
                 <?php foreach ($categories as $cat): ?>
                     <a href="/news.php?cat=<?php echo $cat['id']; ?>" class="badge badge-cat"><?php echo htmlspecialchars($cat['name']); ?></a>
@@ -157,28 +145,7 @@ $meta = [
           </div>
         <?php endif; ?>
       </article>
-      
-      <aside class="info-card">
-        <div class="info-title">Apžvalga</div>
-        <div class="info-note">Pastebėjote klaidą? Atsiprašome ir kviečiame apie ją pranešti el. paštu labas@cukrinukas.lt</div>
-        <div style="display:flex; flex-direction:column; gap:6px; font-size:14px; color:#2b2f4c;">
-          <span>Autorius: <strong><?php echo htmlspecialchars($authorName); ?></strong></span>
-          <span>Publikavimo data: <strong><?php echo date('Y-m-d', strtotime($news['created_at'])); ?></strong></span>
-          
-          <?php if ($categories): ?>
-            <span>Kategorijos: 
-                <strong>
-                <?php 
-                    $catNames = array_map(function($c) { return htmlspecialchars($c['name']); }, $categories);
-                    echo implode(', ', $catNames); 
-                ?>
-                </strong>
-            </span>
-          <?php endif; ?>
-        </div>
-        <a class="ghost-btn" href="/news.php">Peržiūrėti kitas naujienas</a>
-      </aside>
-    </section>
+      </section>
   </main>
 
   <?php renderFooter($pdo); ?>
