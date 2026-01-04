@@ -265,10 +265,35 @@ function ensureNewsTable(PDO $pdo): void {
 }
 
 // -------------------------------------------------------------------------
-// KITOS FUNKCIJOS
+// RECEPTŲ FUNKCIJOS (ATNAUJINTA)
 // -------------------------------------------------------------------------
 
+function ensureRecipeCategoriesTable(PDO $pdo): void {
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS recipe_categories (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            slug VARCHAR(120) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+    );
+}
+
+function ensureRecipeCategoryRelationsTable(PDO $pdo): void {
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS recipe_category_relations (
+            recipe_id INT NOT NULL,
+            category_id INT NOT NULL,
+            PRIMARY KEY (recipe_id, category_id),
+            FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
+            FOREIGN KEY (category_id) REFERENCES recipe_categories(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+    );
+}
+
 function ensureRecipesTable(PDO $pdo): void {
+    ensureRecipeCategoriesTable($pdo);
+
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS recipes (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -281,6 +306,9 @@ function ensureRecipesTable(PDO $pdo): void {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
+    
+    // Sukuriame ryšių lentelę
+    ensureRecipeCategoryRelationsTable($pdo);
 
     $columns = $pdo->query("SHOW COLUMNS FROM recipes")->fetchAll(PDO::FETCH_COLUMN);
     if (!in_array('summary', $columns, true)) {
@@ -293,6 +321,10 @@ function ensureRecipesTable(PDO $pdo): void {
         $pdo->exec('ALTER TABLE recipes ADD COLUMN visibility ENUM("public","members") NOT NULL DEFAULT "public" AFTER body');
     }
 }
+
+// -------------------------------------------------------------------------
+// KITOS FUNKCIJOS
+// -------------------------------------------------------------------------
 
 function ensureCommunityTables(PDO $pdo): void {
     $pdo->exec(
