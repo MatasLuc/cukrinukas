@@ -65,23 +65,30 @@ $meta = [
     a { color:inherit; text-decoration:none; }
     body { background: var(--color-bg); }
     .shell { max-width:1080px; margin:32px auto 64px; padding:0 20px; display:flex; flex-direction:column; gap:18px; }
+    
     .hero { background:linear-gradient(135deg,#ffffff 0%,#eef0ff 100%); border:1px solid var(--border); border-radius:20px; box-shadow:0 16px 40px rgba(0,0,0,0.06); padding:22px; display:flex; flex-direction:column; gap:12px; }
     .crumb { display:flex; align-items:center; gap:10px; color:#6b6b7a; font-size:14px; }
     .meta { display:flex; align-items:center; gap:10px; color:#6b6b7a; font-size:14px; flex-wrap:wrap; }
+    
     .badge { padding:6px 12px; border-radius:999px; background:var(--pill); border:1px solid var(--border); font-weight:600; font-size:13px; color:#2b2f4c; }
     .badge-cat { background:#f0f7ff; border-color:#dbeafe; color:#1e40af; text-decoration:none; transition:0.2s; }
     .badge-cat:hover { background:#dbeafe; }
     
     .heart-btn { width:44px; height:44px; border-radius:14px; border:1px solid var(--border); background:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; box-shadow:0 10px 22px rgba(0,0,0,0.08); }
+    
     .media { overflow:hidden; border-radius:18px; border:1px solid var(--border); background:#fff; box-shadow:0 16px 38px rgba(0,0,0,0.06); }
     .media img { width:100%; object-fit:cover; max-height:460px; display:block; }
+    
     .content-card { background:#fff; border:1px solid var(--border); border-radius:18px; padding:22px; box-shadow:0 14px 30px rgba(0,0,0,0.06); line-height:1.7; color:#2b2f4c; }
     .content-card img { max-width:100%; height:auto; display:block; margin:12px auto; border-radius:14px; }
+    
     .grid { display:grid; grid-template-columns: minmax(0,1fr) 320px; gap:18px; align-items:start; }
+    
     .info-card { background:#fff; border:1px solid var(--border); border-radius:18px; padding:16px; box-shadow:0 12px 26px rgba(0,0,0,0.05); display:flex; flex-direction:column; gap:10px; }
     .info-title { font-weight:700; font-size:15px; color:#1c1c28; }
     .info-note { color:#6b6b7a; font-size:13px; line-height:1.5; }
     .ghost-btn { padding:10px 16px; border-radius:12px; border:1px solid var(--border); background:#fff; color:#0b0b0b; box-shadow:0 8px 22px rgba(0,0,0,0.05); cursor:pointer; text-align:center; }
+    
     @media(max-width: 900px){ .grid { grid-template-columns:1fr; } }
   </style>
 </head>
@@ -120,8 +127,15 @@ $meta = [
           <?php endif; ?>
         </div>
       </div>
+      
       <?php if ($news['image_url']): ?>
         <div class="media"><img src="<?php echo htmlspecialchars($news['image_url']); ?>" alt="<?php echo htmlspecialchars($news['title']); ?>"></div>
+      <?php endif; ?>
+
+      <?php if (!empty($news['summary'])): ?>
+        <p style="margin:0; font-size:18px; line-height:1.6; color:#4b5563;">
+            <?php echo nl2br(htmlspecialchars($news['summary'])); ?>
+        </p>
       <?php endif; ?>
     </section>
 
@@ -130,8 +144,10 @@ $meta = [
         <?php if ($canViewFull): ?>
           <?php echo sanitizeHtml($news['body']); ?>
         <?php else: ?>
-          <p style="margin-top:0;"><?php echo nl2br(htmlspecialchars($news['summary'] ?? '')); ?></p>
-          <h5 class="text-center text-muted" style="text-align:center; color:#6b6b7a; margin-top:24px;"><a href="/login.php" style="text-decoration:underline;">Prisijunkite</a>, kad perskaitytumėte visą naujieną</h5>
+          <p style="margin-top:0;">Norėdami skaityti visą straipsnį, prašome prisijungti.</p>
+          <h5 class="text-center text-muted" style="text-align:center; color:#6b6b7a; margin-top:24px;">
+            <a href="/login.php" style="text-decoration:underline;">Prisijunkite</a> arba <a href="/register.php" style="text-decoration:underline;">registruokitės</a>
+          </h5>
         <?php endif; ?>
       </article>
       
@@ -141,6 +157,17 @@ $meta = [
         <div style="display:flex; flex-direction:column; gap:6px; font-size:14px; color:#2b2f4c;">
           <span>Autorius: <strong><?php echo htmlspecialchars($authorName); ?></strong></span>
           <span>Publikavimo data: <strong><?php echo date('Y-m-d', strtotime($news['created_at'])); ?></strong></span>
+          
+          <?php if ($categories): ?>
+            <span>Kategorijos: 
+                <strong>
+                <?php 
+                    $catNames = array_map(function($c) { return htmlspecialchars($c['name']); }, $categories);
+                    echo implode(', ', $catNames); 
+                ?>
+                </strong>
+            </span>
+          <?php endif; ?>
         </div>
         <a class="ghost-btn" href="/news.php">Peržiūrėti kitas naujienas</a>
       </aside>
