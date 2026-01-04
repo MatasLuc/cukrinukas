@@ -30,10 +30,7 @@ $catStmt = $pdo->prepare("
 $catStmt->execute([$id]);
 $categories = $catStmt->fetchAll();
 
-// Teisių tikrinimas: ar vartotojas gali matyti pilną turinį
-// Gali matyti, jei:
-// - Straipsnis yra 'public' (viešas)
-// - ARBA vartotojas yra prisijungęs (net jei straipsnis 'members')
+// Teisių tikrinimas
 $canViewFull = ($news['visibility'] ?? 'public') !== 'members' || !empty($_SESSION['user_id']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save') {
@@ -103,9 +100,11 @@ $meta = [
   <main class="shell">
     <section class="hero">
       <div class="crumb"><a href="/news.php">← Visos naujienos</a></div>
-      <div style="display:flex; align-items:flex-start; gap:14px; justify-content:space-between; flex-wrap:wrap;">
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <h1 style="margin:0; font-size:30px; line-height:1.2; color:#0b0b0b;"><?php echo htmlspecialchars($news['title']); ?></h1>
+      
+      <div style="display:flex; align-items:flex-start; gap:14px; justify-content:space-between;">
+        
+        <div style="display:flex; flex-direction:column; gap:8px; flex: 1; min-width: 0;">
+          <h1 style="margin:0; font-size:30px; line-height:1.2; color:#0b0b0b; word-wrap: break-word;"><?php echo htmlspecialchars($news['title']); ?></h1>
           <div class="meta">
             <span class="badge">Publikuota <?php echo date('Y-m-d', strtotime($news['created_at'])); ?></span>
             <span class="badge" style="background:#e8fff5; border-color:#cfe8dc; color:#0d8a4d;"><?php echo htmlspecialchars($authorName); ?></span>
@@ -120,7 +119,7 @@ $meta = [
           </div>
         </div>
         
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <div style="display:flex; gap:10px; align-items:center; flex-shrink: 0; margin-left: 10px;">
           <?php if (!empty($_SESSION['user_id'])): ?>
             <form method="post" style="margin:0;">
               <?php echo csrfField(); ?>
