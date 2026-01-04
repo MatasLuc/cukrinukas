@@ -212,15 +212,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
 
     /* KREPŠELIO IKONA - BALTAS FONAS + MĖLYNA IKONA */
     .btn-cart-icon {
-        background: #ffffff;
+        background: #fff;
+        border: 1px solid var(--border);
         color: #1f2937;
-        border: 1px solid #e4e7ec;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        font-size: 20px;
     }
     .btn-cart-icon:hover {
-        border-color: #829ed6;
+        border-color: var(--accent);
+        color: var(--accent);
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(130, 158, 214, 0.3);
     }
 
     .btn-wishlist {
