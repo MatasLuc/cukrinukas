@@ -11,6 +11,9 @@ if (function_exists('ensureRecipeCategoriesTable')) ensureRecipeCategoriesTable(
 
 // Apdorojame veiksmus
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // SVARBU: Patikriname CSRF žetoną prieš bet kokius veiksmus
+    validateCsrfToken();
+
     $action = $_POST['action'] ?? '';
     
     // --- BENDRA FUNKCIJA SLUG GENERAVIMUI ---
@@ -120,7 +123,7 @@ if (isset($_GET['edit_recipe_cat'])) {
           <td style="display:flex; gap: 8px;">
             <a class="btn" href="/news_edit.php?id=<?php echo (int)$n['id']; ?>">Redaguoti</a>
             <form method="POST" onsubmit="return confirm('Trinti naujieną?');" style="margin:0;">
-                <input type="hidden" name="action" value="delete_news"><input type="hidden" name="id" value="<?php echo $n['id']; ?>">
+                <?php echo csrfField(); ?> <input type="hidden" name="action" value="delete_news"><input type="hidden" name="id" value="<?php echo $n['id']; ?>">
                 <button type="submit" class="btn" style="background:#d32f2f; color:white; border:none;">Ištrinti</button>
             </form>
           </td>
@@ -134,7 +137,7 @@ if (isset($_GET['edit_recipe_cat'])) {
     <h3>Naujienų kategorijos</h3>
     <div style="background: #f9f9ff; padding: 15px; border-radius: 8px; border: 1px solid #e4e7ec; margin-bottom: 20px;">
         <form method="POST" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
-            <?php if ($editCategory): ?>
+            <?php echo csrfField(); ?> <?php if ($editCategory): ?>
                 <input type="hidden" name="action" value="update_category">
                 <input type="hidden" name="id" value="<?php echo $editCategory['id']; ?>">
                 <div style="flex-grow:1;"><label>Pavadinimas</label><input type="text" name="name" required value="<?php echo htmlspecialchars($editCategory['name']); ?>" style="width:100%; padding:8px;"></div>
@@ -158,7 +161,7 @@ if (isset($_GET['edit_recipe_cat'])) {
                 <td style="display:flex; gap: 8px;">
                     <a class="btn" href="/admin.php?view=content&edit_cat=<?php echo $cat['id']; ?>">Redaguoti</a>
                     <form method="POST" onsubmit="return confirm('Trinti kategoriją?');" style="margin:0;">
-                        <input type="hidden" name="action" value="delete_category"><input type="hidden" name="id" value="<?php echo $cat['id']; ?>">
+                        <?php echo csrfField(); ?> <input type="hidden" name="action" value="delete_category"><input type="hidden" name="id" value="<?php echo $cat['id']; ?>">
                         <button type="submit" class="btn" style="background:#d32f2f; color:white; border:none;">Ištrinti</button>
                     </form>
                 </td>
@@ -184,7 +187,7 @@ if (isset($_GET['edit_recipe_cat'])) {
           <td style="display:flex; gap: 8px;">
             <a class="btn" href="/recipe_edit.php?id=<?php echo (int)$r['id']; ?>">Redaguoti</a>
             <form method="POST" onsubmit="return confirm('Trinti receptą?');" style="margin:0;">
-                <input type="hidden" name="action" value="delete_recipe"><input type="hidden" name="id" value="<?php echo (int)$r['id']; ?>">
+                <?php echo csrfField(); ?> <input type="hidden" name="action" value="delete_recipe"><input type="hidden" name="id" value="<?php echo (int)$r['id']; ?>">
                 <button type="submit" class="btn" style="background:#d32f2f; color:white; border:none;">Ištrinti</button>
             </form>
           </td>
@@ -198,7 +201,7 @@ if (isset($_GET['edit_recipe_cat'])) {
     <h3>Receptų kategorijos</h3>
     <div style="background: #fff5f5; padding: 15px; border-radius: 8px; border: 1px solid #fed7d7; margin-bottom: 20px;">
         <form method="POST" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
-            <?php if ($editRecipeCategory): ?>
+            <?php echo csrfField(); ?> <?php if ($editRecipeCategory): ?>
                 <input type="hidden" name="action" value="update_recipe_category">
                 <input type="hidden" name="id" value="<?php echo $editRecipeCategory['id']; ?>">
                 <div style="flex-grow:1;"><label>Pavadinimas</label><input type="text" name="name" required value="<?php echo htmlspecialchars($editRecipeCategory['name']); ?>" style="width:100%; padding:8px;"></div>
@@ -222,7 +225,7 @@ if (isset($_GET['edit_recipe_cat'])) {
                 <td style="display:flex; gap: 8px;">
                     <a class="btn" href="/admin.php?view=content&edit_recipe_cat=<?php echo $cat['id']; ?>">Redaguoti</a>
                     <form method="POST" onsubmit="return confirm('Trinti receptų kategoriją?');" style="margin:0;">
-                        <input type="hidden" name="action" value="delete_recipe_category"><input type="hidden" name="id" value="<?php echo $cat['id']; ?>">
+                        <?php echo csrfField(); ?> <input type="hidden" name="action" value="delete_recipe_category"><input type="hidden" name="id" value="<?php echo $cat['id']; ?>">
                         <button type="submit" class="btn" style="background:#d32f2f; color:white; border:none;">Ištrinti</button>
                     </form>
                 </td>
