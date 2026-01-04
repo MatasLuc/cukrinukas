@@ -5,8 +5,7 @@ require __DIR__ . '/layout.php';
 
 $pdo = getPdo();
 ensureNewsTable($pdo);
-// Ryšių lentelė užtikrinama per ensureNewsTable, 
-// bet dėl viso pikto galime patikrinti:
+// Ryšių lentelė užtikrinama per ensureNewsTable
 if (function_exists('ensureNewsCategoryRelationsTable')) {
     ensureNewsCategoryRelationsTable($pdo);
 }
@@ -26,8 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['news_id'])) {
     exit;
 }
 
-// 1. Gauname kategorijas, kurios turi bent vieną priskirtą naujieną
-// Naudojame JOIN su ryšių lentele
+// 1. Gauname kategorijas
 $activeCategories = $pdo->query("
     SELECT c.id, c.name, COUNT(r.news_id) as count 
     FROM news_categories c 
@@ -37,21 +35,18 @@ $activeCategories = $pdo->query("
     ORDER BY c.name ASC
 ")->fetchAll();
 
-// 2. Filtravimo logika
+// 2. Filtravimas
 $selectedCatId = isset($_GET['cat']) ? (int)$_GET['cat'] : null;
 
-// Pagrindinė užklausa
-$sql = 'SELECT n.id, n.title, n.image_url, n.body, n.is_featured, n.created_at 
+$sql = 'SELECT n.id, n.title, n.image_url, n.body, n.summary, n.is_featured, n.created_at 
         FROM news n ';
 $params = [];
 
 if ($selectedCatId) {
-    // Jei pasirinkta kategorija, jungiame ryšių lentelę filtravimui
     $sql .= 'JOIN news_category_relations r ON n.id = r.news_id WHERE r.category_id = ? ';
     $params[] = $selectedCatId;
 }
 
-// Rūšiuojame pagal datą (naujausios viršuje)
 $sql .= 'ORDER BY n.created_at DESC';
 
 $stmt = $pdo->prepare($sql);
@@ -87,8 +82,9 @@ $isAdmin = !empty($_SESSION['is_admin']);
     .hero p { margin:0; color: var(--muted); line-height:1.6; }
     .hero__actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
     
-    .cta { display:inline-flex; align-items:center; gap:10px; padding:12px 16px; border-radius:12px; border:none; background: linear-gradient(135deg, #4338ca, #7c3aed); color:#fff; font-weight:700; cursor:pointer; box-shadow:0 14px 36px rgba(124,58,237,0.25); text-decoration:none; }
+    .cta { display:inline-flex; align-items:center; gap:10px; padding:12px 16px; border-radius:12px; border:none; background: linear-gradient(135deg, #4338ca, #7c3aed); color:#fff; font-weight:700; cursor:pointer; box-shadow:0 14px 36px rgba(124,58,237,0.25); text-decoration:none; transition: transform .18s ease, box-shadow .18s ease; }
     .cta.secondary { background:#fff; color:#4338ca; border:1px solid #c7d2fe; box-shadow:none; }
+    .cta:hover { transform: translateY(-1px); box-shadow:0 18px 52px rgba(124,58,237,0.3); }
     
     .page__head { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
     .page__title { margin:0; font-size:28px; letter-spacing:-0.01em; }
@@ -97,16 +93,29 @@ $isAdmin = !empty($_SESSION['is_admin']);
     .pill:hover { opacity: 0.9; transform: translateY(-1px); }
     
     .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:18px; }
-    .card { background: var(--card); border-radius:20px; overflow:hidden; border:1px solid var(--border); box-shadow:0 14px 32px rgba(0,0,0,0.08); display:grid; grid-template-rows:auto 1fr; transition: transform .18s ease; }
+    .card { background: var(--card); border-radius:20px; overflow:hidden; border:1px solid var(--border); box-shadow:0 14px 32px rgba(0,0,0,0.08); display:grid; grid-template-rows:auto 1fr; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
     .card:hover { transform: translateY(-3px); box-shadow:0 18px 46px rgba(0,0,0,0.12); border-color: rgba(124,58,237,0.35); }
     .card img { width: 100%; height: 190px; object-fit: cover; display: block; }
     .card__body { padding: 16px 18px 20px; display: grid; gap: 10px; }
     .card__title { margin: 0; font-size: 20px; letter-spacing:-0.01em; }
     .card__meta { font-size: 13px; color: var(--muted); }
-    .card__excerpt { margin: 0; color: #111827; line-height: 1.55; }
+    
+    /* NAUJA: Santraukos ribojimas (5 eilutės) */
+    .card__excerpt { 
+        margin: 0; 
+        color: #111827; 
+        line-height: 1.55;
+        display: -webkit-box;
+        -webkit-line-clamp: 5;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
     .badge { display: inline-block; background: linear-gradient(135deg, #4338ca, #7c3aed); color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight:700; }
     
-    .heart-btn { width:38px; height:38px; border-radius:12px; border:1px solid var(--border); background:#f8fafc; display:inline-flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; }
+    .heart-btn { width:38px; height:38px; border-radius:12px; border:1px solid var(--border); background:#f8fafc; display:inline-flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; transition: transform .16s ease, border-color .18s ease; }
+    .heart-btn:hover { border-color: rgba(124,58,237,0.55); transform: translateY(-2px); }
   </style>
 </head>
 <body>
@@ -164,7 +173,19 @@ $isAdmin = !empty($_SESSION['is_admin']);
                 <?php endif; ?>
                 </div>
                 <p class="card__meta"><?php echo date('Y-m-d', strtotime($news['created_at'])); ?></p>
-                <p class="card__excerpt"><?php $plain = trim(strip_tags($news['body'])); echo mb_substr($plain, 0, 240); ?><?php echo mb_strlen($plain) > 240 ? '…' : ''; ?></p>
+                
+                <p class="card__excerpt">
+                    <?php 
+                        $excerpt = trim($news['summary'] ?? '');
+                        if (!$excerpt) {
+                            $excerpt = strip_tags($news['body']);
+                        }
+                        if (mb_strlen($excerpt) > 400) {
+                            $excerpt = mb_substr($excerpt, 0, 400) . '...';
+                        }
+                        echo htmlspecialchars($excerpt);
+                    ?>
+                </p>
                 
                 <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; margin-top:auto;">
                     <div style="display:flex; gap:8px; align-items:center;">
@@ -175,6 +196,8 @@ $isAdmin = !empty($_SESSION['is_admin']);
                         <input type="hidden" name="news_id" value="<?php echo (int)$news['id']; ?>">
                         <button class="heart-btn" type="submit" aria-label="Išsaugoti">♥</button>
                         </form>
+                    <?php else: ?>
+                        <a class="heart-btn" href="/login.php" style="text-decoration:none; color:inherit; display:flex; align-items:center; justify-content:center;">♥</a>
                     <?php endif; ?>
                     </div>
                     <?php if ($isAdmin): ?>
