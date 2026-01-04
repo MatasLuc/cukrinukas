@@ -8,6 +8,8 @@ $headerShadowIntensity = 70;
 $GLOBALS['headerShadowIntensity'] = $headerShadowIntensity;
 
 $pdo = getPdo();
+
+// DB struktūros ir duomenų užtikrinimas (palikta testavimo stadijai)
 ensureUsersTable($pdo);
 ensureNewsTable($pdo);
 ensureCategoriesTable($pdo);
@@ -20,9 +22,12 @@ ensureFooterLinks($pdo);
 seedStoreExamples($pdo);
 seedNewsExamples($pdo);
 seedRecipeExamples($pdo);
+
 $siteContent = getSiteContent($pdo);
 $globalDiscount = getGlobalDiscount($pdo);
 $categoryDiscounts = getCategoryDiscounts($pdo);
+
+// Hero settings setup
 $heroShadowIntensity = max(0, min(100, (int)($siteContent['hero_shadow_intensity'] ?? 70)));
 $heroOverlayStrong = round(0.75 * ($heroShadowIntensity / 100), 3);
 $heroOverlaySoft = round(0.17 * ($heroShadowIntensity / 100), 3);
@@ -47,10 +52,13 @@ if ($heroMedia['type'] === 'video' && !$heroMedia['src']) {
 if ($heroMedia['type'] === 'image' && !$heroMedia['src']) {
     $heroMedia['src'] = 'https://images.pexels.com/photos/6942003/pexels-photo-6942003.jpeg';
 }
+
+// Content Text setup
 $heroTitle = $siteContent['hero_title'] ?? 'Pagalba kasdienei diabeto priežiūrai';
 $heroBody = $siteContent['hero_body'] ?? 'Gliukometrai, sensoriai, maži GI užkandžiai ir bendruomenės patarimai – viskas vienoje vietoje, kad matavimai būtų ramūs.';
 $heroCtaLabel = $siteContent['hero_cta_label'] ?? 'Peržiūrėti pasiūlymus →';
 $heroCtaUrl = $siteContent['hero_cta_url'] ?? '/products.php';
+
 $testimonials = [];
 for ($i = 1; $i <= 3; $i++) {
     $testimonials[] = [
@@ -157,6 +165,9 @@ if ($heroMedia['type'] === 'image') {
 } elseif ($heroMedia['type'] === 'video') {
     $heroMediaStyle = 'background:#000;';
 }
+
+// Generuojame juodą "C" raidę kaip SVG duomenis
+$faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext x='50%25' y='50%25' dy='.35em' text-anchor='middle' font-family='Arial, sans-serif' font-weight='900' font-size='60' fill='black'%3EC%3C/text%3E%3C/svg%3E";
 ?>
 <!doctype html>
 <html lang="lt">
@@ -170,8 +181,9 @@ if ($heroMedia['type'] === 'image') {
   <meta name="description" content="Cukrinukas.lt rasite gliukometrus, sensorius, juosteles, mažo GI užkandžius ir patarimus gyvenimui su diabetu.">
   <meta name="keywords" content="diabetas, gliukometrai, sensoriai, cukrinis diabetas, mityba, cukrinukas">
 
-  <link rel="icon" type="image/png" href="/uploads/icon-192.png">
-  <link rel="apple-touch-icon" href="/uploads/icon-192.png">
+  <link rel="icon" type="image/svg+xml" href="<?php echo $faviconSvg; ?>">
+  <link rel="apple-touch-icon" href="<?php echo $faviconSvg; ?>">
+  
   <link rel="canonical" href="https://cukrinukas.lt/">
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#f7f7fb">
@@ -181,12 +193,12 @@ if ($heroMedia['type'] === 'image') {
   <meta property="og:title" content="Cukrinukas.lt – diabeto priemonės ir naujienos">
   <meta property="og:description" content="Diabeto priemonių, sensorių apsaugų ir subalansuotos mitybos priemonių parduotuvė su naujienomis apie diabetą.">
   <meta property="og:site_name" content="Cukrinukas.lt">
-  <meta property="og:image" content="https://cukrinukas.lt/uploads/icon-512.png">
+  <meta property="og:image" content="<?php echo $faviconSvg; ?>">
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Cukrinukas.lt – diabeto priemonės ir naujienos">
   <meta name="twitter:description" content="Diabeto priemonių, sensorių apsaugų ir subalansuotos mitybos priemonių parduotuvė su naujienomis apie diabetą.">
-  <meta name="twitter:image" content="https://cukrinukas.lt/uploads/icon-512.png">
+  <meta name="twitter:image" content="<?php echo $faviconSvg; ?>">
 
   <script>
     if ('serviceWorker' in navigator) {
