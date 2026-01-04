@@ -104,14 +104,11 @@ $meta = [
     <section class="grid">
       <article class="card"><?php echo sanitizeHtml($recipe['body']); ?></article>
       <aside class="info">
-        <h3>Greiti faktai</h3>
-        <div class="hint">Lengva skaityti struktūra ir šviesus fonas leidžia susitelkti į recepto turinį.</div>
+        <h3>Receptai</h3>
+        <div class="hint">Pastebėjote klaidą recepte? Atsiprašome ir kviečiame pranešti el. paštu labas@cukrinukas.lt</div>
         <div style="display:flex; flex-direction:column; gap:6px; font-size:14px; color:#1f2b46;">
           <span>Recepto ID: <strong>#<?php echo (int)$recipe['id']; ?></strong></span>
           <span>Publikuota: <strong><?php echo date('Y-m-d', strtotime($recipe['created_at'])); ?></strong></span>
-          <?php if (!empty($recipe['author'])): ?>
-             <span>Autorius: <strong><?php echo htmlspecialchars($recipe['author']); ?></strong></span>
-          <?php endif; ?>
         </div>
         <a class="pill" href="/recipes.php" style="text-align:center; display:inline-flex; justify-content:center;">Grįžti į receptus</a>
       </aside>
