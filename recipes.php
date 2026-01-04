@@ -111,7 +111,39 @@ $isAdmin = !empty($_SESSION['is_admin']);
         overflow: hidden;
         text-overflow: ellipsis;
     }
+    /* --- Naujas stilius Hero mygtukams (kaip products.php) --- */
+    .hero .cta {
+      background: #ffffff;
+      color: #4338ca; /* Indigo */
+      border: 1px solid #4338ca;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      padding: 11px 24px;
+      font-weight: 600;
+      /* Užtikriname, kad 'secondary' ir paprasti atrodytų vienodai */
+    }
     
+    /* Hover efektas */
+    .hero .cta:hover {
+      background: #ffffff;
+      color: #312e81; /* Tamsesnė indigo */
+      border-color: #312e81;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(67, 56, 202, 0.12);
+    }
+
+    /* Panaikiname seną 'secondary' stilių Hero sekcijoje */
+    .hero .cta.secondary {
+      background: #ffffff;
+      color: #4338ca;
+      border-color: #4338ca;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .hero .cta.secondary:hover {
+      color: #312e81;
+      border-color: #312e81;
+      box-shadow: 0 6px 16px rgba(67, 56, 202, 0.12);
+    }
+      
     .heart-btn { width:38px; height:38px; border-radius:12px; border:1px solid var(--border); background:#f8fafc; display:inline-flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; transition: transform .16s ease, border-color .18s ease; }
     .heart-btn:hover { border-color: rgba(124,58,237,0.55); transform: translateY(-2px); }
   </style>
