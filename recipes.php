@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['recipe_id'])) {
     exit;
 }
 
-// 1. Gauname aktyvias receptų kategorijas (kurios turi bent 1 receptą)
+// 1. Gauname aktyvias receptų kategorijas
 $activeCategories = $pdo->query("
     SELECT c.id, c.name, COUNT(r.recipe_id) as count 
     FROM recipe_categories c 
@@ -35,12 +35,11 @@ $activeCategories = $pdo->query("
 $selectedCatId = isset($_GET['cat']) ? (int)$_GET['cat'] : null;
 
 // Pagrindinė užklausa
-$sql = 'SELECT r.id, r.title, r.image_url, r.summary, r.created_at, r.visibility 
+$sql = 'SELECT r.id, r.title, r.image_url, r.summary, r.body, r.created_at, r.visibility 
         FROM recipes r ';
 $params = [];
 
 if ($selectedCatId) {
-    // Jei pasirinkta kategorija, jungiame ryšių lentelę
     $sql .= 'JOIN recipe_category_relations rel ON r.id = rel.recipe_id WHERE rel.category_id = ? ';
     $params[] = $selectedCatId;
 }
@@ -68,7 +67,7 @@ $isAdmin = !empty($_SESSION['is_admin']);
       --border: #e4e7ec;
       --text: #0f172a;
       --muted: #475467;
-      --accent: #22c55e; /* Žalia spalva receptams */
+      --accent: #22c55e;
     }
     * { box-sizing: border-box; }
     body { margin:0; background: var(--bg); color: var(--text); }
@@ -86,7 +85,6 @@ $isAdmin = !empty($_SESSION['is_admin']);
     .page__head { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
     .page__title { margin:0; font-size:28px; letter-spacing:-0.01em; }
     
-    /* Pills (Kategorijos) */
     .pill { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:12px; background:#f0fdf4; color:#15803d; font-weight:700; font-size:13px; transition: all 0.2s ease; text-decoration:none; border:1px solid transparent; }
     .pill.active { background:#16a34a; color:#fff; }
     .pill:hover { opacity: 0.9; transform: translateY(-1px); border-color:#bbf7d0; }
@@ -98,7 +96,20 @@ $isAdmin = !empty($_SESSION['is_admin']);
     .card__body { padding: 16px 18px 20px; display: grid; gap: 10px; }
     .card__title { margin: 0; font-size: 20px; letter-spacing:-0.01em; }
     .card__meta { font-size: 13px; color: var(--muted); }
-    .card__excerpt { margin: 0; color: #111827; line-height: 1.55; }
+    
+    /* PAKEITIMAS: Apribojame tekstą iki 5 eilučių */
+    .card__excerpt { 
+        margin: 0; 
+        color: #111827; 
+        line-height: 1.55;
+        
+        /* Šios eilutės sukuria 5 eilučių limitą su daugtaškiu */
+        display: -webkit-box;
+        -webkit-line-clamp: 5;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
     
     .heart-btn { width:38px; height:38px; border-radius:12px; border:1px solid var(--border); background:#f8fafc; display:inline-flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; }
   </style>
@@ -162,9 +173,14 @@ $isAdmin = !empty($_SESSION['is_admin']);
                 <p class="card__excerpt">
                     <?php 
                         $excerpt = trim($r['summary'] ?? '');
-                        // Jei santraukos nėra, fall-back į body (nors create formoje privalomas)
+                        // Jei santraukos nėra, imame iš body
                         if (!$excerpt) {
-                            $excerpt = mb_substr(strip_tags($r['body']), 0, 120) . '...';
+                            $excerpt = strip_tags($r['body']);
+                        }
+                        // Apkerpame PHP pusėje tik jei tekstas labai ilgas (kad nekrautų HTML), 
+                        // bet vizualų 5 eilučių limitą sutvarko CSS
+                        if (mb_strlen($excerpt) > 400) {
+                            $excerpt = mb_substr($excerpt, 0, 400) . '...';
                         }
                         echo htmlspecialchars($excerpt);
                     ?>
