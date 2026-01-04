@@ -180,6 +180,7 @@ function ensureRecipesTable(PDO $pdo): void {
         'CREATE TABLE IF NOT EXISTS recipes (
             id INT AUTO_INCREMENT PRIMARY KEY,
             title VARCHAR(200) NOT NULL,
+            author VARCHAR(255) NULL,
             summary TEXT NULL,
             image_url VARCHAR(500) NOT NULL,
             body TEXT NOT NULL,
@@ -191,6 +192,9 @@ function ensureRecipesTable(PDO $pdo): void {
     $columns = $pdo->query("SHOW COLUMNS FROM recipes")->fetchAll(PDO::FETCH_COLUMN);
     if (!in_array('summary', $columns, true)) {
         $pdo->exec('ALTER TABLE recipes ADD COLUMN summary TEXT NULL AFTER title');
+    }
+    if (!in_array('author', $columns, true)) {
+        $pdo->exec('ALTER TABLE recipes ADD COLUMN author VARCHAR(255) NULL AFTER title');
     }
     if (!in_array('visibility', $columns, true)) {
         $pdo->exec('ALTER TABLE recipes ADD COLUMN visibility ENUM("public","members") NOT NULL DEFAULT "public" AFTER body');
