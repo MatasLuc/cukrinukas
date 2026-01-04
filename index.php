@@ -138,7 +138,7 @@ $footerContent = [
 $footerLinks = getFooterLinks($pdo);
 
 
-$featuredNews = $pdo->query('SELECT id, title, image_url, body, created_at FROM news WHERE is_featured = 1 ORDER BY created_at DESC LIMIT 4')->fetchAll();
+$featuredNews = $pdo->query('SELECT id, title, image_url, body, summary, created_at FROM news WHERE is_featured = 1 ORDER BY created_at DESC LIMIT 4')->fetchAll();
 $featuredIds = getFeaturedProductIds($pdo);
 $featuredProducts = [];
 if ($featuredIds) {
@@ -183,7 +183,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
 
   <link rel="icon" type="image/svg+xml" href="<?php echo $faviconSvg; ?>">
   <link rel="apple-touch-icon" href="<?php echo $faviconSvg; ?>">
-  
+   
   <link rel="canonical" href="https://cukrinukas.lt/">
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#f7f7fb">
@@ -437,7 +437,19 @@ img { max-width: 100%; display: block; }
 .news-card__body { padding:16px; display:flex; flex-direction:column; gap:8px; }
 .news-card__title { margin:0; font-size:18px; letter-spacing:-0.01em; }
 .news-card__meta { margin:0; color:#4a4a55; font-size:13px; }
-.news-card__excerpt { margin:0; color:#4f5160; line-height:1.6; }
+
+/* PAKEITIMAS: pridedame line-clamp 5 eilutėms */
+.news-card__excerpt { 
+    margin:0; 
+    color:#4f5160; 
+    line-height:1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .news-card__meta, .news-card__excerpt { position:relative; z-index:1; }
 .news-grid { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px; }
 
@@ -696,8 +708,14 @@ img { max-width: 100%; display: block; }
             <div class="news-card__body">
               <h3 class="news-card__title"><a href="/news_view.php?id=<?php echo (int)$news['id']; ?>" style="color:inherit; text-decoration:none;"><?php echo htmlspecialchars($news['title']); ?></a></h3>
               <p class="news-card__meta"><?php echo date('Y-m-d', strtotime($news['created_at'])); ?></p>
-              <?php $newsPlain = trim(strip_tags($news['body'])); ?>
-              <p class="news-card__excerpt"><?php echo htmlspecialchars(mb_substr($newsPlain, 0, 180)); ?><?php echo mb_strlen($newsPlain) > 180 ? '…' : ''; ?></p>
+              <?php 
+                // PAKEITIMAS: Imame summary, jei nėra - body
+                $excerpt = trim($news['summary'] ?? '');
+                if (!$excerpt) $excerpt = strip_tags($news['body']);
+                // Apribojame tik jei labai ilgas, vizualų darbą atliks CSS line-clamp
+                if (mb_strlen($excerpt) > 400) $excerpt = mb_substr($excerpt, 0, 400) . '...';
+              ?>
+              <p class="news-card__excerpt"><?php echo htmlspecialchars($excerpt); ?></p>
             </div>
           </article>
         <?php endforeach; ?>
