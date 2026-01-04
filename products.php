@@ -11,7 +11,6 @@ ensureCartTables($pdo);
 ensureSavedContentTables($pdo);
 ensureAdminAccount($pdo);
 
-// Užtikriname, kad egzistuoja ryšių lentelė
 $pdo->exec("CREATE TABLE IF NOT EXISTS product_category_relations (
     product_id INT NOT NULL,
     category_id INT NOT NULL,
@@ -25,7 +24,7 @@ $freeShippingIds = getFreeShippingProductIds($pdo);
 $selectedSlug = $_GET['category'] ?? null;
 $searchQuery = $_GET['query'] ?? null;
 
-// --- 1. KATEGORIJŲ MEDŽIO SUDARYMAS ---
+// --- 1. KATEGORIJŲ MEDIS ---
 $allCats = $pdo->query('SELECT id, name, slug, parent_id FROM categories ORDER BY name ASC')->fetchAll();
 
 $catsByParent = [];
@@ -39,7 +38,6 @@ foreach ($allCats as $c) {
     $catsByParent[$parentId][] = $c;
 }
 
-// Pagrindinės kategorijos (kurios neturi tėvo)
 $rootCats = $catsByParent[0] ?? [];
 
 // --- 2. FILTRAVIMO LOGIKA ---
@@ -47,13 +45,11 @@ $params = [];
 $whereClauses = [];
 
 if ($selectedSlug) {
-    // Randame kategorijos ID
     $stmtCat = $pdo->prepare("SELECT id FROM categories WHERE slug = ?");
     $stmtCat->execute([$selectedSlug]);
     $catId = (int)$stmtCat->fetchColumn();
 
     if ($catId) {
-        // Jei tai tėvinė kategorija, įtraukiame ir jos vaikus
         $targetIds = [$catId];
         if (isset($catsByParent[$catId])) {
             foreach ($catsByParent[$catId] as $child) {
@@ -63,7 +59,6 @@ if ($selectedSlug) {
         
         $placeholders = implode(',', array_fill(0, count($targetIds), '?'));
         
-        // Filtruojame prekes
         $whereClauses[] = "(
             p.category_id IN ($placeholders) 
             OR 
@@ -95,7 +90,6 @@ $stmt = $pdo->prepare(
 $stmt->execute($params);
 $products = $stmt->fetchAll();
 
-// Krepšelio veiksmai
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     validateCsrfToken();
     $pid = (int) $_POST['product_id'];
@@ -151,9 +145,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     .btn:hover { opacity: 0.9; }
     .btn.secondary { background: #fff; color: #0b0b0b; border-color: var(--border); }
 
-    /* KATEGORIJOS */
-    .chips { display:flex; flex-wrap:wrap; gap:10px; }
-    .chip-container { position: relative; display: inline-block; padding-bottom: 0px; }
+    /* --- DROPDOWN MENIU PATAISYMAI --- */
+    
+    .chips { display:flex; flex-wrap:wrap; gap:12px; align-items: flex-start; }
+    
+    .chip-container { 
+        position: relative; 
+        display: inline-block;
+        /* ČIA SVARBU: Pridedame padding į apačią, kad praplėstume hover zoną */
+        padding-bottom: 20px; 
+        margin-bottom: -20px; /* Kompensuojame paddingą, kad neišdarkytų vaizdo */
+    }
     
     .chip {
       display: inline-flex; align-items: center; gap: 6px;
@@ -161,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
       background: #fff; border: 1px solid var(--border);
       font-weight: 600; color: var(--muted); cursor: pointer; transition: all .2s;
       white-space: nowrap; user-select: none;
-      position: relative; z-index: 20; /* Kad būtų virš dropdown */
+      position: relative; z-index: 20;
     }
     .chip:hover, .chip.active {
       border-color: var(--accent); color: var(--accent); background: #fdfaff;
@@ -170,34 +172,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     .chip-arrow { font-size: 10px; opacity: 0.6; margin-left: 2px; }
 
     .dropdown-menu {
-        display: none; position: absolute; top: 100%; left: 0;
-        background: #fff; min-width: 200px; padding: 8px 0;
-        margin-top: 8px; /* Tarpas vizualiai */
-        border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+        display: none; 
+        position: absolute; 
+        /* Rodome meniu šiek tiek aukščiau, kad jis vizualiai būtų arti, bet techniškai persidengtų su padding zona */
+        top: calc(100% - 5px); 
+        left: 0;
+        background: #fff; min-width: 220px; padding: 8px 0;
+        border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);
         border: 1px solid var(--border); z-index: 100;
     }
 
-    /* PATAISYMAS: Nematomas tiltelis, kad meniu neužsidarytų vedant pelę */
+    /* PAPILDOMA APSAUGA: Nematomas tiltas virš meniu */
     .dropdown-menu::before {
         content: "";
         position: absolute;
-        top: -10px; /* Užpildome tarpą virš meniu */
+        top: -20px; 
         left: 0;
         width: 100%;
-        height: 10px;
+        height: 20px;
         background: transparent;
     }
 
-    .chip-container:hover .dropdown-menu { display: block; animation: slideDown 0.2s ease; }
+    .chip-container:hover .dropdown-menu { display: block; animation: slideDown 0.15s ease; }
     
     .dropdown-item {
-        display: block; padding: 8px 16px; color: var(--text);
+        display: block; padding: 10px 16px; color: var(--text);
         text-decoration: none; font-size: 14px; transition: background .1s;
     }
     .dropdown-item:hover { background: #f3f4f6; color: var(--accent); }
     .dropdown-item.active { font-weight: bold; color: var(--accent); background: #f9fafb; }
     
-    @keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes slideDown { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
 
     /* KORTELĖS */
     .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:24px; }
@@ -252,10 +257,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
         
         <?php foreach ($rootCats as $root): ?>
           <?php 
-              // Subkategorijos
               $subCats = $catsByParent[$root['id']] ?? [];
               
-              // Tikriname aktyvumą
               $isActive = ($selectedSlug === $root['slug']);
               $childActive = false;
               foreach ($subCats as $child) {
