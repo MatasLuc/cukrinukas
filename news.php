@@ -100,7 +100,7 @@ $isAdmin = !empty($_SESSION['is_admin']);
     .card__title { margin: 0; font-size: 20px; letter-spacing:-0.01em; }
     .card__meta { font-size: 13px; color: var(--muted); }
     
-    /* NAUJA: Santraukos ribojimas (5 eilutės) */
+    /* Santraukos ribojimas (5 eilutės) */
     .card__excerpt { 
         margin: 0; 
         color: #111827; 
@@ -111,8 +111,6 @@ $isAdmin = !empty($_SESSION['is_admin']);
         overflow: hidden;
         text-overflow: ellipsis;
     }
-    
-    .badge { display: inline-block; background: linear-gradient(135deg, #4338ca, #7c3aed); color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight:700; }
     
     .heart-btn { width:38px; height:38px; border-radius:12px; border:1px solid var(--border); background:#f8fafc; display:inline-flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; transition: transform .16s ease, border-color .18s ease; }
     .heart-btn:hover { border-color: rgba(124,58,237,0.55); transform: translateY(-2px); }
@@ -167,10 +165,7 @@ $isAdmin = !empty($_SESSION['is_admin']);
             </a>
             <div class="card__body">
                 <div style="display:flex;align-items:center;gap:10px;justify-content:space-between;">
-                <h2 class="card__title"><a href="/news_view.php?id=<?php echo (int)$news['id']; ?>" style="text-decoration:none; color:inherit;"><?php echo htmlspecialchars($news['title']); ?></a></h2>
-                <?php if ((int)$news['is_featured'] === 1): ?>
-                    <span class="badge">Titulinė</span>
-                <?php endif; ?>
+                    <h2 class="card__title"><a href="/news_view.php?id=<?php echo (int)$news['id']; ?>" style="text-decoration:none; color:inherit;"><?php echo htmlspecialchars($news['title']); ?></a></h2>
                 </div>
                 <p class="card__meta"><?php echo date('Y-m-d', strtotime($news['created_at'])); ?></p>
                 
