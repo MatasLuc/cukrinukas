@@ -43,7 +43,7 @@ try {
                             <p>Informuosime jus, kai siunta bus išsiųsta.</p>";
                 
                 // Galime pridėti nuorodą į užsakymų istoriją (jei vartotojas prisijungęs)
-                $html = getEmailTemplate('Užsakymas patvirtintas! ✅', $content, 'https://nauja.apdaras.lt/orders.php', 'Mano užsakymai');
+                $html = getEmailTemplate('Užsakymas patvirtintas! ✅', $content, 'https://cukrinukas.lt/orders.php', 'Mano užsakymai');
                 // Adresas gali būti neprieinamas be pilno domeno, todėl palieku klaidų registravimą
                 try {
                     sendEmail($orderInfo['customer_email'], "Užsakymo patvirtinimas #{$orderId}", $html);
@@ -55,7 +55,7 @@ try {
                 $adminContent = "<p>Gautas naujas užsakymas #{$orderId}.</p><p>Klientas: {$orderInfo['customer_name']}</p><p>Suma: {$orderInfo['total']} EUR</p>";
                 $adminHtml = getEmailTemplate('Naujas užsakymas 💰', $adminContent);
                 // Admino el. pašto adresą reikėtų paimti iš konfigūracijos (jei neįvestas) arba tiesiogiai įrašyti
-                $adminEmail = getenv('ADMIN_EMAIL') ?: 'admin@example.com'; 
+                $adminEmail = getenv('ADMIN_EMAIL') ?: 'labas@cukrinukas.lt'; 
                 try {
                     sendEmail($adminEmail, "Naujas užsakymas #{$orderId}", $adminHtml);
                 } catch (Throwable $e) {
