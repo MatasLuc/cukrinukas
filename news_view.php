@@ -5,20 +5,12 @@ require __DIR__ . '/layout.php';
 
 $pdo = getPdo();
 ensureNewsTable($pdo);
-if (function_exists('ensureNewsCategoriesTable')) {
-    ensureNewsCategoriesTable($pdo);
-}
 ensureSavedContentTables($pdo);
 
 $id = (int)($_GET['id'] ?? 0);
 
-// Prijungiame kategorijų lentelę, kad gautume pavadinimą
-$stmt = $pdo->prepare('
-    SELECT n.*, c.name as category_name 
-    FROM news n 
-    LEFT JOIN news_categories c ON n.category_id = c.id 
-    WHERE n.id = ?
-');
+// 1. Gauname naujienos informaciją
+$stmt = $pdo->prepare('SELECT * FROM news WHERE id = ?');
 $stmt->execute([$id]);
 $news = $stmt->fetch();
 
@@ -28,6 +20,17 @@ if (!$news) {
     exit;
 }
 
+// 2. Gauname priskirtas kategorijas per ryšių lentelę
+$catStmt = $pdo->prepare("
+    SELECT c.name, c.id 
+    FROM news_categories c 
+    JOIN news_category_relations r ON r.category_id = c.id 
+    WHERE r.news_id = ?
+");
+$catStmt->execute([$id]);
+$categories = $catStmt->fetchAll();
+
+// Teisių tikrinimas
 $canViewFull = ($news['visibility'] ?? 'public') !== 'members' || !empty($_SESSION['user_id']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save') {
@@ -41,15 +44,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
     exit;
 }
 
-// SEO Meta duomenys
+$authorName = !empty($news['author']) ? $news['author'] : 'Redakcijos naujiena';
+
+// SEO
 $meta = [
     'title' => $news['title'] . ' | Naujienos',
     'description' => $news['summary'] ?: mb_substr(strip_tags($news['body']), 0, 160),
     'image' => 'https://cukrinukas.lt' . $news['image_url']
 ];
-
-$authorName = !empty($news['author']) ? $news['author'] : 'Redakcijos naujiena';
-$categoryName = !empty($news['category_name']) ? $news['category_name'] : 'Bendra';
 ?>
 <!doctype html>
 <html lang="lt">
@@ -67,6 +69,9 @@ $categoryName = !empty($news['category_name']) ? $news['category_name'] : 'Bendr
     .crumb { display:flex; align-items:center; gap:10px; color:#6b6b7a; font-size:14px; }
     .meta { display:flex; align-items:center; gap:10px; color:#6b6b7a; font-size:14px; flex-wrap:wrap; }
     .badge { padding:6px 12px; border-radius:999px; background:var(--pill); border:1px solid var(--border); font-weight:600; font-size:13px; color:#2b2f4c; }
+    .badge-cat { background:#f0f7ff; border-color:#dbeafe; color:#1e40af; text-decoration:none; transition:0.2s; }
+    .badge-cat:hover { background:#dbeafe; }
+    
     .heart-btn { width:44px; height:44px; border-radius:14px; border:1px solid var(--border); background:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; box-shadow:0 10px 22px rgba(0,0,0,0.08); }
     .media { overflow:hidden; border-radius:18px; border:1px solid var(--border); background:#fff; box-shadow:0 16px 38px rgba(0,0,0,0.06); }
     .media img { width:100%; object-fit:cover; max-height:460px; display:block; }
@@ -85,16 +90,24 @@ $categoryName = !empty($news['category_name']) ? $news['category_name'] : 'Bendr
   
   <main class="shell">
     <section class="hero">
-      <div class="crumb"><a href="/news.php">← Naujienos</a><span>/</span><span><?php echo htmlspecialchars($categoryName); ?></span></div>
+      <div class="crumb"><a href="/news.php">← Visos naujienos</a></div>
       <div style="display:flex; align-items:flex-start; gap:14px; justify-content:space-between; flex-wrap:wrap;">
         <div style="display:flex; flex-direction:column; gap:8px;">
           <h1 style="margin:0; font-size:30px; line-height:1.2; color:#0b0b0b;"><?php echo htmlspecialchars($news['title']); ?></h1>
           <div class="meta">
             <span class="badge">Publikuota <?php echo date('Y-m-d', strtotime($news['created_at'])); ?></span>
             <span class="badge" style="background:#e8fff5; border-color:#cfe8dc; color:#0d8a4d;"><?php echo htmlspecialchars($authorName); ?></span>
-            <span class="badge" style="background:#f0f7ff; border-color:#dbeafe; color:#1e40af;"><?php echo htmlspecialchars($categoryName); ?></span>
+            
+            <?php if ($categories): ?>
+                <?php foreach ($categories as $cat): ?>
+                    <a href="/news.php?cat=<?php echo $cat['id']; ?>" class="badge badge-cat"><?php echo htmlspecialchars($cat['name']); ?></a>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <span class="badge" style="background:#f3f4f6;">Bendra</span>
+            <?php endif; ?>
           </div>
         </div>
+        
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
           <?php if (!empty($_SESSION['user_id'])): ?>
             <form method="post" style="margin:0;">
@@ -121,11 +134,12 @@ $categoryName = !empty($news['category_name']) ? $news['category_name'] : 'Bendr
           <h5 class="text-center text-muted" style="text-align:center; color:#6b6b7a; margin-top:24px;"><a href="/login.php" style="text-decoration:underline;">Prisijunkite</a>, kad perskaitytumėte visą naujieną</h5>
         <?php endif; ?>
       </article>
+      
       <aside class="info-card">
         <div class="info-title">Apžvalga</div>
         <div class="info-note">Pastebėjote klaidą? Atsiprašome ir kviečiame apie ją pranešti el. paštu labas@cukrinukas.lt</div>
         <div style="display:flex; flex-direction:column; gap:6px; font-size:14px; color:#2b2f4c;">
-          <span>Kategorija: <strong><?php echo htmlspecialchars($categoryName); ?></strong></span>
+          <span>Autorius: <strong><?php echo htmlspecialchars($authorName); ?></strong></span>
           <span>Publikavimo data: <strong><?php echo date('Y-m-d', strtotime($news['created_at'])); ?></strong></span>
         </div>
         <a class="ghost-btn" href="/news.php">Peržiūrėti kitas naujienas</a>
