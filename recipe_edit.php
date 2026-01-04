@@ -13,159 +13,209 @@ $pdo = getPdo();
 ensureRecipesTable($pdo);
 ensureAdminAccount($pdo);
 
+// Visos receptų kategorijos
+$categories = $pdo->query("SELECT * FROM recipe_categories ORDER BY name ASC")->fetchAll();
+
 $id = (int)($_GET['id'] ?? 0);
-// Gauname ir autorių
-$stmt = $pdo->prepare('SELECT id, title, author, image_url, body FROM recipes WHERE id = ?');
+$stmt = $pdo->prepare('SELECT * FROM recipes WHERE id = ?');
 $stmt->execute([$id]);
 $item = $stmt->fetch();
 
 if (!$item) {
-    http_response_code(404);
-    echo 'Receptas nerastas';
-    exit;
+    die('Įrašas nerastas');
 }
+
+// GAUNAME PRISKIRTAS KATEGORIJAS
+$stmtCats = $pdo->prepare("SELECT category_id FROM recipe_category_relations WHERE recipe_id = ?");
+$stmtCats->execute([$id]);
+$currentCatIds = $stmtCats->fetchAll(PDO::FETCH_COLUMN);
 
 $errors = [];
 $message = '';
+// Numatytosios reikšmės iš DB
+$title = $item['title'];
+$summary = $item['summary'] ?? '';
+$author = $item['author'];
+$body = $item['body'];
+$visibility = $item['visibility'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     validateCsrfToken();
     $title = trim($_POST['title'] ?? '');
+    $summary = trim($_POST['summary'] ?? '');
     $author = trim($_POST['author'] ?? '');
+    $selectedCatIds = $_POST['categories'] ?? [];
     $body = trim($_POST['body'] ?? '');
+    $visibility = $_POST['visibility'] === 'members' ? 'members' : 'public';
 
-    if ($title === '' || $body === '') {
-        $errors[] = 'Užpildykite pavadinimą ir tekstą.';
+    if ($title === '' || $body === '' || $summary === '') {
+        $errors[] = 'Užpildykite visus laukus.';
     }
 
     $imagePath = $item['image_url'];
     $newImage = uploadImageWithValidation($_FILES['image'] ?? [], 'recipe_', $errors, null);
-    if ($newImage !== null) {
+    if ($newImage) {
         $imagePath = $newImage;
     }
 
     if (!$errors) {
         try {
-            // Atnaujiname ir autorių
-            $stmt = $pdo->prepare('UPDATE recipes SET title = ?, author = ?, image_url = ?, body = ? WHERE id = ?');
-            $stmt->execute([$title, $author, $imagePath, $body, $item['id']]);
-            $message = 'Receptas atnaujintas';
+            $pdo->beginTransaction();
+
+            // 1. Atnaujiname recepto info
+            $stmt = $pdo->prepare('UPDATE recipes SET title = ?, summary = ?, author = ?, image_url = ?, body = ?, visibility = ? WHERE id = ?');
+            $stmt->execute([$title, $summary, $author, $imagePath, $body, $visibility, $id]);
+
+            // 2. Atnaujiname kategorijas
+            $pdo->prepare("DELETE FROM recipe_category_relations WHERE recipe_id = ?")->execute([$id]);
             
-            // Atnaujiname rodomus duomenis
-            $item['title'] = $title;
-            $item['author'] = $author;
-            $item['body'] = $body;
-            $item['image_url'] = $imagePath;
+            if (!empty($selectedCatIds)) {
+                $relStmt = $pdo->prepare('INSERT INTO recipe_category_relations (recipe_id, category_id) VALUES (?, ?)');
+                foreach ($selectedCatIds as $catId) {
+                    $relStmt->execute([$id, (int)$catId]);
+                }
+            }
+            
+            $pdo->commit();
+            
+            $message = 'Receptas sėkmingai atnaujintas';
+            $currentCatIds = $selectedCatIds;
+
         } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             logError('Recipe update failed', $e);
             $errors[] = friendlyErrorMessage();
         }
     }
 }
 
-// Jei buvo POST, $body jau atnaujintas, kitu atveju imam iš DB
-$currentBody = isset($_POST['body']) ? $body : $item['body'];
-$safeBody = sanitizeHtml($currentBody);
+$safeBody = sanitizeHtml($body);
 ?>
 <!doctype html>
 <html lang="lt">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Recepto redagavimas | Cukrinukas</title>
+  <title>Redaguoti receptą</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <?php echo headerStyles(); ?>
   <style>
-    :root { --color-bg: #f7f7fb; --color-primary: #0b0b0b; }
-    * { box-sizing: border-box; }
-    a { color: inherit; text-decoration: none; }
-    .wrapper { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
-    .card { background: #fff; padding: 28px; border-radius: 16px; box-shadow: 0 14px 32px rgba(0,0,0,0.08); width: min(720px, 100%); }
-    .card h1 { margin: 0 0 8px; font-size: 26px; }
-    label { display: block; margin: 14px 0 6px; font-weight: 600; }
-    input, textarea { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #d7d7e2; background: #f9f9ff; font-size: 15px; }
-    textarea { min-height: 160px; resize: vertical; }
-    input:focus, textarea:focus { outline: 2px solid #0b0b0b; }
-    button { padding: 12px 18px; border-radius: 12px; border: none; background: #0b0b0b; color: #fff; font-weight: 600; cursor:pointer; margin-top: 14px; }
-    .notice { padding: 12px; border-radius: 12px; margin-top: 12px; }
-    .notice.error { background: #fff1f1; border: 1px solid #f3b7b7; color: #991b1b; }
-    .notice.success { background: #edf9f0; border: 1px solid #b8e2c4; color: #0f5132; }
+    :root { --color-bg: #f7f7fb; }
+    .wrapper { padding: 24px; display:flex; justify-content:center; }
+    .card { background: #fff; padding: 28px; border-radius: 16px; width: min(720px, 100%); box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
     
-    /* Redaktoriaus stiliai */
-    .toolbar button, .toolbar input, .toolbar select { border-radius:10px; padding:8px 10px; border:1px solid #d7d7e2; background:#fff; cursor:pointer; color:#0b0b0b; font-weight:600; user-select: none; }
-    .toolbar input[type=color] { padding:0; width:40px; height:36px; }
-    .rich-editor { min-height:220px; padding:12px; border:1px solid #d7d7e2; border-radius:12px; background:#f9f9ff; font-family: 'Inter', sans-serif; }
+    label { display:block; margin:12px 0 5px; font-weight:600; }
+    input[type=text], select, textarea { width: 100%; padding: 10px; border:1px solid #ccc; border-radius:8px; background:#fbfbff; }
+    
+    .notice.success { background:#e6fffa; color:#047481; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid #b2f5ea; }
+    .notice.error { background:#fff5f5; color:red; padding:10px; border:1px solid red; border-radius:8px; }
+    
+    .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; border: 1px solid #ddd; padding: 12px; border-radius: 8px; background: #fbfbff; max-height: 200px; overflow-y: auto; }
+    .cat-item { display:flex; align-items:center; gap:8px; cursor:pointer; padding:4px; transition:background 0.1s; border-radius:4px; margin:0 !important; font-weight:normal !important; }
+    .cat-item:hover { background:#eee; }
+
+    /* Redaktorius */
+    .toolbar button, .toolbar input, .toolbar select { border-radius:8px; padding:6px 10px; border:1px solid #d7d7e2; background:#fff; cursor:pointer; color:#0b0b0b; font-weight:600; user-select: none; font-size:14px; }
+    .toolbar input[type=color] { padding:0; width:36px; height:32px; vertical-align:middle; }
+    .rich-editor { min-height:300px; padding:16px; border:1px solid #d7d7e2; border-radius:12px; background:#fbfbff; font-family: 'Inter', sans-serif; line-height:1.6; }
     .rich-editor img { max-width:100%; height:auto; display:block; margin:12px 0; border-radius:12px; }
-    .rich-editor b, .rich-editor strong { font-weight: 700 !important; }
+    .rich-editor blockquote { border-left: 4px solid #ccc; margin: 10px 0; padding-left: 10px; color: #555; }
   </style>
-  
 </head>
 <body>
   <?php renderHeader($pdo, 'recipes'); ?>
   <div class="wrapper">
     <div class="card">
-      <h1>Recepto redagavimas</h1>
-      <p style="margin:0 0 14px; color:#444;">Atnaujinkite receptą, kad jis išliktų aktualus diabetui.</p>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h1>Redaguoti receptą</h1>
+          <a href="/recipes.php" class="btn secondary" style="font-size:14px; padding:6px 12px; border:1px solid #ccc; border-radius:8px;">Grįžti</a>
+      </div>
 
-      <?php if ($errors): ?>
-        <div class="notice error">
-          <?php foreach ($errors as $error): ?>
-            <div><?php echo htmlspecialchars($error); ?></div>
-          <?php endforeach; ?>
-        </div>
-      <?php endif; ?>
-
-      <?php if ($message): ?>
-        <div class="notice success"><?php echo htmlspecialchars($message); ?></div>
-      <?php endif; ?>
-
+      <?php if ($message): ?><div class="notice success"><?= htmlspecialchars($message) ?></div><?php endif; ?>
+      <?php if ($errors): ?><div class="notice error"><?= implode('<br>', $errors) ?></div><?php endif; ?>
+      
       <form method="post" enctype="multipart/form-data" onsubmit="return syncBody();">
         <?php echo csrfField(); ?>
         
-        <label for="title">Pavadinimas</label>
-        <input id="title" name="title" type="text" required value="<?php echo htmlspecialchars($item['title']); ?>">
+        <label>Pavadinimas</label>
+        <input name="title" type="text" value="<?= htmlspecialchars($title) ?>" required>
 
-        <label for="author">Autorius</label>
-        <input id="author" name="author" type="text" value="<?php echo htmlspecialchars($item['author'] ?? ''); ?>" placeholder="Autoriaus vardas">
+        <label>Autorius</label>
+        <input name="author" type="text" value="<?= htmlspecialchars($author) ?>">
 
-        <label for="image">Nuotrauka</label>
-        <input id="image" name="image" type="file" accept="image/*">
-        <?php if ($item['image_url']): ?><p style="margin:6px 0 0; font-size:14px;">Dabartinė: <a href="<?php echo htmlspecialchars($item['image_url']); ?>" target="_blank">peržiūrėti</a></p><?php endif; ?>
+        <label>Kategorijos</label>
+        <div class="cat-grid">
+            <?php foreach ($categories as $cat): ?>
+                <label class="cat-item">
+                    <input type="checkbox" name="categories[]" value="<?= $cat['id'] ?>" 
+                        <?= in_array($cat['id'], $currentCatIds) ? 'checked' : '' ?> 
+                        style="width:auto; margin:0;">
+                    <?= htmlspecialchars($cat['name']) ?>
+                </label>
+            <?php endforeach; ?>
+        </div>
 
-        <label for="body-editor">Paruošimas ir aprašymas</label>
-        <div class="toolbar" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
-          <button type="button" onmousedown="event.preventDefault()" onclick="format('bold')">B</button>
+        <label>Santrauka</label>
+        <textarea name="summary" required style="min-height:80px;"><?= htmlspecialchars($summary) ?></textarea>
+
+        <label>Nuotrauka</label>
+        <div style="display:flex; align-items:center; gap:15px; margin-bottom:5px;">
+            <?php if($item['image_url']): ?>
+                <img src="<?= htmlspecialchars($item['image_url']) ?>" style="width:60px; height:60px; object-fit:cover; border-radius:6px;">
+            <?php endif; ?>
+            <input name="image" type="file" accept="image/*">
+        </div>
+        
+        <label>Aprašymas</label>
+        <div class="toolbar" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+          <button type="button" onmousedown="event.preventDefault()" onclick="format('bold')"><b>B</b></button>
           <button type="button" onmousedown="event.preventDefault()" onclick="format('italic')"><em>I</em></button>
           <button type="button" onmousedown="event.preventDefault()" onclick="format('underline')"><u>U</u></button>
           <button type="button" onmousedown="event.preventDefault()" onclick="format('strikeThrough')"><s>S</s></button>
+          
+          <span style="border-left:1px solid #ddd; margin:0 4px;"></span>
+          
           <button type="button" onmousedown="event.preventDefault()" onclick="format('insertUnorderedList')">• Sąrašas</button>
           <button type="button" onmousedown="event.preventDefault()" onclick="format('insertOrderedList')">1. Sąrašas</button>
           <button type="button" onmousedown="event.preventDefault()" onclick="format('formatBlock','blockquote')">Citata</button>
-          <button type="button" onmousedown="event.preventDefault()" onclick="triggerInlineImage()">Įkelti nuotrauką</button>
-          <input type="color" onchange="formatColor(this.value)" aria-label="Teksto spalva">
-          <select onchange="format('fontSize', this.value)">
-            <option value="3">Šrifto dydis</option>
+          
+          <span style="border-left:1px solid #ddd; margin:0 4px;"></span>
+
+          <button type="button" onmousedown="event.preventDefault()" onclick="format('justifyLeft')">↤</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="format('justifyCenter')">↔</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="format('justifyRight')">↦</button>
+          
+          <span style="border-left:1px solid #ddd; margin:0 4px;"></span>
+
+          <button type="button" onmousedown="event.preventDefault()" onclick="createLink()">🔗 Nuoroda</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="triggerInlineImage()">🖼️ Įkelti foto</button>
+          
+          <input type="color" onchange="formatColor(this.value)" title="Teksto spalva">
+          <select onchange="format('fontSize', this.value)" style="width:auto; padding:6px;">
+            <option value="3">Dydis</option>
             <option value="2">Mažas</option>
             <option value="3">Vidutinis</option>
             <option value="4">Didelis</option>
+            <option value="5">Labai didelis</option>
           </select>
-          <button type="button" onmousedown="event.preventDefault()" onclick="format('removeFormat')">Išvalyti formatavimą</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="format('removeFormat')">Išvalyti</button>
         </div>
+
+        <div id="body-editor" class="rich-editor" contenteditable="true"><?= $safeBody ?></div>
         
-        <div id="body-editor" class="rich-editor" contenteditable="true">
-          <?php echo $safeBody; ?>
-        </div>
         <input type="file" id="inline-image-input" accept="image/*" style="display:none;">
-        
-        <textarea id="body" name="body" hidden><?php echo htmlspecialchars($safeBody); ?></textarea>
+        <textarea id="body" name="body" hidden><?= htmlspecialchars($body) ?></textarea>
 
-        <button type="submit">Išsaugoti pakeitimus</button>
+        <label>Matomumas</label>
+        <select name="visibility">
+            <option value="public" <?= $visibility == 'public' ? 'selected' : '' ?>>Visiems</option>
+            <option value="members" <?= $visibility == 'members' ? 'selected' : '' ?>>Tik registruotiems</option>
+        </select>
+
+        <button type="submit" style="background:#0b0b0b; color:#fff; padding:12px 24px; border-radius:10px; border:none; margin-top:20px; font-weight:bold; cursor:pointer; width:100%;">Išsaugoti pakeitimus</button>
       </form>
-
-      <div style="margin-top: 16px; display:flex; justify-content: space-between;">
-        <a href="/recipes.php">← Grįžti</a>
-        <a href="/">↩ Pagrindinis</a>
-      </div>
     </div>
   </div>
   <script>
@@ -177,7 +227,15 @@ $safeBody = sanitizeHtml($currentBody);
       document.execCommand(cmd, false, value);
       editor.focus();
     }
-    function formatColor(color) { format('foreColor', color); }
+    
+    function formatColor(color) { 
+        format('foreColor', color); 
+    }
+    
+    function createLink() {
+      const url = prompt('Įveskite nuorodą:');
+      if (url) { format('createLink', url); }
+    }
     
     function decorateImages() {
       editor.querySelectorAll('img').forEach(img => {
@@ -199,8 +257,8 @@ $safeBody = sanitizeHtml($currentBody);
       
       const formData = new FormData();
       formData.append('image', file);
-      const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-      formData.append('csrf_token', csrfToken);
+      const csrfEl = document.querySelector('input[name="csrf_token"]');
+      if (csrfEl) formData.append('csrf_token', csrfEl.value);
 
       try {
         const res = await fetch('/editor_upload.php', { method: 'POST', body: formData });
@@ -212,18 +270,23 @@ $safeBody = sanitizeHtml($currentBody);
           alert(data.error || 'Nepavyko įkelti nuotraukos');
         }
       } catch (err) {
-        alert('Klaida įkeliant nuotrauką.');
+        alert('Klaida įkeliant nuotrauką');
       }
       inlineImageInput.value = '';
     });
-    
+
     function syncBody() {
       decorateImages();
-      hiddenBody.value = editor.innerHTML.trim();
+      const content = editor.innerHTML.trim();
+      if (!content || content === '<br>') {
+          alert('Negalima išsaugoti tuščio turinio.');
+          return false;
+      }
+      hiddenBody.value = content;
       return true;
     }
+    
     decorateImages();
   </script>
-  <?php renderFooter($pdo); ?>
 </body>
 </html>
