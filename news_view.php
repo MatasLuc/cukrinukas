@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save'
 $meta = [
     'title' => $news['title'] . ' | Naujienos',
     'description' => $news['summary'] ?: mb_substr(strip_tags($news['body']), 0, 160),
-    'image' => 'https://e-kolekcija.lt' . $news['image_url']
+    'image' => 'https://cukrinukas.lt' . $news['image_url']
 ];
 
 // NAUJA: Autoriaus atvaizdavimo logika
