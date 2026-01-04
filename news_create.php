@@ -12,7 +12,14 @@ if (!isset($_SESSION['user_id']) || empty($_SESSION['is_admin'])) {
 
 $pdo = getPdo();
 ensureNewsTable($pdo);
+// Užtikriname, kad kategorijų lentelė sukurta (jei db.php atnaujintas)
+if (function_exists('ensureNewsCategoriesTable')) {
+    ensureNewsCategoriesTable($pdo);
+}
 ensureAdminAccount($pdo);
+
+// Gauname kategorijas pasirinkimui
+$categories = $pdo->query("SELECT * FROM news_categories ORDER BY name ASC")->fetchAll();
 
 $errors = [];
 $message = '';
@@ -20,6 +27,7 @@ $message = '';
 $title = '';
 $summary = '';
 $author = '';
+$categoryId = null;
 $body = '';
 $visibility = 'public';
 $isFeatured = 0;
@@ -30,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title = trim($_POST['title'] ?? '');
     $summary = trim($_POST['summary'] ?? '');
     $author = trim($_POST['author'] ?? '');
+    $categoryId = !empty($_POST['category_id']) ? (int)$_POST['category_id'] : null;
     $body = trim($_POST['body'] ?? '');
     $visibility = $_POST['visibility'] === 'members' ? 'members' : 'public';
     $isFeatured = isset($_POST['is_featured']) ? 1 : 0;
@@ -39,7 +48,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $imagePath = '';
-    // Pakeiskite klaidų rinkimą, kad validacija būtų griežtesnė tik jei failas įkeltas
     $uploaded = uploadImageWithValidation($_FILES['image'] ?? [], 'news_', $errors, 'Įkelkite naujienos nuotrauką.');
     if ($uploaded) {
         $imagePath = $uploaded;
@@ -47,8 +55,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errors) {
         try {
-            $stmt = $pdo->prepare('INSERT INTO news (title, summary, author, image_url, body, visibility, is_featured) VALUES (?, ?, ?, ?, ?, ?, ?)');
-            $stmt->execute([$title, $summary, $author, $imagePath, $body, $visibility, $isFeatured]);
+            $stmt = $pdo->prepare('INSERT INTO news (title, summary, author, category_id, image_url, body, visibility, is_featured) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+            $stmt->execute([$title, $summary, $author, $categoryId, $imagePath, $body, $visibility, $isFeatured]);
             
             header('Location: /news.php');
             exit;
@@ -75,20 +83,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .card { background: #fff; padding: 28px; border-radius: 16px; box-shadow: 0 14px 32px rgba(0,0,0,0.08); width: min(720px, 100%); }
     .card h1 { margin: 0 0 8px; font-size: 26px; }
     label { display: block; margin: 14px 0 6px; font-weight: 600; }
-    input, textarea { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #d7d7e2; background: #f9f9ff; font-size: 15px; }
+    input, textarea, select { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #d7d7e2; background: #f9f9ff; font-size: 15px; }
     textarea { min-height: 160px; resize: vertical; }
-    input:focus, textarea:focus { outline: 2px solid #0b0b0b; }
+    input:focus, textarea:focus, select:focus { outline: 2px solid #0b0b0b; }
     button { padding: 12px 18px; border-radius: 12px; border: none; background: #0b0b0b; color: #fff; font-weight: 600; cursor:pointer; margin-top: 14px; }
     .notice { padding: 12px; border-radius: 12px; margin-top: 12px; }
     .notice.error { background: #fff1f1; border: 1px solid #f3b7b7; color: #991b1b; }
     
-    /* Toolbar stilius su apsauga nuo teksto pažymėjimo */
     .toolbar button, .toolbar input, .toolbar select { border-radius:10px; padding:8px 10px; border:1px solid #d7d7e2; background:#fff; cursor:pointer; color:#0b0b0b; font-weight:600; user-select: none; }
     .toolbar input[type=color] { padding:0; width:40px; height:36px; }
     .rich-editor { min-height:220px; padding:12px; border:1px solid #d7d7e2; border-radius:12px; background:#f9f9ff; font-family: 'Inter', sans-serif; }
     .rich-editor img { max-width:100%; height:auto; display:block; margin:12px 0; border-radius:12px; }
-    
-    /* SVARBU: Priverstinis Bold atvaizdavimas */
     .rich-editor b, .rich-editor strong { font-weight: 700 !important; }
   </style>
 </head>
@@ -115,6 +120,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <label for="author">Autorius</label>
         <input id="author" name="author" type="text" value="<?php echo htmlspecialchars($author); ?>" placeholder="Įveskite autoriaus vardą (pvz. Redakcija)">
+
+        <label for="category_id">Kategorija</label>
+        <select id="category_id" name="category_id">
+            <option value="">-- Be kategorijos --</option>
+            <?php foreach ($categories as $cat): ?>
+                <option value="<?php echo $cat['id']; ?>" <?php echo ((int)$categoryId === $cat['id']) ? 'selected' : ''; ?>>
+                    <?php echo htmlspecialchars($cat['name']); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
 
         <label for="summary">Santrauka</label>
         <textarea id="summary" name="summary" required style="min-height:90px;"><?php echo htmlspecialchars($summary); ?></textarea>
@@ -201,15 +216,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       inlineImageInput.click();
     }
     
-    // Pataisyta nuotraukų įkėlimo funkcija su CSRF tokenu
     inlineImageInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       
       const formData = new FormData();
       formData.append('image', file);
-      
-      // PAIMAME CSRF TOKENĄ IŠ FORMOS
       const csrfToken = document.querySelector('input[name="csrf_token"]').value;
       formData.append('csrf_token', csrfToken);
 
@@ -231,22 +243,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     function syncBody() {
       decorateImages();
       const content = editor.innerHTML.trim();
-      
-      // Patikriname ar yra turinio (nes 'required' ant paslėpto lauko neveikia)
       if (!content || content === '<br>') {
         alert('Prašome užpildyti naujienos turinį.');
         return false;
       }
-      
-      // Patikriname pagrindinės nuotraukos dydį (prevencija dėl CSRF klaidos)
       const mainImage = document.getElementById('image');
       if (mainImage.files.length > 0) {
-        const fileSize = mainImage.files[0].size / 1024 / 1024; // MB
-        if (fileSize > 20) { // Jei didesnė nei 20MB (galima pamažinti pagal serverio nustatymus)
-             alert('Dėmesio: Nuotrauka labai didelė (' + fileSize.toFixed(2) + ' MB). Tai gali sukelti klaidą išsaugant. Rekomenduojame sumažinti.');
+        const fileSize = mainImage.files[0].size / 1024 / 1024;
+        if (fileSize > 20) {
+             alert('Dėmesio: Nuotrauka labai didelė (' + fileSize.toFixed(2) + ' MB). Rekomenduojame sumažinti.');
         }
       }
-      
       hiddenBody.value = content;
       return true;
     }
