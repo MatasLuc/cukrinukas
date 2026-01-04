@@ -11,7 +11,7 @@ ensureCartTables($pdo);
 ensureSavedContentTables($pdo);
 ensureAdminAccount($pdo);
 
-// Užtikriname, kad egzistuoja ryšių lentelė (jei dar nėra)
+// Užtikriname, kad egzistuoja ryšių lentelė (jei netyčia dar nebūtų)
 $pdo->exec("CREATE TABLE IF NOT EXISTS product_category_relations (
     product_id INT NOT NULL,
     category_id INT NOT NULL,
@@ -30,7 +30,7 @@ $searchQuery = $_GET['query'] ?? null;
 $allCats = $pdo->query('SELECT id, name, slug, parent_id FROM categories ORDER BY parent_id ASC, name ASC')->fetchAll();
 
 $catTree = [];
-$catIndex = []; // Pagalbinis masyvas greitai paieškai pagal ID
+$catIndex = []; // Pagalbinis masyvas greitai paieškai
 
 // Pirmas praėjimas: sudedame visas kategorijas į indeksą
 foreach ($allCats as $c) {
@@ -38,57 +38,57 @@ foreach ($allCats as $c) {
     $catIndex[$c['id']]['children'] = [];
 }
 
-// Antras praėjimas: formuojame medį
+// Antras praėjimas: formuojame hierarchiją
 foreach ($catIndex as $id => $c) {
     if (!empty($c['parent_id'])) {
-        // Tai vaikas - pridedame prie tėvo
+        // Jei turi tėvą - dedame į tėvo 'children' masyvą
         if (isset($catIndex[$c['parent_id']])) {
-            $catIndex[$c['parent_id']]['children'][] = $catIndex[$id]; // Pridedame pilną masyvą, ne nuorodą, kad vėliau būtų lengviau
+            $catIndex[$c['parent_id']]['children'][] = $catIndex[$id];
         }
     } else {
-        // Tai tėvas - dedame į pagrindinį medį
+        // Jei neturi tėvo - tai pagrindinė kategorija, dedame į medžio šaknį
         $catTree[$id] = &$catIndex[$id];
     }
 }
 
-// --- 2. PREKIŲ FILTRAVIMAS ---
+// --- 2. FILTRAVIMO LOGIKA ---
 $params = [];
 $whereClauses = [];
 
 if ($selectedSlug) {
-    // Randame pasirinktos kategorijos ID
+    // Randame pasirinktos kategorijos ID pagal slug
     $stmtCat = $pdo->prepare("SELECT id FROM categories WHERE slug = ?");
     $stmtCat->execute([$selectedSlug]);
     $catId = $stmtCat->fetchColumn();
 
     if ($catId) {
-        // Jei tai tėvinė kategorija, turime rasti ir visų jos vaikų ID
-        // (Kad pasirinkus "Maistas", rodytų ir "Saldainiai")
-        $childIds = [];
+        // Jei pasirenkama tėvinė kategorija, įtraukiame ir jos vaikus
+        // Jei pasirenkama vaiko kategorija, $catIndex[$catId]['children'] bus tuščias, tad ims tik tą vieną
+        $targetIds = [$catId];
+        
         if (isset($catIndex[$catId]['children'])) {
             foreach ($catIndex[$catId]['children'] as $child) {
-                $childIds[] = $child['id'];
+                $targetIds[] = $child['id'];
             }
         }
         
-        // Sujungiame pagrindinį ID ir vaikų ID
-        $allTargetIds = array_merge([$catId], $childIds);
-        $placeholders = implode(',', array_fill(0, count($allTargetIds), '?'));
+        // Formuojame užklausą: prekė tinka, jei jos category_id yra tarp tų ID
+        // ARBA ji yra priskirta per ryšių lentelę (relations)
+        $placeholders = implode(',', array_fill(0, count($targetIds), '?'));
         
-        // SQL: Prekė turi būti priskirta vienai iš šių kategorijų (per category_id arba relations lentelę)
-        // Sukuriame parametrų masyvą du kartus (vieną WHERE IN daliai products lentelėje, kitą relations lentelei)
         $whereClauses[] = "(
             p.category_id IN ($placeholders) 
             OR 
             p.id IN (SELECT product_id FROM product_category_relations WHERE category_id IN ($placeholders))
         )";
         
-        // Prijungiame parametrus
-        foreach ($allTargetIds as $tid) $params[] = $tid;
-        foreach ($allTargetIds as $tid) $params[] = $tid;
+        // Parametrus pridedame du kartus (vieną pagrindinei lentelei, kitą relations subquery)
+        foreach ($targetIds as $tid) $params[] = $tid;
+        foreach ($targetIds as $tid) $params[] = $tid;
         
     } else {
-        $whereClauses[] = '1=0'; // Kategorija nerasta
+        // Jei slug neteisingas, nieko nerodome
+        $whereClauses[] = '1=0'; 
     }
 }
 
@@ -154,38 +154,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     .btn-large { padding: 11px 24px; border-radius: 12px; border: 1px solid #4338ca; background: #fff; color: #4338ca; font-weight: 600; transition: all .2s; }
     .btn-large:hover { background: #4338ca; color: #fff; }
 
-    /* FILTRAI IR PAIEŠKA */
+    /* FILTRAI */
     .filter-bar { display:flex; justify-content: space-between; align-items:center; gap:16px; flex-wrap: wrap; }
     .filter-title { font-size: 18px; font-weight: 600; color: #111827; }
-    .search-input { flex-grow: 1; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); min-width: 200px; }
+    .search-input { flex-grow: 1; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); min-width: 200px; font-size: 15px; background: #fff; }
+    .search-input:focus { border-color: var(--accent); outline: none; }
 
-    /* CHIPS & DROPDOWN */
+    /* Mygtukas (sutvarkytas) */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 10px 14px; border-radius: 12px;
+      background: #0b0b0b; color: #fff; border: 1px solid #0b0b0b;
+      font-weight: 600; cursor: pointer; white-space: nowrap;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn.secondary { background: #fff; color: #0b0b0b; border-color: var(--border); }
+
+    /* KATEGORIJOS IR DROPDOWN */
     .chips { display:flex; flex-wrap:wrap; gap:10px; }
     
     .chip-container { position: relative; display: inline-block; }
     
     .chip {
-      display: inline-flex; align-items: center; gap: 5px;
+      display: inline-flex; align-items: center; gap: 6px;
       padding: 8px 16px; border-radius: 99px;
       background: #fff; border: 1px solid var(--border);
       font-weight: 600; color: var(--muted); cursor: pointer; transition: all .2s;
-      white-space: nowrap;
+      white-space: nowrap; user-select: none;
     }
     .chip:hover, .chip.active {
       border-color: var(--accent); color: var(--accent); background: #fdfaff;
       box-shadow: 0 4px 12px rgba(124, 58, 237, 0.1);
     }
-    .chip-arrow { font-size: 10px; opacity: 0.6; }
+    .chip-arrow { font-size: 10px; opacity: 0.6; margin-left: 2px; }
 
-    /* Dropdown meniu */
     .dropdown-menu {
         display: none; position: absolute; top: 100%; left: 0;
-        background: #fff; min-width: 180px; padding: 8px 0; margin-top: 6px;
+        background: #fff; min-width: 200px; padding: 8px 0; margin-top: 6px;
         border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.12);
         border: 1px solid var(--border); z-index: 50;
-        animation: slideDown 0.2s ease;
     }
-    .chip-container:hover .dropdown-menu { display: block; }
+    /* Rodyti tik užvedus ant tėvinio elemento */
+    .chip-container:hover .dropdown-menu { display: block; animation: slideDown 0.2s ease; }
     
     .dropdown-item {
         display: block; padding: 8px 16px; color: var(--text);
@@ -196,7 +207,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     
     @keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
 
-    /* PREKIŲ TINKLELIS */
+    /* KORTELĖS */
     .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:24px; }
     .card { background: var(--card); border:1px solid var(--border); border-radius:20px; overflow:hidden; display:flex; flex-direction:column; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform .2s; }
     .card:hover { transform: translateY(-4px); border-color: var(--accent); }
@@ -204,13 +215,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     .card__body { padding:18px; display:flex; flex-direction:column; gap:10px; flex:1; }
     
     .ribbon { position:absolute; top:12px; left:12px; background: var(--accent); color:#fff; padding:4px 10px; border-radius:8px; font-size:12px; font-weight:700; }
-    .price-row { display:flex; justify-content: space-between; align-items:center; margin-top:auto; }
+    .price-row { display:flex; justify-content: space-between; align-items:center; margin-top:auto; gap: 8px; }
     .price { font-size:20px; font-weight:700; color:#111827; }
-    .btn { padding:10px 14px; border-radius:12px; background: var(--accent); color:#fff; border:none; font-weight:600; cursor:pointer; }
+    
+    /* Krepšelio mygtukas kortelėje */
+    .btn-cart {
+        flex: 1; padding:10px; border-radius:12px;
+        background: linear-gradient(135deg, #4338ca, #7c3aed); color:#fff;
+        border:none; font-weight:700; cursor:pointer; font-size: 14px;
+        transition: transform .1s;
+    }
+    .btn-cart:hover { transform: scale(1.02); }
+
     .heart-btn { width:40px; height:40px; border-radius:12px; border:1px solid var(--border); background:#fff; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; }
     .heart-btn:hover { color: var(--accent); border-color: var(--accent); }
     
-    @media (max-width: 800px) { .hero { grid-template-columns: 1fr; } }
+    @media (max-width: 800px) { .hero { grid-template-columns: 1fr; } .filter-bar { flex-direction: column; align-items: stretch; } }
   </style>
 </head>
 <body>
@@ -230,13 +250,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
 
     <div class="filter-bar">
         <form method="get" style="display: flex; gap: 10px; align-items: center; flex-grow: 1;">
-            <input type="text" name="query" placeholder="Ieškoti..." class="search-input" value="<?php echo htmlspecialchars($searchQuery ?? ''); ?>">
+            <input type="text" name="query" placeholder="Ieškoti prekių pagal pavadinimą..." class="search-input" value="<?php echo htmlspecialchars($searchQuery ?? ''); ?>">
             <?php if ($selectedSlug): ?>
                 <input type="hidden" name="category" value="<?php echo htmlspecialchars($selectedSlug); ?>">
             <?php endif; ?>
-            <button type="submit" class="btn" style="background:#0b0b0b;">Ieškoti</button>
+            
+            <button type="submit" class="btn">Ieškoti</button>
+            
             <?php if ($searchQuery || $selectedSlug): ?>
-                <a href="/products.php" class="btn" style="background:#fff; color:#0b0b0b; border:1px solid var(--border);">Valyti</a>
+                <a href="/products.php" class="btn secondary">Valyti</a>
             <?php endif; ?>
         </form>
     </div>
@@ -246,9 +268,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
       <div class="chips">
         <a class="chip <?php echo !$selectedSlug ? 'active' : ''; ?>" href="/products.php<?php echo $searchQuery ? '?query=' . urlencode($searchQuery) : ''; ?>">Visos</a>
         
-        <?php foreach ($catTree as $parentId => $parentCat): ?>
+        <?php foreach ($catTree as $parentCat): ?>
           <?php 
-              // Tikriname ar ši kategorija (ar jos vaikas) yra aktyvi
+              // Tikriname, ar ši kategorija ARBA jos vaikas yra aktyvūs
               $isActive = ($selectedSlug === $parentCat['slug']);
               $hasActiveChild = false;
               if (!empty($parentCat['children'])) {
@@ -286,9 +308,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
 
     <div class="grid">
       <?php if (empty($products)): ?>
-        <div style="grid-column: 1 / -1; text-align:center; padding: 40px; color:#666;">
+        <div style="grid-column: 1 / -1; text-align:center; padding: 40px; color:#666; background:#fff; border-radius:16px; border:1px solid #eee;">
             <h3>Prekių nerasta :(</h3>
             <p>Pabandykite pakeisti filtrus arba paieškos frazę.</p>
+            <a href="/products.php" class="btn secondary" style="margin-top:10px;">Rodyti visas prekes</a>
         </div>
       <?php endif; ?>
 
@@ -303,7 +326,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
                 <div class="ribbon"><?php echo htmlspecialchars($product['ribbon_text']); ?></div>
               <?php endif; ?>
               <?php if ($isGift): ?>
-                <div style="position:absolute; top:12px; right:12px; background:#fff; padding:4px 8px; border-radius:20px; font-size:12px; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.1);">🎁 Nemokamai</div>
+                <div style="position:absolute; top:12px; right:12px; background:#fff; color:#4338ca; padding:4px 8px; border-radius:20px; font-size:12px; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.1); border:1px solid #eef2ff;">🎁 Nemokamai</div>
               <?php endif; ?>
               <a href="/product.php?id=<?php echo (int)$product['id']; ?>">
                 <img src="<?php echo htmlspecialchars($cardImage); ?>" alt="<?php echo htmlspecialchars($product['title']); ?>" loading="lazy">
@@ -311,24 +334,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
           </div>
 
           <div class="card__body">
-            <div style="font-size:12px; color:var(--accent); font-weight:600; text-transform:uppercase;">
+            <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">
                 <?php echo htmlspecialchars($product['category_name'] ?? ''); ?>
             </div>
-            <h3 style="margin:0; font-size:18px;"><a href="/product.php?id=<?php echo (int)$product['id']; ?>"><?php echo htmlspecialchars($product['title']); ?></a></h3>
-            <p style="margin:0; color:var(--muted); font-size:14px; line-height:1.4;">
+            <h3 style="margin:0; font-size:18px; line-height:1.3;"><a href="/product.php?id=<?php echo (int)$product['id']; ?>"><?php echo htmlspecialchars($product['title']); ?></a></h3>
+            <p style="margin:0; color:var(--muted); font-size:14px; line-height:1.5;">
                 <?php echo htmlspecialchars(mb_substr(strip_tags($product['description']), 0, 80)); ?>...
             </p>
             <div class="price-row">
               <div class="price">
                 <?php if ($priceDisplay['has_discount']): ?>
-                  <span style="font-size:14px; text-decoration:line-through; color:#999; font-weight:normal;"><?php echo number_format($priceDisplay['original'], 2); ?> €</span>
+                  <span style="font-size:14px; text-decoration:line-through; color:#999; font-weight:normal; margin-right:4px;"><?php echo number_format($priceDisplay['original'], 2); ?> €</span>
                 <?php endif; ?>
                 <?php echo number_format($priceDisplay['current'], 2); ?> €
               </div>
-              <form method="post" style="display:flex; gap:6px;">
+              <form method="post" style="display:flex; gap:8px; flex:1;">
                 <?php echo csrfField(); ?>
                 <input type="hidden" name="product_id" value="<?php echo (int)$product['id']; ?>">
-                <button class="btn" type="submit">Į krepšelį</button>
+                <button class="btn-cart" type="submit">Į krepšelį</button>
                 <button class="heart-btn" name="action" value="wishlist" type="submit">♥</button>
               </form>
             </div>
