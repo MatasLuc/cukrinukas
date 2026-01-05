@@ -1,7 +1,7 @@
 <?php
 // admin/actions.php
 
-// Apibrėžiame pagalbinę funkciją prieš vykdant kodą, kad būtų prieinama visada
+// Pagalbinė funkcija nukreipimui
 if (!function_exists('redirectWithMsg')) {
     function redirectWithMsg($view, $msg, $type = 'success') {
         if ($type === 'success') {
@@ -16,7 +16,7 @@ if (!function_exists('redirectWithMsg')) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
-    // Būtina CSRF apsauga
+    // CSRF apsauga
     if (function_exists('validateCsrfToken')) {
         validateCsrfToken();
     }
@@ -107,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirectWithMsg('categories', 'Neteisingas ID', 'error');
     }
 
-    // --- PREKĖS IR FEATURED ---
+    // --- PREKĖS IR FEATURED (Titulinio prekės) ---
     
     if ($action === 'toggle_featured') {
         $pid = (int)($_POST['product_id'] ?? 0);
@@ -115,19 +115,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if ($pid) {
             if ($setFeatured == 0) {
-                // Šaliname
+                // Šaliname iš featured_products
                 $pdo->prepare("DELETE FROM featured_products WHERE product_id = ?")->execute([$pid]);
-                $pdo->prepare("UPDATE products SET is_featured = 0 WHERE id = ?")->execute([$pid]);
                 redirectWithMsg('products', 'Prekė pašalinta iš pagrindinio puslapio');
             } else {
-                // Pridedame (jei neviršija limito)
+                // Pridedame, jei neviršija limito (pvz. 6, bet paliekam laisviau)
                 $count = $pdo->query("SELECT COUNT(*) FROM featured_products")->fetchColumn();
-                if ($count < 3) {
-                    $pdo->prepare("INSERT IGNORE INTO featured_products (product_id, sort_order) VALUES (?, 0)")->execute([$pid]);
-                    $pdo->prepare("UPDATE products SET is_featured = 1 WHERE id = ?")->execute([$pid]);
+                // Randame didžiausią esamą poziciją
+                $maxPos = (int)$pdo->query("SELECT MAX(position) FROM featured_products")->fetchColumn();
+                
+                // Įterpiame (jei dar nėra)
+                $stmt = $pdo->prepare("SELECT id FROM featured_products WHERE product_id = ?");
+                $stmt->execute([$pid]);
+                if (!$stmt->fetch()) {
+                    $pdo->prepare("INSERT INTO featured_products (product_id, position, created_at) VALUES (?, ?, NOW())")->execute([$pid, $maxPos + 1]);
                     redirectWithMsg('products', 'Prekė pažymėta kaip Featured');
                 } else {
-                    redirectWithMsg('products', 'Maksimalus rodomų prekių skaičius (3) pasiektas', 'error');
+                    redirectWithMsg('products', 'Prekė jau yra sąraše', 'error');
                 }
             }
         }
@@ -142,13 +146,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pid = $stmt->fetchColumn();
             
             if ($pid) {
-                $count = $pdo->query("SELECT COUNT(*) FROM featured_products")->fetchColumn();
-                if ($count < 3) {
-                    $pdo->prepare("INSERT IGNORE INTO featured_products (product_id, sort_order) VALUES (?, 0)")->execute([$pid]);
-                    $pdo->prepare("UPDATE products SET is_featured = 1 WHERE id = ?")->execute([$pid]);
+                $stmtExists = $pdo->prepare("SELECT id FROM featured_products WHERE product_id = ?");
+                $stmtExists->execute([$pid]);
+                if (!$stmtExists->fetch()) {
+                    $maxPos = (int)$pdo->query("SELECT MAX(position) FROM featured_products")->fetchColumn();
+                    $pdo->prepare("INSERT INTO featured_products (product_id, position, created_at) VALUES (?, ?, NOW())")->execute([$pid, $maxPos + 1]);
                     redirectWithMsg('products', 'Prekė pridėta į pagrindinį puslapį');
                 } else {
-                    redirectWithMsg('products', 'Maksimalus rodomų prekių skaičius (3) pasiektas', 'error');
+                    redirectWithMsg('products', 'Ši prekė jau yra sąraše', 'error');
                 }
             } else {
                 redirectWithMsg('products', 'Prekė nerasta. Patikrinkite pavadinimą', 'error');
@@ -168,7 +173,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $salePrice = isset($_POST['sale_price']) && $_POST['sale_price'] !== '' ? (float)$_POST['sale_price'] : null;
         $qty = (int)($_POST['quantity'] ?? 0);
         $metaTags = trim($_POST['meta_tags'] ?? '');
-        $isFeatured = isset($_POST['is_featured']) ? 1 : 0;
+        
+        // Featured (checkbox formoje)
+        $isFeatured = isset($_POST['is_featured']) ? true : false;
         
         $cats = $_POST['categories'] ?? [];
         $primaryCatId = !empty($cats) ? (int)$cats[0] : null;
@@ -177,43 +184,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         try {
             if ($id) {
-                // Update
-                $stmt = $pdo->prepare('UPDATE products SET category_id=?, title=?, subtitle=?, description=?, ribbon_text=?, price=?, sale_price=?, quantity=?, meta_tags=?, is_featured=? WHERE id=?');
-                $stmt->execute([$primaryCatId, $title, $subtitle ?: null, $description, $ribbon ?: null, $price, $salePrice, $qty, $metaTags ?: null, $isFeatured, $id]);
+                // Update PRODUCTS (be is_featured stulpelio)
+                $stmt = $pdo->prepare('UPDATE products SET category_id=?, title=?, subtitle=?, description=?, ribbon_text=?, price=?, sale_price=?, quantity=?, meta_tags=? WHERE id=?');
+                $stmt->execute([$primaryCatId, $title, $subtitle ?: null, $description, $ribbon ?: null, $price, $salePrice, $qty, $metaTags ?: null, $id]);
                 $productId = $id;
                 $msg = 'Prekė atnaujinta';
             } else {
-                // Create
-                $stmt = $pdo->prepare('INSERT INTO products (category_id, title, subtitle, description, ribbon_text, image_url, price, sale_price, quantity, meta_tags, is_featured) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                // Create PRODUCTS (be is_featured stulpelio)
+                $stmt = $pdo->prepare('INSERT INTO products (category_id, title, subtitle, description, ribbon_text, image_url, price, sale_price, quantity, meta_tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                 $stmt->execute([
                     $primaryCatId, $title, $subtitle ?: null, $description, $ribbon ?: null,
                     'https://placehold.co/600x400?text=Preke', 
-                    $price, $salePrice, $qty, $metaTags ?: null, $isFeatured
+                    $price, $salePrice, $qty, $metaTags ?: null
                 ]);
                 $productId = (int)$pdo->lastInsertId();
                 $msg = 'Prekė sukurta';
             }
 
-            // --- SYNC FEATURED (svarbu, kad index.php veiktų) ---
+            // --- SYNC FEATURED PRODUCTS ---
+            // Valdome featured_products lentelę pagal checkbox
             if ($isFeatured) {
-                // Įdedame į featured_products, jei dar nėra
-                $count = $pdo->query("SELECT COUNT(*) FROM featured_products")->fetchColumn();
-                // Jei limitas neviršytas arba produktas jau yra ten
-                $exists = $pdo->prepare("SELECT 1 FROM featured_products WHERE product_id = ?");
+                // Tikriname ar jau yra
+                $exists = $pdo->prepare("SELECT id FROM featured_products WHERE product_id = ?");
                 $exists->execute([$productId]);
-                if (!$exists->fetchColumn() && $count < 3) {
-                     $pdo->prepare("INSERT IGNORE INTO featured_products (product_id, sort_order) VALUES (?, 0)")->execute([$productId]);
-                } elseif (!$exists->fetchColumn()) {
-                     // Jei limitas viršytas, bet vartotojas pažymėjo varnelę - galime arba ignoruoti, arba trinti seniausią.
-                     // Šiuo atveju paliekame is_featured=1, bet į featured lentelę nededame (index.php ims iš featured lentelės).
-                     // Arba, kad būtų aiškiau, nuimame is_featured.
-                     // Pasirinkimas: leidžiame būti "is_featured" bazėje, bet nerodome index.php kol neatsilaisvins vieta.
+                if (!$exists->fetch()) {
+                     $maxPos = (int)$pdo->query("SELECT MAX(position) FROM featured_products")->fetchColumn();
+                     $pdo->prepare("INSERT INTO featured_products (product_id, position, created_at) VALUES (?, ?, NOW())")->execute([$productId, $maxPos + 1]);
                 }
             } else {
+                // Jei checkbox nuimtas, šaliname iš featured
                 $pdo->prepare("DELETE FROM featured_products WHERE product_id = ?")->execute([$productId]);
             }
 
-            // Categories
+            // Categories relations
             $pdo->prepare("DELETE FROM product_category_relations WHERE product_id = ?")->execute([$productId]);
             if (!empty($cats)) {
                 $insCat = $pdo->prepare("INSERT INTO product_category_relations (product_id, category_id) VALUES (?, ?)");
@@ -224,7 +227,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Images
             if (!empty($_FILES['images']['name'][0])) {
-                // functions.php turi būti užkrautas
                 if (function_exists('storeUploads')) {
                     storeUploads($pdo, $productId, $_FILES['images']);
                 }
@@ -285,7 +287,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirectWithMsg('products', $msg);
         
         } catch (Exception $e) {
-            // Pagalbinis klaidų gaudymas 500 klaidai
             redirectWithMsg('products', 'Klaida saugant prekę: ' . $e->getMessage(), 'error');
         }
     }
@@ -297,6 +298,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare("DELETE FROM product_attributes WHERE product_id IN ($placeholders)")->execute($ids);
             $pdo->prepare("DELETE FROM product_variations WHERE product_id IN ($placeholders)")->execute($ids);
             $pdo->prepare("DELETE FROM product_category_relations WHERE product_id IN ($placeholders)")->execute($ids);
+            // Ištriname ir iš featured
             $pdo->prepare("DELETE FROM featured_products WHERE product_id IN ($placeholders)")->execute($ids);
             $pdo->prepare("DELETE FROM product_related WHERE product_id IN ($placeholders)")->execute($ids);
             $pdo->prepare("DELETE FROM products WHERE id IN ($placeholders)")->execute($ids);
