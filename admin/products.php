@@ -1,7 +1,7 @@
 <?php
 // admin/products.php
 
-// Rodyti sesijos pranešimus, jei jie nebuvo parodyti (pvz., po redirect)
+// Rodyti sesijos pranešimus
 if (isset($_SESSION['flash_success'])) {
     echo '<div class="alert success" style="margin-bottom:10px;">&check; '.htmlspecialchars($_SESSION['flash_success']).'</div>';
     unset($_SESSION['flash_success']);
@@ -19,10 +19,11 @@ try {
         $pdo->exec("ALTER TABLE products ADD COLUMN is_featured TINYINT(1) DEFAULT 0");
     }
 } catch (Exception $e) {
-    // Ignoruojame klaidą jei stulpelis jau yra ar kita db problema
+    // Ignoruojame klaidą jei stulpelis jau yra
 }
 
 // 2. DUOMENŲ SURINKIMAS
+// Surenkame visas prekes
 $stmt = $pdo->query('
     SELECT p.*, c.name AS category_name,
            (SELECT path FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image
@@ -32,7 +33,7 @@ $stmt = $pdo->query('
 ');
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Papildomi duomenys redagavimui
+// Papildomi duomenys redagavimui (atributai, variacijos ir t.t.)
 foreach ($products as &$p) {
     // Atributai
     $attrsStmt = $pdo->prepare("SELECT label, value FROM product_attributes WHERE product_id = ?");
@@ -66,7 +67,7 @@ foreach ($allCats as $c) {
     if (!empty($c['parent_id']) && isset($catTree[$c['parent_id']])) { $catTree[$c['parent_id']]['children'][]=$c; }
 }
 
-// Featured prekės
+// Featured prekės (filtruojame pagal is_featured vėliavėlę)
 $fProds = array_filter($products, function($p) { return isset($p['is_featured']) && $p['is_featured'] == 1; });
 ?>
 
@@ -88,6 +89,7 @@ $fProds = array_filter($products, function($p) { return isset($p['is_featured'])
     /* Formos elementai */
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
     .full-width { grid-column: span 2; }
+    .input-group { margin-bottom: 15px; }
     .input-group label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #6b7280; margin-bottom: 6px; }
     .form-control { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
     
@@ -137,7 +139,7 @@ $fProds = array_filter($products, function($p) { return isset($p['is_featured'])
 
 <div class="card" style="margin-bottom:20px; border:1px dashed #4f46e5; background:#f5f6ff;">
     <h4 style="margin-top:0; font-size:14px; text-transform:uppercase; color:#4338ca;">Pagrindinio puslapio prekės (Featured)</h4>
-    <p class="muted" style="font-size:12px; margin-bottom:12px;">Šios prekės rodomos pagrindiniame puslapyje. Rekomenduojama 3 vnt.</p>
+    <p class="muted" style="font-size:12px; margin-bottom:12px;">Šios prekės rodomos pagrindiniame puslapyje (Store sekcijoje). Rekomenduojama 3 vnt.</p>
     
     <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
         <?php foreach ($fProds as $fp): ?>
@@ -353,40 +355,46 @@ $fProds = array_filter($products, function($p) { return isset($p['is_featured'])
 </div>
 
 <script>
-    // JS FUNKCIJOS
-    document.addEventListener('DOMContentLoaded', () => { createToolbar('mainDescToolbar'); });
+    document.addEventListener('DOMContentLoaded', function() {
+        createToolbar('mainDescToolbar');
+    });
 
+    // Helper: Rich Text Toolbar
     function createToolbar(containerId) {
         const c = document.getElementById(containerId);
         if(!c) return;
         const tools = [ {c:'bold',l:'B'}, {c:'italic',l:'I'}, {c:'insertUnorderedList',l:'• List'}, {c:'createLink',l:'🔗'} ];
-        let h=''; tools.forEach(t=>{ 
+        let h=''; 
+        tools.forEach(t=>{ 
             if(t.c=='createLink') h+=`<span class="editor-btn" onclick="let u=prompt('URL:');if(u)document.execCommand('${t.c}',false,u)">${t.l}</span>`;
             else h+=`<span class="editor-btn" onclick="document.execCommand('${t.c}',false,null)">${t.l}</span>`; 
         });
         c.innerHTML = h;
     }
 
-    // Pataisyta funkcija Variacijoms
-    window.addVarRow = function(name='', price='') {
+    // Variacijos
+    function addVarRow(name='', price='') {
         const c = document.getElementById('variationsContainer');
+        if(!c) return;
         const d = document.createElement('div');
         d.style.cssText = "display:grid; grid-template-columns: 1fr 100px 40px; gap:10px; margin-bottom:8px;";
         d.innerHTML = `
-            <input name="variation_name[]" class="form-control" placeholder="Pavadinimas" value="${name}">
+            <input name="variation_name[]" class="form-control" placeholder="Pavadinimas" value="${name.replace(/"/g, '&quot;')}">
             <input name="variation_price[]" type="number" step="0.01" class="form-control" placeholder="+/- €" value="${price}">
             <button type="button" onclick="this.parentElement.remove()" style="color:red; border:none; cursor:pointer; background:none;">&times;</button>
         `;
         c.appendChild(d);
     }
 
-    window.addRichAttrRow = function(label='', val='') {
+    // Specifikacijos (Rich attr)
+    function addRichAttrRow(label='', val='') {
         const c = document.getElementById('attributesContainer');
+        if(!c) return;
         const uid = 'ae_'+Date.now()+Math.random();
         const d = document.createElement('div');
         d.className = 'attr-row';
         d.innerHTML = `
-            <input name="attr_label[]" class="form-control" placeholder="Savybė" value="${label}">
+            <input name="attr_label[]" class="form-control" placeholder="Savybė" value="${label.replace(/"/g, '&quot;')}">
             <div class="rich-editor-wrapper mini-editor"><div class="editor-toolbar" id="tb_${uid}"></div><div class="editor-content" id="${uid}" contenteditable="true">${val}</div><textarea name="attr_value[]" hidden></textarea></div>
             <button type="button" onclick="this.parentElement.remove()" style="color:red; border:none; cursor:pointer; background:none;">&times;</button>
         `;
@@ -394,26 +402,30 @@ $fProds = array_filter($products, function($p) { return isset($p['is_featured'])
         createToolbar('tb_'+uid);
     }
 
-    window.openProductModal = function(mode, data=null) {
+    // Modal control
+    function openProductModal(mode, data=null) {
         const f = document.querySelector('form.modal-window');
-        f.reset();
+        if(f) f.reset();
+        
         document.getElementById('productId').value = '';
-        document.getElementById('mainDescEditor').innerHTML = '';
-        document.getElementById('attributesContainer').innerHTML = '';
-        document.getElementById('variationsContainer').innerHTML = '';
-        document.getElementById('existingImgContainer').innerHTML = '';
+        const descEd = document.getElementById('mainDescEditor'); if(descEd) descEd.innerHTML = '';
+        const attrC = document.getElementById('attributesContainer'); if(attrC) attrC.innerHTML = '';
+        const varC = document.getElementById('variationsContainer'); if(varC) varC.innerHTML = '';
+        const imgC = document.getElementById('existingImgContainer'); if(imgC) imgC.innerHTML = '';
+        const prevC = document.getElementById('modalImgPreview'); if(prevC) prevC.innerHTML = '';
+        
         document.querySelectorAll('.cat-check').forEach(c => c.checked = false);
-        window.switchTab('basic');
+        switchTab('basic');
 
         if(mode==='create') {
             document.getElementById('modalTitle').innerText = 'Nauja prekė';
-            window.addRichAttrRow();
+            addRichAttrRow();
         } else {
             document.getElementById('modalTitle').innerText = 'Redaguoti prekę';
             document.getElementById('productId').value = data.id;
             document.getElementById('p_title').value = data.title;
             document.getElementById('p_subtitle').value = data.subtitle||'';
-            document.getElementById('mainDescEditor').innerHTML = data.description||'';
+            if(descEd) descEd.innerHTML = data.description||'';
             document.getElementById('p_price').value = data.price;
             document.getElementById('p_sale_price').value = data.sale_price||'';
             document.getElementById('p_quantity').value = data.quantity;
@@ -429,8 +441,8 @@ $fProds = array_filter($products, function($p) { return isset($p['is_featured'])
             });
 
             // Attributes & Vars
-            if(data.attributes) data.attributes.forEach(a => window.addRichAttrRow(a.label, a.value));
-            if(data.variations) data.variations.forEach(v => window.addVarRow(v.name, v.price_delta));
+            if(data.attributes) data.attributes.forEach(a => addRichAttrRow(a.label, a.value));
+            if(data.variations) data.variations.forEach(v => addVarRow(v.name, v.price_delta));
 
             // Images with Primary Select
             if(data.all_images) {
@@ -449,7 +461,7 @@ $fProds = array_filter($products, function($p) { return isset($p['is_featured'])
                             </label>
                         </div>
                     `;
-                    document.getElementById('existingImgContainer').appendChild(div);
+                    imgC.appendChild(div);
                 });
             }
         }
@@ -457,17 +469,17 @@ $fProds = array_filter($products, function($p) { return isset($p['is_featured'])
         setTimeout(() => document.getElementById('productModal').classList.add('open'), 10);
     }
 
-    window.updateStars = function(radio) {
+    function updateStars(radio) {
         document.querySelectorAll('.star-btn').forEach(b => b.classList.remove('active'));
         radio.parentElement.classList.add('active');
     }
 
-    window.closeProductModal = function() {
+    function closeProductModal() {
         document.getElementById('productModal').classList.remove('open');
         setTimeout(() => document.getElementById('productModal').style.display = 'none', 200);
     }
 
-    window.syncEditors = function() {
+    function syncEditors() {
         document.getElementById('p_description').value = document.getElementById('mainDescEditor').innerHTML;
         document.querySelectorAll('.attr-row').forEach(row => {
             row.querySelector('textarea').value = row.querySelector('.editor-content').innerHTML;
@@ -475,28 +487,47 @@ $fProds = array_filter($products, function($p) { return isset($p['is_featured'])
         return true;
     }
 
-    window.switchTab = function(id) {
+    function switchTab(id) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        document.getElementById('tab-'+id).classList.add('active');
+        const content = document.getElementById('tab-'+id);
+        if(content) content.classList.add('active');
+        
         const btns = document.querySelectorAll('.tab-btn');
-        if(id=='basic') btns[0].classList.add('active');
-        if(id=='specs') btns[1].classList.add('active');
-        if(id=='prices') btns[2].classList.add('active');
-        if(id=='media') btns[3].classList.add('active');
-        if(id=='seo') btns[4].classList.add('active');
+        if(id=='basic' && btns[0]) btns[0].classList.add('active');
+        if(id=='specs' && btns[1]) btns[1].classList.add('active');
+        if(id=='prices' && btns[2]) btns[2].classList.add('active');
+        if(id=='media' && btns[3]) btns[3].classList.add('active');
+        if(id=='seo' && btns[4]) btns[4].classList.add('active');
     }
     
     // Bulk & Search
-    window.toggleAll = function(s) { document.querySelectorAll('.prod-check').forEach(c=>c.checked=s.checked); updateBulkUI(); }
-    window.updateBulkUI = function() {
+    function toggleAll(s) { document.querySelectorAll('.prod-check').forEach(c=>c.checked=s.checked); updateBulkUI(); }
+    function updateBulkUI() {
         const n = document.querySelectorAll('.prod-check:checked').length;
         document.getElementById('selectedCount').innerText = n;
         document.getElementById('bulkActionsPanel').classList.toggle('visible', n>0);
     }
-    window.submitBulkDelete = function() { if(confirm('Trinti?')) document.getElementById('productsListForm').submit(); }
-    window.filterTable = function() {
+    function submitBulkDelete() { if(confirm('Trinti?')) document.getElementById('productsListForm').submit(); }
+    function filterTable() {
         const v = document.getElementById('tableSearch').value.toUpperCase();
         document.querySelectorAll('#productsTable tbody tr').forEach(tr => tr.style.display = tr.innerText.toUpperCase().includes(v) ? '' : 'none');
+    }
+
+    function previewModalImages(input) {
+        const c = document.getElementById('modalImgPreview');
+        c.innerHTML = '';
+        if(input.files) {
+            Array.from(input.files).forEach(f => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.style.cssText = 'width:60px; height:60px; object-fit:cover; border-radius:4px;';
+                    c.appendChild(img);
+                }
+                reader.readAsDataURL(f);
+            });
+        }
     }
 </script>
