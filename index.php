@@ -3,333 +3,743 @@ session_start();
 require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
 
+// Simple PHP page that renders the provided head metadata and a static landing layout
+$headerShadowIntensity = 70;
+$GLOBALS['headerShadowIntensity'] = $headerShadowIntensity;
+
 $pdo = getPdo();
+
+// DB struktūros ir duomenų užtikrinimas (palikta testavimo stadijai)
 ensureUsersTable($pdo);
+ensureNewsTable($pdo);
 ensureCategoriesTable($pdo);
 ensureProductsTable($pdo);
-ensureNewsTable($pdo);
+ensureOrdersTables($pdo);
+ensureRecipesTable($pdo);
+ensureAdminAccount($pdo);
+ensureSiteContentTable($pdo);
+ensureFooterLinks($pdo);
+seedStoreExamples($pdo);
+seedNewsExamples($pdo);
+seedRecipeExamples($pdo);
 
-// 1. Gauname svetainės turinį (Hero tekstams)
 $siteContent = getSiteContent($pdo);
-
-// 2. Gauname populiariausias/pagrindines kategorijas (pvz., 4 pirmas)
-$categoriesStmt = $pdo->query("SELECT * FROM categories WHERE parent_id = 0 ORDER BY name ASC LIMIT 4");
-$homeCategories = $categoriesStmt->fetchAll();
-
-// 3. Gauname naujausias prekes (8 vnt.)
-// Pastaba: čia supaprastinta užklausa. Jei reikia nuolaidų logikos, ji identiška products.php
-$productsStmt = $pdo->query("
-    SELECT p.*, c.name as category_name, 
-    (SELECT path FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image
-    FROM products p
-    LEFT JOIN categories c ON p.category_id = c.id
-    ORDER BY p.created_at DESC
-    LIMIT 8
-");
-$newProducts = $productsStmt->fetchAll();
-
-// 4. Gauname naujausias naujienas (3 vnt.)
-$newsStmt = $pdo->query("SELECT id, title, image_url, created_at FROM news ORDER BY created_at DESC LIMIT 3");
-$latestNews = $newsStmt->fetchAll();
-
-// Nuolaidų logika kainų atvaizdavimui
 $globalDiscount = getGlobalDiscount($pdo);
 $categoryDiscounts = getCategoryDiscounts($pdo);
 
+// Hero settings setup
+$heroShadowIntensity = max(0, min(100, (int)($siteContent['hero_shadow_intensity'] ?? 70)));
+$heroOverlayStrong = round(0.75 * ($heroShadowIntensity / 100), 3);
+$heroOverlaySoft = round(0.17 * ($heroShadowIntensity / 100), 3);
+$heroMedia = [
+    'type' => $siteContent['hero_media_type'] ?? 'image',
+    'color' => $siteContent['hero_media_color'] ?? '#829ed6',
+    'src' => '',
+    'poster' => $siteContent['hero_media_poster'] ?? '',
+    'alt' => $siteContent['hero_media_alt'] ?? 'Cukrinukas fonas',
+];
+
+if ($heroMedia['type'] === 'video') {
+    $heroMedia['src'] = $siteContent['hero_media_video'] ?? '';
+} else {
+    $heroMedia['src'] = $siteContent['hero_media_image'] ?? 'https://images.pexels.com/photos/6942003/pexels-photo-6942003.jpeg';
+    $heroMedia['type'] = $heroMedia['type'] ?: 'image';
+}
+
+if ($heroMedia['type'] === 'video' && !$heroMedia['src']) {
+    $heroMedia['type'] = 'color';
+}
+if ($heroMedia['type'] === 'image' && !$heroMedia['src']) {
+    $heroMedia['src'] = 'https://images.pexels.com/photos/6942003/pexels-photo-6942003.jpeg';
+}
+
+// Content Text setup
+$heroTitle = $siteContent['hero_title'] ?? 'Pagalba kasdienei diabeto priežiūrai';
+$heroBody = $siteContent['hero_body'] ?? 'Gliukometrai, sensoriai, maži GI užkandžiai ir bendruomenės patarimai – viskas vienoje vietoje, kad matavimai būtų ramūs.';
+$heroCtaLabel = $siteContent['hero_cta_label'] ?? 'Peržiūrėti pasiūlymus →';
+$heroCtaUrl = $siteContent['hero_cta_url'] ?? '/products.php';
+
+$testimonials = [];
+for ($i = 1; $i <= 3; $i++) {
+    $testimonials[] = [
+        'name' => $siteContent['testimonial_' . $i . '_name'] ?? '',
+        'role' => $siteContent['testimonial_' . $i . '_role'] ?? '',
+        'text' => $siteContent['testimonial_' . $i . '_text'] ?? '',
+    ];
+}
+
+$promoCards = [];
+for ($i = 1; $i <= 3; $i++) {
+    $promoCards[] = [
+        'icon' => $siteContent['promo_' . $i . '_icon'] ?? ($i === 1 ? '1%' : ($i === 2 ? '24/7' : '★')),
+        'title' => $siteContent['promo_' . $i . '_title'] ?? '',
+        'body' => $siteContent['promo_' . $i . '_body'] ?? '',
+    ];
+}
+
+$storyband = [
+    'badge' => $siteContent['storyband_badge'] ?? 'Nuo gliukometro iki lėkštės',
+    'title' => $siteContent['storyband_title'] ?? 'Kasdieniai sprendimai diabetui',
+    'body' => $siteContent['storyband_body'] ?? 'Sudėjome priemones ir žinias, kurios palengvina cukrinio diabeto priežiūrą: nuo matavimų iki receptų ir užkandžių.',
+    'cta_label' => $siteContent['storyband_cta_label'] ?? 'Rinktis rinkinį',
+    'cta_url' => $siteContent['storyband_cta_url'] ?? '/products.php',
+    'card_eyebrow' => $siteContent['storyband_card_eyebrow'] ?? 'Reklaminis akcentas',
+    'card_title' => $siteContent['storyband_card_title'] ?? '„Cukrinukas“ rinkiniai',
+    'card_body' => $siteContent['storyband_card_body'] ?? 'Starteriai su gliukometrais, užkandžiais ir atsargomis 30 dienų. Pradėkite be streso.',
+];
+$storybandMetrics = [];
+for ($i = 1; $i <= 3; $i++) {
+    $storybandMetrics[] = [
+        'value' => $siteContent['storyband_metric_' . $i . '_value'] ?? '',
+        'label' => $siteContent['storyband_metric_' . $i . '_label'] ?? '',
+    ];
+}
+
+$storyRow = [
+    'eyebrow' => $siteContent['storyrow_eyebrow'] ?? 'Dienos rutina',
+    'title' => $siteContent['storyrow_title'] ?? 'Stebėjimas, užkandžiai ir ramybė',
+    'body' => $siteContent['storyrow_body'] ?? 'Greitai pasiekiami sensorių pleistrai, cukraus kiekį subalansuojantys batonėliai ir starterių rinkiniai, kad kiekviena diena būtų šiek tiek lengvesnė.',
+    'pills' => [
+        $siteContent['storyrow_pill_1'] ?? 'Gliukozės matavimai',
+        $siteContent['storyrow_pill_2'] ?? 'Subalansuotos užkandžių dėžutės',
+        $siteContent['storyrow_pill_3'] ?? 'Kelionėms paruošti rinkiniai',
+    ],
+    'bubble_meta' => $siteContent['storyrow_bubble_meta'] ?? 'Rekomendacija',
+    'bubble_title' => $siteContent['storyrow_bubble_title'] ?? '„Cukrinukas“ specialistai',
+    'bubble_body' => $siteContent['storyrow_bubble_body'] ?? 'Suderiname atsargas pagal jūsų dienos režimą: nuo ankstyvų matavimų iki vakaro koregavimų.',
+    'floating_meta' => $siteContent['storyrow_floating_meta'] ?? 'Greitas pristatymas',
+    'floating_title' => $siteContent['storyrow_floating_title'] ?? '1-2 d.d.',
+    'floating_body' => $siteContent['storyrow_floating_body'] ?? 'Visoje Lietuvoje nuo 2.50 €',
+];
+
+$supportBand = [
+    'meta' => $siteContent['support_meta'] ?? 'Bendruomenė',
+    'title' => $siteContent['support_title'] ?? 'Pagalba jums ir šeimai',
+    'body' => $siteContent['support_body'] ?? 'Nuo pirmo sensoriaus iki subalansuotos vakarienės – čia rasite trumpus gidus, vaizdo pamokas ir dietologės patarimus.',
+    'chips' => [
+        $siteContent['support_chip_1'] ?? 'Vaizdo gidai',
+        $siteContent['support_chip_2'] ?? 'Dietologės Q&A',
+        $siteContent['support_chip_3'] ?? 'Tėvų kampelis',
+    ],
+    'card_meta' => $siteContent['support_card_meta'] ?? 'Gyva konsultacija',
+    'card_title' => $siteContent['support_card_title'] ?? '5 d. per savaitę',
+    'card_body' => $siteContent['support_card_body'] ?? 'Trumpi pokalbiai su cukrinio diabeto slaugytoja per „Messenger“ – pasikalbam apie sensorius, vaikus ar receptų koregavimus.',
+    'card_cta_label' => $siteContent['support_card_cta_label'] ?? 'Rezervuoti laiką',
+    'card_cta_url' => $siteContent['support_card_cta_url'] ?? '/contact.php',
+];
+$footerContent = [
+    'brand_title' => $siteContent['footer_brand_title'] ?? 'Cukrinukas.lt',
+    'brand_body' => $siteContent['footer_brand_body'] ?? 'Diabeto priemonės, mažo GI užkandžiai ir kasdienių sprendimų gidai vienoje vietoje.',
+    'brand_pill' => $siteContent['footer_brand_pill'] ?? 'Kasdienė priežiūra',
+    'quick_title' => $siteContent['footer_quick_title'] ?? 'Greitos nuorodos',
+    'help_title' => $siteContent['footer_help_title'] ?? 'Pagalba',
+    'contact_title' => $siteContent['footer_contact_title'] ?? 'Kontaktai',
+];
+$footerLinks = getFooterLinks($pdo);
+
+
+$featuredNews = $pdo->query('SELECT id, title, image_url, body, summary, created_at FROM news WHERE is_featured = 1 ORDER BY created_at DESC LIMIT 4')->fetchAll();
+$featuredIds = getFeaturedProductIds($pdo);
+$featuredProducts = [];
+if ($featuredIds) {
+    $placeholders = implode(',', array_fill(0, count($featuredIds), '?'));
+    $stmt = $pdo->prepare('SELECT p.*, c.name AS category_name,
+        (SELECT path FROM product_images WHERE product_id = p.id AND is_primary = 1 ORDER BY id DESC LIMIT 1) AS primary_image
+        FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.id IN (' . $placeholders . ')');
+    $stmt->execute($featuredIds);
+    $rows = $stmt->fetchAll();
+    $map = [];
+    foreach ($rows as $row) { $map[$row['id']] = $row; }
+    foreach ($featuredIds as $fid) { if (!empty($map[$fid])) { $featuredProducts[] = $map[$fid]; } }
+}
+$categories = $pdo->query('SELECT id, name, slug FROM categories ORDER BY name ASC')->fetchAll();
+$freeShippingOffers = getFreeShippingProducts($pdo);
+$cartData = getCartData($pdo, $_SESSION['cart'] ?? [], $_SESSION['cart_variations'] ?? []);
+$heroClass = $heroMedia['type'] === 'color' ? 'hero hero--color' : 'hero hero--media';
+$heroSectionStyle = ($heroMedia['type'] === 'color'
+    ? 'background:' . htmlspecialchars($heroMedia['color']) . ';'
+    : 'background:#829ed6;') . ' --hero-overlay-strong:' . $heroOverlayStrong . '; --hero-overlay-soft:' . $heroOverlaySoft . ';';
+$heroMediaStyle = 'background:' . htmlspecialchars($heroMedia['color']) . ';';
+if ($heroMedia['type'] === 'image') {
+    $heroMediaStyle = 'background-image:url(' . htmlspecialchars($heroMedia['src']) . '); background-size:cover; background-position:center;';
+} elseif ($heroMedia['type'] === 'video') {
+    $heroMediaStyle = 'background:#000;';
+}
+
+// Generuojame juodą "C" raidę kaip SVG duomenis
+$faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext x='50%25' y='50%25' dy='.35em' text-anchor='middle' font-family='Arial, sans-serif' font-weight='900' font-size='60' fill='black'%3EC%3C/text%3E%3C/svg%3E";
 ?>
 <!doctype html>
 <html lang="lt">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pagrindinis | Cukrinukas</title>
-  <?php echo headerStyles(); ?>
-  <style>
-    /* Bendra spalvų paletė ir kintamieji (identiška products.php) */
-    :root { 
-        --bg: #f7f7fb; 
-        --card: #ffffff; 
-        --border: #e4e7ec; 
-        --text: #1f2937; 
-        --muted: #52606d; 
-        --accent: #2563eb; 
-        --accent-hover: #1d4ed8;
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
-    a { color: inherit; text-decoration: none; transition: color .2s; }
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cukrinukas.lt – diabeto priemonės ir naujienos</title>
 
-    .page { max-width: 1200px; margin: 0 auto; padding: 32px 20px 72px; display: flex; flex-direction: column; gap: 48px; }
+  <?php echo headerStyles($headerShadowIntensity ?? null); ?>
 
-    /* --- HERO SEKCIJA --- */
-    .hero {
-      padding: 48px 32px; 
-      border-radius: 28px; 
-      background: linear-gradient(135deg, #eff6ff, #dbeafe); /* Mėlynas gradientas */
-      border: 1px solid #e5e7eb; 
-      box-shadow: 0 18px 48px rgba(0,0,0,0.06);
-      display: grid; 
-      grid-template-columns: 1fr 0.8fr; 
-      align-items: center; 
-      gap: 32px;
-      overflow: hidden;
-      position: relative;
+  <meta name="description" content="Cukrinukas.lt rasite gliukometrus, sensorius, juosteles, mažo GI užkandžius ir patarimus gyvenimui su diabetu.">
+  <meta name="keywords" content="diabetas, gliukometrai, sensoriai, cukrinis diabetas, mityba, cukrinukas">
+
+  <link rel="icon" type="image/svg+xml" href="<?php echo $faviconSvg; ?>">
+  <link rel="apple-touch-icon" href="<?php echo $faviconSvg; ?>">
+   
+  <link rel="canonical" href="https://cukrinukas.lt/">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#f7f7fb">
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://cukrinukas.lt/">
+  <meta property="og:title" content="Cukrinukas.lt – diabeto priemonės ir naujienos">
+  <meta property="og:description" content="Diabeto priemonių, sensorių apsaugų ir subalansuotos mitybos priemonių parduotuvė su naujienomis apie diabetą.">
+  <meta property="og:site_name" content="Cukrinukas.lt">
+  <meta property="og:image" content="<?php echo $faviconSvg; ?>">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Cukrinukas.lt – diabeto priemonės ir naujienos">
+  <meta name="twitter:description" content="Diabeto priemonių, sensorių apsaugų ir subalansuotos mitybos priemonių parduotuvė su naujienomis apie diabetą.">
+  <meta name="twitter:image" content="<?php echo $faviconSvg; ?>">
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(reg => console.log('Service Worker registruotas:', reg.scope))
+          .catch(err => console.log('Service Worker klaida:', err));
+      });
     }
+
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    // Pakeiskite 'JUSU_PIXEL_ID' į savo tikrą Pixel ID, jei turite
+    fbq('init', 'JUSU_PIXEL_ID'); 
+    fbq('track', 'PageView');
+  </script>
+  <noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=JUSU_PIXEL_ID&ev=PageView&noscript=1"
+  /></noscript>
     
-    .hero__content { z-index: 2; }
-    .hero__pill { 
-        display: inline-flex; align-items: center; gap: 8px; 
-        background: #fff; padding: 8px 16px; border-radius: 999px; 
-        font-weight: 700; font-size: 14px; color: #1e40af; 
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1); margin-bottom: 16px;
-    }
-    .hero h1 { margin: 0 0 16px; font-size: clamp(32px, 5vw, 48px); line-height: 1.1; color: #0f172a; letter-spacing: -0.02em; }
-    .hero p { margin: 0 0 24px; color: var(--muted); line-height: 1.6; font-size: 18px; max-width: 500px; }
-    
-    .hero__actions { display: flex; gap: 12px; flex-wrap: wrap; }
-    
-    .btn-hero { 
-        padding: 14px 28px; border-radius: 14px; font-weight: 600; font-size: 16px; 
-        display: inline-flex; align-items: center; justify-content: center; transition: all .2s; cursor: pointer;
-    }
-    .btn-primary { background: var(--accent); color: #fff; border: 1px solid var(--accent); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); }
-    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35); }
-    
-    .btn-outline { background: #fff; color: var(--text); border: 1px solid var(--border); }
-    .btn-outline:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
+<style>
+:root {
+  --color-primary: #0b0b0b;
+  --color-primary-dark: #050505;
+  --color-gray: #565766;
+  --color-light: #ffffff;
+  --color-bg: #f7f7fb;
+  --accent: #829ed6;
+  --surface: rgba(255, 255, 255, 0.9);
+  --shadow-soft: 0 20px 60px rgba(0, 0, 0, 0.08);
+}
 
-    .hero__image-container {
-        position: relative; height: 300px; display: flex; align-items: center; justify-content: center;
-    }
-    .hero__image { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.1)); }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--text-color);
+  background: var(--color-bg);
+  min-height: 100vh;
+}
+a { text-decoration: none; color: inherit; }
+img { max-width: 100%; display: block; }
 
-    /* --- PRIVALUMAI (Features) --- */
-    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px; }
-    .feature-card { 
-        background: #fff; padding: 24px; border-radius: 20px; border: 1px solid var(--border); 
-        display: flex; flex-direction: column; gap: 12px; transition: transform .2s; 
-    }
-    .feature-card:hover { transform: translateY(-4px); border-color: var(--accent); }
-    .feature-icon { 
-        width: 48px; height: 48px; border-radius: 12px; background: #eff6ff; color: var(--accent); 
-        display: flex; align-items: center; justify-content: center; font-size: 24px; 
-    }
-    .feature-title { font-weight: 700; font-size: 18px; color: #0f172a; margin: 0; }
-    .feature-text { font-size: 14px; color: var(--muted); line-height: 1.5; margin: 0; }
+.page-shell {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 
-    /* --- SEKCIJŲ ANTRAŠTĖS --- */
-    .section-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
-    .section-title { font-size: 28px; font-weight: 700; color: #0f172a; margin: 0; letter-spacing: -0.01em; }
-    .section-link { color: var(--accent); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; font-size: 15px; }
-    .section-link:hover { text-decoration: underline; }
+.page-shell > * {
+  width: 100%;
+}
 
-    /* --- KATEGORIJOS --- */
-    .categories-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
-    .cat-card {
-        background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 20px;
-        text-align: center; transition: all .2s; display: flex; flex-direction: column; align-items: center; gap: 10px;
-        height: 100%; justify-content: center;
-    }
-    .cat-card:hover { border-color: var(--accent); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1); transform: translateY(-3px); color: var(--accent); }
-    .cat-icon { font-size: 32px; margin-bottom: 4px; }
-    .cat-name { font-weight: 600; font-size: 16px; }
+.section-shell {
+  width: min(1200px, 100%);
+  margin: 0 auto;
+  padding: 0 22px;
+}
 
-    /* --- PRODUKTŲ TINKLELIS (Kaip products.php) --- */
-    .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px; }
-    .prod-card { 
-        background: var(--card); border: 1px solid var(--border); border-radius: 20px; 
-        overflow: hidden; display: flex; flex-direction: column; 
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform .2s, border-color .2s; 
-    }
-    .prod-card:hover { transform: translateY(-4px); border-color: var(--accent); }
-    
-    .prod-img-wrap { position: relative; height: 220px; background: #fff; }
-    .prod-img { width: 100%; height: 100%; object-fit: contain; padding: 20px; display: block; }
-    .prod-ribbon { position: absolute; top: 12px; left: 12px; background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; }
-    
-    .prod-body { padding: 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
-    .prod-cat { font-size: 11px; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-    .prod-title { margin: 0; font-size: 17px; line-height: 1.4; font-weight: 600; }
-    .prod-title a { color: #111827; }
-    .prod-title a:hover { color: var(--accent); }
-    
-    .prod-price-row { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 12px; }
-    .prod-price { font-size: 18px; font-weight: 700; color: #111827; }
-    .prod-old-price { font-size: 13px; text-decoration: line-through; color: #9ca3af; font-weight: 400; margin-right: 6px; }
+.section-shell > * {
+  width: 100%;
+}
 
-    /* Mygtukai kortelėje */
-    .action-btn {
-        width: 38px; height: 38px; border-radius: 10px; cursor: pointer;
-        display: flex; align-items: center; justify-content: center; transition: all .2s;
-        background: #fff; border: 1px solid var(--border); color: #1f2937;
-    }
-    .action-btn:hover { border-color: var(--accent); color: var(--accent); background: #f0f9ff; }
-    .btn-group { display: flex; gap: 8px; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 14px 36px rgba(0,0,0,0.22);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
 
-    /* --- BENDRUOMENĖS BLOKAS --- */
-    .community-banner {
-        background: radial-gradient(circle at 10% 20%, rgba(37, 99, 235, 0.05), transparent 40%),
-                    linear-gradient(135deg, #fff, #f8fafc);
-        border: 1px solid var(--border); border-radius: 24px; padding: 32px;
-        display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap;
-    }
-    .comm-text h3 { margin: 0 0 10px; font-size: 24px; }
-    .comm-text p { margin: 0; color: var(--muted); max-width: 500px; }
+.btn:hover { transform: translateY(-2px); box-shadow: 0 18px 46px rgba(0,0,0,0.28); }
+.btn.ghost { background: rgba(255,255,255,0.16); color: #fff; border-color: rgba(255,255,255,0.45); box-shadow: none; }
 
-    /* --- MEDIA QUERIES --- */
-    @media (max-width: 800px) {
-        .hero { grid-template-columns: 1fr; text-align: center; padding: 32px 20px; }
-        .hero__actions { justify-content: center; }
-        .hero__image-container { height: 200px; }
-        .section-header { flex-direction: column; align-items: flex-start; gap: 8px; }
-        .community-banner { flex-direction: column; text-align: center; }
-        .comm-text p { margin: 0 auto; }
-    }
-  </style>
+.pill, .chip { display: inline-flex; align-items: center; padding: 9px 12px; border-radius: 999px; background: rgba(130,158,214,0.16); color: #0b0b0b; font-weight: 600; border: 1px solid rgba(130,158,214,0.28); }
+.pill--ghost { background: rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.08); }
+
+.section-head { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; margin-bottom:18px; }
+.section-head h2 { margin:0; font-size:32px; letter-spacing:-0.01em; }
+.eyebrow { text-transform: uppercase; letter-spacing: 0.28em; font-size: 12px; font-weight:700; color:#4a4a55; }
+
+.hero {
+  position: relative;
+  width: 100%;
+  margin: 0 0 54px;
+  background: #829ed6;
+  color: #fff;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.22), transparent 45%),
+              radial-gradient(circle at 80% 0%, rgba(0,0,0,var(--hero-overlay-strong,0.48)), transparent 54%),
+              linear-gradient(120deg, rgba(0,0,0,var(--hero-overlay-soft,0.22)), rgba(0,0,0,var(--hero-overlay-strong,0.55)));
+  z-index: 1;
+}
+
+.hero-media {
+  position: absolute;
+  inset: 0;
+  background: #829ed6;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.media-embed { width:100%; height:100%; min-height:68vh; background:#829ed6; }
+.media-embed video, .media-embed img { width:100%; height:100%; object-fit:cover; display:block; }
+
+.hero__content {
+  position: relative;
+  z-index: 2;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 90px 22px 84px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 22px;
+  align-items: center;
+}
+
+.hero__copy h1 { margin: 0 0 12px; font-size: 44px; letter-spacing: -0.02em; }
+.hero__copy p { margin: 0 0 16px; color: #edf1ff; line-height: 1.7; max-width: 640px; }
+.hero__actions { display:flex; gap:10px; flex-wrap:wrap; margin: 12px 0; }
+
+.glass-stack { display:grid; gap:12px; }
+.glass-card {
+  background: rgba(255,255,255,0.14);
+  border: 1px solid rgba(255,255,255,0.28);
+  border-radius: 16px;
+  padding: 16px 18px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.24);
+}
+.glass-card h3 { color:#fff; margin:0 0 8px; }
+.glass-card p, .glass-card span { color:#f4f6ff; margin:0; }
+
+.metric-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap:10px; margin-top:8px; }
+.metric-card { background: rgba(255,255,255,0.16); border-radius:12px; padding:10px 12px; border:1px solid rgba(255,255,255,0.22); }
+.metric-card strong { display:block; color:#fff; font-size:18px; }
+
+.quote-card blockquote { margin:0; font-size:15px; line-height:1.6; color:#f7f8ff; }
+.quote-card footer { margin-top:8px; color:#e4e8ff; font-weight:700; }
+
+.support-mini { background: rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.18); }
+.support-mini a { color:#fff; font-weight:700; }
+
+.promo-section { padding: 10px 0 40px; }
+.promo-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap:12px; }
+.promo-card { background: var(--surface); border-radius: 18px; padding: 16px; border:1px solid #e1e4f0; box-shadow: var(--shadow-soft); display:flex; gap:12px; align-items:flex-start; position:relative; overflow:hidden; }
+.promo-card::after { content:""; position:absolute; width:120px; height:120px; background:rgba(130,158,214,0.16); border-radius:50%; right:-40px; bottom:-60px; }
+.promo-card h3 { margin:0 0 6px; }
+.promo-card p { margin:0; color:#3f4150; line-height:1.5; }
+.promo-icon { width:48px; height:48px; padding:6px; border-radius:12px; background:rgba(130,158,214,0.18); display:inline-flex; align-items:center; justify-content:center; font-weight:700; color:#0b0b0b; position:relative; z-index:1; }
+
+.storyband { margin: 0 0 60px; }
+.storyband__layout { background: linear-gradient(135deg, #f1ecff, #e7f5ff); border-radius: 22px; padding: 24px; box-shadow: var(--shadow-soft); display:grid; grid-template-columns: 1.3fr 1fr; gap: 18px; border:1px solid #e5e7eb; position:relative; overflow:hidden; }
+.storyband__layout::before { content:""; position:absolute; width:240px; height:240px; background:rgba(124, 58, 237, 0.08); border-radius:60% 40% 70% 40%; right:-90px; top:-70px; filter:blur(2px); }
+.storyband__badge { display:inline-flex; padding:9px 14px; border-radius:999px; background:#fff; color:#0f172a; font-weight:700; letter-spacing:0.2px; border:1px solid #e5e7eb; box-shadow:0 12px 26px rgba(0,0,0,0.08); }
+.metrics { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+.metric { background:#fff; border:1px solid #e4e7ec; padding:12px 14px; border-radius:12px; min-width:120px; box-shadow: 0 10px 24px rgba(0,0,0,0.06); }
+.metric strong { display:block; margin:0 0 4px; font-size:20px; color:#0f172a; }
+.metric span { color:#4a4a55; }
+.storyband .card { background: #fff; color:#0f172a; border-radius:16px; padding:20px; box-shadow:0 18px 38px rgba(0,0,0,0.12); position:relative; z-index:1; border:1px solid #e5e7eb; }
+.storyband .card a { color:#fff; font-weight:700; }
+.storyband .card .btn { background: linear-gradient(135deg, #4338ca, #7c3aed); border-color: transparent; box-shadow: 0 16px 44px rgba(124, 58, 237, 0.25); }
+.storyband .card .btn:hover { box-shadow: 0 18px 60px rgba(67, 56, 202, 0.35); }
+
+.store-section { margin-bottom: 60px; }
+.store-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 16px; }
+.product-card { background: #fff; border-radius: 18px; overflow:hidden; border:1px solid #e7eaf5; box-shadow: var(--shadow-soft); display:flex; flex-direction:column; position:relative; }
+.product-card::after { content:""; position:absolute; width:130px; height:130px; background:rgba(130,158,214,0.14); border-radius:50%; top:-60px; right:-60px; }
+.product-card img { width:100%; height:200px; object-fit:cover; }
+.product-card__body { padding: 16px; display:flex; flex-direction:column; gap:10px; position:relative; z-index:1; background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%); }
+.badge { display:inline-flex; padding:7px 10px; border-radius:999px; background:#829ed6; color:#fff; font-size:12px; font-weight:700; letter-spacing:0.2px; box-shadow:0 10px 22px rgba(0,0,0,0.12); }
+.product-card__title { margin:0; font-size:19px; letter-spacing:-0.01em; }
+.product-card__meta { margin:0; color:#4f5160; line-height:1.5; }
+.product-card__actions { display:flex; align-items:flex-end; justify-content:space-between; margin-top:auto; }
+
+.highlight-section { margin: 0 0 60px; }
+.split-panel { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap:16px; }
+.story-card { background: #fff; color:#0f172a; border-radius: 18px; padding: 22px; position:relative; overflow:hidden; box-shadow: 0 18px 42px rgba(0,0,0,0.12); border:1px solid #e5e7eb; }
+.story-card::after { content:""; position:absolute; width:200px; height:200px; background:rgba(124, 58, 237, 0.08); border-radius:50%; bottom:-80px; right:-100px; }
+.story-card h3, .story-card p { color:#0f172a; position:relative; z-index:1; }
+.story-card__pills { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; position:relative; z-index:1; }
+.story-card__pills .pill { background:#fff; color:#0f172a; border-color:#e5e7eb; box-shadow:0 10px 26px rgba(0,0,0,0.08); }
+.story-visual { background: linear-gradient(135deg, #f1ecff, #e7f5ff); border-radius:18px; padding:20px; border:1px solid #e5e7eb; box-shadow: 0 18px 42px rgba(0,0,0,0.12); position:relative; overflow:hidden; color:#0f172a; }
+.story-visual::after { content:""; position:absolute; width:160px; height:160px; background:rgba(67, 56, 202, 0.12); border-radius:40% 60% 50% 70%; top:-60px; right:-30px; filter:blur(2px); }
+.story-row__bubble { background:#fff; color:#0f172a; padding:16px; border-radius:14px; box-shadow:0 16px 36px rgba(0,0,0,0.12); margin-bottom:12px; border:1px solid #e4e7ec; }
+.story-row__bubble p { color:#1f2937; }
+.story-row__floating { background:#fff; color:#0f172a; padding:14px 16px; border-radius:12px; box-shadow:0 16px 36px rgba(0,0,0,0.12); text-align:right; position:relative; border:1px solid #e4e7ec; }
+.story-row__floating p { margin:6px 0 0; color:#1f2937; }
+
+.testimonials { margin:0 0 60px; background: linear-gradient(135deg, #f1ecff, #e7f5ff); color:#0f172a; border-radius:22px; padding:26px 24px 30px; box-shadow:0 18px 38px rgba(0,0,0,0.12); border:1px solid #e5e7eb; }
+.testimonial-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap:12px; }
+.testimonial { background:#fff; border-radius:16px; padding:16px; border:1px solid #e4e7ec; box-shadow:0 12px 24px rgba(0,0,0,0.08); position:relative; overflow:hidden; }
+.testimonial::after { content:""; position:absolute; width:90px; height:90px; background:rgba(124, 58, 237, 0.08); border-radius:50%; top:-30px; right:-30px; }
+.testimonial__name { margin:0 0 4px; font-size:18px; color:#0f172a; position:relative; z-index:1; }
+.testimonial__role { margin:0 0 10px; color:#52606d; font-size:14px; position:relative; z-index:1; }
+.testimonial__text { margin:0; line-height:1.6; position:relative; z-index:1; color:#1f2937; }
+.free-shipping { margin: 10px 0 50px; display:grid; gap:18px; }
+.free-shipping__banner { background: linear-gradient(135deg, rgba(6, 182, 212, 0.12), rgba(67, 56, 202, 0.18)); border:1px solid rgba(67,56,202,0.14); padding:16px 18px; border-radius:18px; display:flex; justify-content:space-between; gap:14px; align-items:center; flex-wrap:wrap; box-shadow:0 20px 50px rgba(67,56,202,0.12); }
+.free-shipping__grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap:14px; }
+.free-card { background:#fff; border:1px solid #e4e7ec; border-radius:16px; padding:12px; display:grid; gap:10px; box-shadow:0 14px 30px rgba(0,0,0,0.06); }
+.free-card img { width:100%; height:150px; object-fit:cover; border-radius:12px; }
+.free-card__meta { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.free-card__title { margin:0; font-size:15px; }
+.free-card__price { text-align:right; }
+.free-card__price .original { display:block; font-size:12px; color:#6b7280; text-decoration:line-through; }
+.free-card__price strong { display:block; font-size:16px; }
+.free-card .badge { background:#ecfeff; color:#0ea5e9; border-color:#bae6fd; }
+
+.news-block { margin:0 0 60px; background: var(--surface); border-radius:22px; padding:24px; box-shadow: var(--shadow-soft); border:1px solid #e3e7f4; }
+.news-block__header { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; margin-bottom:18px; }
+.news-block__title { margin:0; font-size:30px; display:flex; align-items:center; gap:10px; }
+.news-card { background:#fff; border-radius:18px; overflow:hidden; box-shadow: var(--shadow-soft); border:1px solid #e6e9f4; display:flex; flex-direction:column; position:relative; }
+.news-card img { width:100%; height:190px; object-fit:cover; }
+.news-card__body { padding:16px; display:flex; flex-direction:column; gap:8px; }
+.news-card__title { margin:0; font-size:18px; letter-spacing:-0.01em; }
+.news-card__meta { margin:0; color:#4a4a55; font-size:13px; }
+
+/* PAKEITIMAS: pridedame line-clamp 5 eilutėms */
+.news-card__excerpt { 
+    margin:0; 
+    color:#4f5160; 
+    line-height:1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.news-card__meta, .news-card__excerpt { position:relative; z-index:1; }
+.news-grid { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px; }
+
+.support-band { margin:0 0 60px; background: linear-gradient(135deg, #7a95cf, #8fb2eb); color:#fff; border-radius:22px; padding:22px; display:grid; grid-template-columns:1.1fr 1fr; gap:16px; box-shadow:0 22px 46px rgba(0,0,0,0.22); position:relative; overflow:hidden; }
+.support-band::before { content:""; position:absolute; width:200px; height:200px; background:rgba(255,255,255,0.14); border-radius:50%; left:-60px; bottom:-80px; }
+.support-band h2 { margin:4px 0 10px; color:#fff; }
+.support-band__text { margin:0 0 12px; color:#f8fbff; line-height:1.6; }
+.support-band__chips { display:flex; flex-wrap:wrap; gap:10px; }
+.support-band__card { background: linear-gradient(135deg, #f1ecff, #e7f5ff); color:#0f172a; border-radius:16px; padding:18px; box-shadow:0 18px 32px rgba(0,0,0,0.12); border:1px solid #e5e7eb; position:relative; z-index:1; }
+.support-band__card strong { color:#111827; }
+.support-band__card a { color:#4338ca; font-weight:700; }
+.support-band__card .btn { background: linear-gradient(135deg, #4338ca, #7c3aed); border-color: transparent; box-shadow: 0 16px 44px rgba(124, 58, 237, 0.25); color:#fff; }
+.support-band__card .btn:hover { box-shadow: 0 18px 60px rgba(67, 56, 202, 0.35); }
+
+
+
+.footer { background:#0b0b0b; color:#fff; padding:26px 22px 32px; margin-top:40px; }
+.footer-grid { max-width:1200px; margin:0 auto; display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:18px; }
+.footer h3, .footer h4 { color:#fff; margin:0 0 10px; }
+.footer p { margin:0 0 8px; color:#e2e6f5; }
+.footer strong { color:#f5f6ff; }
+.footer ul { list-style:none; padding:0; margin:0; display:grid; gap:6px; }
+.footer a { color:#e2e6f5; text-decoration:none; }
+.footer a:hover { color:#fff; }
+.footer-pill { display:inline-flex; padding:8px 12px; border-radius:999px; background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.26); }
+
+@media (max-width: 900px) {
+  .storyband__layout, .support-band { grid-template-columns: 1fr; }
+  .hero__content { padding-top: 78px; }
+  .news-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .hero__copy h1 { font-size: 36px; }
+  .news-grid { grid-template-columns: 1fr; }
+}
+</style>
+
 </head>
+    
 <body>
   <?php renderHeader($pdo, 'home'); ?>
 
-  <main class="page">
-    
-    <section class="hero">
+  <main class="page-shell">
+    <section class="<?php echo $heroClass; ?>" style="<?php echo $heroSectionStyle; ?>">
+      <div class="hero-media" style="<?php echo $heroMediaStyle; ?>">
+        <?php if ($heroMedia['type'] === 'video' || $heroMedia['type'] === 'image'): ?>
+          <div class="media-embed">
+            <?php if ($heroMedia['type'] === 'video'): ?>
+              <video src="<?php echo htmlspecialchars($heroMedia['src']); ?>" poster="<?php echo htmlspecialchars($heroMedia['poster']); ?>" autoplay muted loop playsinline controls></video>
+            <?php else: ?>
+              <img src="<?php echo htmlspecialchars($heroMedia['src']); ?>" alt="<?php echo htmlspecialchars($heroMedia['alt']); ?>">
+            <?php endif; ?>
+          </div>
+        <?php endif; ?>
+      </div>
       <div class="hero__content">
-        <div class="hero__pill">👋 Sveiki atvykę</div>
-        <h1><?php echo htmlspecialchars($siteContent['home_title'] ?? 'Viskas Jūsų diabeto kontrolei'); ?></h1>
-        <p><?php echo htmlspecialchars($siteContent['home_subtitle'] ?? 'Aukščiausios kokybės prekės, patikimi patarimai ir palaikanti bendruomenė vienoje vietoje.'); ?></p>
-        <div class="hero__actions">
-          <a href="/products.php" class="btn-hero btn-primary">Pradėti apsipirkimą</a>
-          <a href="/about.php" class="btn-hero btn-outline">Sužinoti daugiau</a>
+        <div class="hero__copy">
+          <div class="eyebrow">Kas yra Cukrinukas?</div>
+          <h1><?php echo htmlspecialchars($heroTitle); ?></h1>
+          <p><?php echo htmlspecialchars($heroBody); ?></p>
+          <div class="hero__actions">
+            <a class="btn" href="<?php echo htmlspecialchars($heroCtaUrl); ?>"><?php echo htmlspecialchars($heroCtaLabel); ?></a>
+          </div>
         </div>
-      </div>
-      <div class="hero__image-container">
-         <?php if (!empty($siteContent['home_image_url'])): ?>
-            <img src="<?php echo htmlspecialchars($siteContent['home_image_url']); ?>" alt="Hero" class="hero__image">
-         <?php else: ?>
-            <div style="font-size:100px;">🩺</div>
-         <?php endif; ?>
+        <div class="glass-stack">
+          <div class="glass-card support-mini">
+            <p class="eyebrow" style="color:#f2f4ff;"><?php echo htmlspecialchars($supportBand['card_meta']); ?></p>
+            <h3 style="margin:4px 0 8px; color:#fff; "><?php echo htmlspecialchars($supportBand['card_title']); ?></h3>
+            <p style="margin:0 0 10px; line-height:1.5; color:#f2f4ff; "><?php echo htmlspecialchars($supportBand['card_body']); ?></p>
+            <a href="<?php echo htmlspecialchars($supportBand['card_cta_url']); ?>"><?php echo htmlspecialchars($supportBand['card_cta_label']); ?> →</a>
+          </div>
+        </div>
       </div>
     </section>
 
-    <section class="features-grid">
-        <div class="feature-card">
-            <div class="feature-icon">🚀</div>
-            <div>
-                <h3 class="feature-title">Greitas pristatymas</h3>
-                <p class="feature-text">Prekes pristatome per 1-2 d.d. visoje Lietuvoje.</p>
-            </div>
+    <section class="section-shell promo-section">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Kasdieniams pasirinkimams</div>
+          <h2>Greiti akcentai</h2>
         </div>
-        <div class="feature-card">
-            <div class="feature-icon">🛡️</div>
+      </div>
+      <div class="promo-grid">
+        <?php foreach ($promoCards as $card): ?>
+          <article class="promo-card">
+            <div class="promo-icon"><?php echo htmlspecialchars($card['icon']); ?></div>
             <div>
-                <h3 class="feature-title">Kokybės garantija</h3>
-                <p class="feature-text">Tik patikrinti ir sertifikuoti produktai jūsų sveikatai.</p>
+              <h3><?php echo htmlspecialchars($card['title']); ?></h3>
+              <p><?php echo htmlspecialchars($card['body']); ?></p>
             </div>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">💬</div>
-            <div>
-                <h3 class="feature-title">Aktyvi bendruomenė</h3>
-                <p class="feature-text">Dalinkitės patirtimi ir gaukite patarimų forume.</p>
-            </div>
-        </div>
+          </article>
+        <?php endforeach; ?>
+      </div>
     </section>
 
-    <?php if (!empty($homeCategories)): ?>
-    <section>
-        <div class="section-header">
-            <h2 class="section-title">Populiariausios kategorijos</h2>
-            <a href="/products.php" class="section-link">Visos kategorijos →</a>
+    <section class="section-shell storyband">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow"><?php echo htmlspecialchars($storyband['badge']); ?></div>
+          <h2><?php echo htmlspecialchars($storyband['title']); ?></h2>
         </div>
-        <div class="categories-grid">
-            <?php foreach ($homeCategories as $cat): ?>
-            <a href="/products.php?category=<?php echo urlencode($cat['slug']); ?>" class="cat-card">
-                <div class="cat-icon">📦</div>
-                <div class="cat-name"><?php echo htmlspecialchars($cat['name']); ?></div>
-            </a>
+        <a class="pill" href="<?php echo htmlspecialchars($storyband['cta_url']); ?>"><?php echo htmlspecialchars($storyband['cta_label']); ?> →</a>
+      </div>
+      <div class="storyband__layout">
+        <div>
+          <p style="margin:0 0 12px; color:#3f4150; line-height:1.7;"><?php echo htmlspecialchars($storyband['body']); ?></p>
+          <div class="metrics">
+            <?php foreach ($storybandMetrics as $metric): ?>
+              <div class="metric"><strong><?php echo htmlspecialchars($metric['value']); ?></strong><span><?php echo htmlspecialchars($metric['label']); ?></span></div>
             <?php endforeach; ?>
+          </div>
         </div>
+        <div class="card">
+          <p style="margin:0 0 8px; color:#4338ca; "><?php echo htmlspecialchars($storyband['card_eyebrow']); ?></p>
+          <h3 style="margin:0 0 10px; color:#0f172a; "><?php echo htmlspecialchars($storyband['card_title']); ?></h3>
+          <p style="margin:0 0 14px; color:#1f2937; "><?php echo htmlspecialchars($storyband['card_body']); ?></p>
+          <a class="btn" href="<?php echo htmlspecialchars($storyband['cta_url']); ?>"><?php echo htmlspecialchars($storyband['cta_label']); ?></a>
+        </div>
+      </div>
     </section>
-    <?php endif; ?>
 
-    <section>
-        <div class="section-header">
-            <h2 class="section-title">Naujausios prekės</h2>
-            <a href="/products.php" class="section-link">Visos prekės →</a>
+    <section class="section-shell store-section" id="parduotuve">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Parduotuvė</div>
+          <h2 class="store-section__title">Populiariausios prekės</h2>
         </div>
-        
-        <div class="products-grid">
-            <?php foreach ($newProducts as $product): 
-                $priceDisplay = buildPriceDisplay($product, $globalDiscount, $categoryDiscounts);
-                $img = $product['primary_image'] ?: $product['image_url'];
-            ?>
-            <article class="prod-card">
-                <a href="/product.php?id=<?php echo $product['id']; ?>" class="prod-img-wrap">
-                    <?php if (!empty($product['ribbon_text'])): ?>
-                        <div class="prod-ribbon"><?php echo htmlspecialchars($product['ribbon_text']); ?></div>
-                    <?php endif; ?>
-                    <img src="<?php echo htmlspecialchars($img); ?>" alt="<?php echo htmlspecialchars($product['title']); ?>" class="prod-img">
-                </a>
-                <div class="prod-body">
-                    <div class="prod-cat"><?php echo htmlspecialchars($product['category_name'] ?? ''); ?></div>
-                    <h3 class="prod-title">
-                        <a href="/product.php?id=<?php echo $product['id']; ?>"><?php echo htmlspecialchars($product['title']); ?></a>
-                    </h3>
-                    
-                    <div class="prod-price-row">
-                        <div>
-                            <?php if ($priceDisplay['has_discount']): ?>
-                                <span class="prod-old-price"><?php echo number_format($priceDisplay['original'], 2); ?> €</span>
-                            <?php endif; ?>
-                            <span class="prod-price"><?php echo number_format($priceDisplay['current'], 2); ?> €</span>
-                        </div>
-                        
-                        <form method="post" action="/products.php" class="btn-group">
-                            <?php echo csrfField(); ?>
-                            <input type="hidden" name="product_id" value="<?php echo $product['id']; ?>">
-                            
-                            <button type="submit" name="action" value="wishlist" class="action-btn" title="Į norų sąrašą">♥</button>
-                            <button type="submit" name="quantity" value="1" class="action-btn" title="Į krepšelį" style="background:#1f2937; color:#fff; border-color:#1f2937;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-                            </button>
-                        </form>
-                    </div>
+        <a class="pill" href="/products.php">Peržiūrėti katalogą →</a>
+      </div>
+
+      <div class="store-grid">
+        <?php foreach ($featuredProducts as $product): ?>
+          <?php $priceDisplay = buildPriceDisplay($product, $globalDiscount, $categoryDiscounts); ?>
+          <article class="product-card">
+            <?php $cardImage = $product['primary_image'] ?: $product['image_url']; ?>
+            <a href="/product.php?id=<?php echo (int)$product['id']; ?>" aria-label="<?php echo htmlspecialchars($product['title']); ?>">
+              <img src="<?php echo htmlspecialchars($cardImage); ?>" alt="<?php echo htmlspecialchars($product['title']); ?>">
+            </a>
+            <div class="product-card__body">
+              <span class="badge"><?php echo htmlspecialchars($product['category_name'] ?? ''); ?></span>
+              <h3 class="product-card__title"><a href="/product.php?id=<?php echo (int)$product['id']; ?>" style="color:inherit; text-decoration:none;">&rarr; <?php echo htmlspecialchars($product['title']); ?></a></h3>
+              <p class="product-card__meta"><?php echo htmlspecialchars(mb_substr($product['description'], 0, 120)); ?><?php echo mb_strlen($product['description']) > 120 ? '…' : ''; ?></p>
+              <div class="product-card__actions">
+                <div>
+                  <?php if ($priceDisplay['has_discount']): ?>
+                    <div style="font-size:13px; color:#6b6b7a; text-decoration:line-through;"><?php echo number_format($priceDisplay['original'], 2); ?> €</div>
+                  <?php endif; ?>
+                  <strong><?php echo number_format($priceDisplay['current'], 2); ?> €</strong>
                 </div>
-            </article>
-            <?php endforeach; ?>
-        </div>
+              </div>
+            </div>
+          </article>
+        <?php endforeach; ?>
+      </div>
     </section>
 
-    <section class="community-banner">
-        <div class="comm-text">
-            <h3>Prisijunkite prie bendruomenės</h3>
-            <p>Turite klausimų? Norite pasidalinti patirtimi ar parduoti nenaudojamas priemones? Mūsų bendruomenė laukia jūsų.</p>
-        </div>
-        <div style="display:flex; gap:12px;">
-            <a href="/community_discussions.php" class="btn-hero btn-primary">Diskusijos</a>
-            <a href="/community_market.php" class="btn-hero btn-outline">Turgelis</a>
-        </div>
-    </section>
-    
-    <?php if (!empty($latestNews)): ?>
-    <section>
-        <div class="section-header">
-            <h2 class="section-title">Naujienos</h2>
-            <a href="/news.php" class="section-link">Skaityti visas →</a>
-        </div>
-        <div class="features-grid"> <?php foreach ($latestNews as $news): ?>
-            <a href="/news_view.php?id=<?php echo $news['id']; ?>" class="feature-card" style="text-decoration:none; display:block;">
-                <?php if($news['image_url']): ?>
-                    <img src="<?php echo htmlspecialchars($news['image_url']); ?>" alt="" style="width:100%; height:160px; object-fit:cover; border-radius:12px; margin-bottom:12px;">
-                <?php endif; ?>
-                <h3 class="feature-title" style="font-size:16px; margin-bottom:6px;"><?php echo htmlspecialchars($news['title']); ?></h3>
-                <span style="font-size:13px; color:var(--muted);"><?php echo date('Y-m-d', strtotime($news['created_at'])); ?></span>
-            </a>
+    <section class="section-shell highlight-section">
+      <div class="split-panel">
+        <div class="story-card">
+          <p class="eyebrow" style="color:#4338ca; letter-spacing:0.18em;"><?php echo htmlspecialchars($storyRow['eyebrow']); ?></p>
+          <h3 style="margin:0 0 8px; color:#0f172a; "><?php echo htmlspecialchars($storyRow['title']); ?></h3>
+          <p style="margin:0 0 12px; line-height:1.6; color:#1f2937; "><?php echo htmlspecialchars($storyRow['body']); ?></p>
+          <div class="story-card__pills">
+            <?php foreach ($storyRow['pills'] as $pill): ?>
+              <span class="pill" style="background:#fff; color:#0f172a; border-color:#e5e7eb; box-shadow:0 10px 26px rgba(0,0,0,0.08); "><?php echo htmlspecialchars($pill); ?></span>
             <?php endforeach; ?>
+          </div>
         </div>
+        <div class="story-visual">
+          <div class="story-row__bubble">
+            <p class="muted" style="margin:0 0 6px; color:#4338ca; "><?php echo htmlspecialchars($storyRow['bubble_meta']); ?></p>
+            <strong style="display:block; margin-bottom:6px; color:#0f172a; "><?php echo htmlspecialchars($storyRow['bubble_title']); ?></strong>
+            <p style="margin:0; line-height:1.6; color:#1f2937; "><?php echo htmlspecialchars($storyRow['bubble_body']); ?></p>
+          </div>
+          <div class="story-row__floating">
+            <span class="muted" style="color:#4b5563;"><?php echo htmlspecialchars($storyRow['floating_meta']); ?></span>
+            <strong style="color:#0f172a; "><?php echo htmlspecialchars($storyRow['floating_title']); ?></strong>
+            <p style="margin:6px 0 0; color:#1f2937; "><?php echo htmlspecialchars($storyRow['floating_body']); ?></p>
+          </div>
+        </div>
+      </div>
     </section>
+
+    <?php if ($freeShippingOffers): ?>
+      <section class="section-shell free-shipping">
+        <div class="free-shipping__banner">
+          <div>
+            <div class="eyebrow" style="color:#0ea5e9;">Dviguba nauda</div>
+            <h2 style="margin:4px 0 6px;">Išsirinkite vieną iš šių prekių – viso užsakymo pristatymą apmokėsime mes!</h2>
+            <p style="margin:0; color:#0f172a; max-width:780px;">Kodėl mokėti už atvežimą? Įsidėkite vieną iš šių atrinktų produktų į krepšelį ir pristatymas visam užsakymui nekainuos nieko. Puiki proga išbandyti kažką naujo.</p>
+          </div>
+          <span class="pill" style="background:#ecfeff; color:#0ea5e9; border-color:#bae6fd;">Verta išbandyti!</span>
+        </div>
+        <div class="free-shipping__grid">
+          <?php foreach ($freeShippingOffers as $offer): ?>
+            <?php $priceDisplay = buildPriceDisplay($offer, $globalDiscount, $categoryDiscounts); ?>
+            <?php $cardImage = $offer['primary_image'] ?: $offer['image_url']; ?>
+            <article class="free-card">
+              <a href="/product.php?id=<?php echo (int)$offer['product_id']; ?>" aria-label="<?php echo htmlspecialchars($offer['title']); ?>">
+                <img src="<?php echo htmlspecialchars($cardImage); ?>" alt="<?php echo htmlspecialchars($offer['title']); ?>">
+              </a>
+              <div class="free-card__meta">
+                <div style="display:grid; gap:6px;">
+                  <h3 class="free-card__title"><a href="/product.php?id=<?php echo (int)$offer['product_id']; ?>" style="color:inherit; text-decoration:none;">&rarr; <?php echo htmlspecialchars($offer['title']); ?></a></h3>
+                </div>
+                <div class="free-card__price">
+                  <?php if ($priceDisplay['has_discount']): ?>
+                    <span class="original"><?php echo number_format($priceDisplay['original'], 2); ?> €</span>
+                  <?php endif; ?>
+                  <strong><?php echo number_format($priceDisplay['current'], 2); ?> €</strong>
+                </div>
+              </div>
+              <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
+                <span style="color:#475467;">Įsidėkite šią prekę ir pristatymas taps nemokamas.</span>
+                <a class="pill" href="/product.php?id=<?php echo (int)$offer['product_id']; ?>" style="background:linear-gradient(135deg, #4338ca, #7c3aed); color:#fff; border-color:#c7d2fe;">Peržiūrėti</a>
+              </div>
+            </article>
+          <?php endforeach; ?>
+        </div>
+      </section>
     <?php endif; ?>
 
+    <section class="section-shell testimonials">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Patirtys</div>
+          <h2 class="testimonials__title">Atsiliepimai</h2>
+        </div>
+        <span class="pill" style="background:#fff; color:#0f172a; border-color:#e4e7ec; box-shadow:0 10px 26px rgba(0,0,0,0.08);">Kasdienė ramybė su Cukrinukas.lt</span>
+      </div>
+      <div class="testimonial-grid">
+        <?php foreach ($testimonials as $t): ?>
+          <article class="testimonial">
+            <h3 class="testimonial__name"><?php echo htmlspecialchars($t['name']); ?></h3>
+            <p class="testimonial__role"><?php echo htmlspecialchars($t['role']); ?></p>
+            <p class="testimonial__text"><?php echo htmlspecialchars($t['text']); ?></p>
+          </article>
+        <?php endforeach; ?>
+      </div>
+    </section>
+
+    <section class="section-shell news-block" id="naujienos">
+      <div class="news-block__header">
+        <div>
+          <div class="eyebrow">Kas naujo Cukrinukas?</div>
+          <h2 class="news-block__title">Naujienos</h2>
+        </div>
+        <a class="pill" href="/news.php">Visos naujienos →</a>
+      </div>
+      <div class="news-grid">
+        <?php foreach ($featuredNews as $news): ?>
+          <article class="news-card">
+            <a href="/news_view.php?id=<?php echo (int)$news['id']; ?>" aria-label="<?php echo htmlspecialchars($news['title']); ?>">
+              <img src="<?php echo htmlspecialchars($news['image_url']); ?>" alt="<?php echo htmlspecialchars($news['title']); ?>">
+            </a>
+            <div class="news-card__body">
+              <h3 class="news-card__title"><a href="/news_view.php?id=<?php echo (int)$news['id']; ?>" style="color:inherit; text-decoration:none;"><?php echo htmlspecialchars($news['title']); ?></a></h3>
+              <p class="news-card__meta"><?php echo date('Y-m-d', strtotime($news['created_at'])); ?></p>
+              <?php 
+                // PAKEITIMAS: Imame summary, jei nėra - body
+                $excerpt = trim($news['summary'] ?? '');
+                if (!$excerpt) $excerpt = strip_tags($news['body']);
+                // Apribojame tik jei labai ilgas, vizualų darbą atliks CSS line-clamp
+                if (mb_strlen($excerpt) > 400) $excerpt = mb_substr($excerpt, 0, 400) . '...';
+              ?>
+              <p class="news-card__excerpt"><?php echo htmlspecialchars($excerpt); ?></p>
+            </div>
+          </article>
+        <?php endforeach; ?>
+      </div>
+    </section>
+
+    <section class="section-shell support-band">
+      <div>
+        <p class="eyebrow" style="color:#e4e9ff;"><?php echo htmlspecialchars($supportBand['meta']); ?></p>
+        <h2><?php echo htmlspecialchars($supportBand['title']); ?></h2>
+        <p class="support-band__text"><?php echo htmlspecialchars($supportBand['body']); ?></p>
+        <div class="support-band__chips">
+          <?php foreach ($supportBand['chips'] as $chip): ?>
+            <span class="pill" style="background:rgba(255,255,255,0.18); color:#fff; border-color:rgba(255,255,255,0.2); "><?php echo htmlspecialchars($chip); ?></span>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <div class="support-band__card">
+        <p class="muted" style="margin:0 0 4px; color:#4338ca; "><?php echo htmlspecialchars($supportBand['card_meta']); ?></p>
+        <strong style="display:block; margin:0 0 10px; color:#0f172a; "><?php echo htmlspecialchars($supportBand['card_title']); ?></strong>
+        <p style="margin:0 0 12px; line-height:1.6; color:#1f2937; "><?php echo htmlspecialchars($supportBand['card_body']); ?></p>
+        <a class="btn" href="<?php echo htmlspecialchars($supportBand['card_cta_url']); ?>"><?php echo htmlspecialchars($supportBand['card_cta_label']); ?></a>
+      </div>
+    </section>
   </main>
 
   <?php renderFooter($pdo); ?>
