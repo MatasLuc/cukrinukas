@@ -705,7 +705,105 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $view = 'community';
     }
+// --- BENDRUOMENĖS VEIKSMAI ---
 
+    // Diskusijų kategorijos
+    if ($action === 'save_community_category') {
+        $id = $_POST['id'] ?? '';
+        $name = trim($_POST['name'] ?? '');
+        if ($name) {
+            if ($id) {
+                $pdo->prepare('UPDATE community_thread_categories SET name = ? WHERE id = ?')->execute([$name, $id]);
+                $_SESSION['flash_success'] = 'Kategorija atnaujinta.';
+            } else {
+                $pdo->prepare('INSERT INTO community_thread_categories (name) VALUES (?)')->execute([$name]);
+                $_SESSION['flash_success'] = 'Kategorija sukurta.';
+            }
+        }
+        header('Location: ?view=community'); exit;
+    }
+    if ($action === 'delete_community_category') {
+        $id = (int)$_POST['id'];
+        $pdo->prepare('DELETE FROM community_thread_categories WHERE id = ?')->execute([$id]);
+        $_SESSION['flash_success'] = 'Kategorija ištrinta.';
+        header('Location: ?view=community'); exit;
+    }
+    if ($action === 'delete_community_thread') {
+        $id = (int)$_POST['id'];
+        $pdo->prepare('DELETE FROM community_threads WHERE id = ?')->execute([$id]);
+        $_SESSION['flash_success'] = 'Tema pašalinta.';
+        header('Location: ?view=community'); exit;
+    }
+    
+    // Turgelio kategorijos
+    if ($action === 'save_listing_category') {
+        $id = $_POST['id'] ?? '';
+        $name = trim($_POST['name'] ?? '');
+        if ($name) {
+            if ($id) {
+                $pdo->prepare('UPDATE community_listing_categories SET name = ? WHERE id = ?')->execute([$name, $id]);
+                $_SESSION['flash_success'] = 'Skelbimų kategorija atnaujinta.';
+            } else {
+                $pdo->prepare('INSERT INTO community_listing_categories (name) VALUES (?)')->execute([$name]);
+                $_SESSION['flash_success'] = 'Skelbimų kategorija sukurta.';
+            }
+        }
+        header('Location: ?view=community'); exit;
+    }
+    if ($action === 'delete_listing_category') {
+        $id = (int)$_POST['id'];
+        $pdo->prepare('DELETE FROM community_listing_categories WHERE id = ?')->execute([$id]);
+        $_SESSION['flash_success'] = 'Skelbimų kategorija ištrinta.';
+        header('Location: ?view=community'); exit;
+    }
+    
+    // Skelbimų valdymas
+    if ($action === 'delete_listing') {
+        $id = (int)$_POST['id'];
+        $pdo->prepare('DELETE FROM community_listings WHERE id = ?')->execute([$id]);
+        $_SESSION['flash_success'] = 'Skelbimas pašalintas.';
+        header('Location: ?view=community'); exit;
+    }
+    if ($action === 'update_listing_status') {
+        $id = (int)$_POST['id'];
+        $status = $_POST['status'];
+        if (in_array($status, ['active', 'sold'])) {
+            $pdo->prepare('UPDATE community_listings SET status = ? WHERE id = ?')->execute([$status, $id]);
+            $_SESSION['flash_success'] = 'Statusas atnaujintas.';
+        }
+        header('Location: ?view=community'); exit;
+    }
+    
+    // Vartotojų blokavimas
+    if ($action === 'block_user') {
+        $userId = (int)$_POST['user_id'];
+        $duration = $_POST['duration']; // 24h, 7d, 30d, permanent
+        $reason = trim($_POST['reason']);
+        
+        if ($userId && $reason) {
+            $until = null;
+            if ($duration === '24h') $until = date('Y-m-d H:i:s', strtotime('+24 hours'));
+            elseif ($duration === '7d') $until = date('Y-m-d H:i:s', strtotime('+7 days'));
+            elseif ($duration === '30d') $until = date('Y-m-d H:i:s', strtotime('+30 days'));
+            // Jei permanent, paliekam NULL arba labai tolimą datą. Čia paliekam NULL kaip "amžinai", bet reikia patikrinti logiką db.php.
+            // Pagal db.php: banned_until DATETIME NULL. Jei NULL, gali reikšti "niekada" arba "visam laikui".
+            // Dažniausiai NULL reiškia "nėra ban", todėl permanent turėtų būti tolima data.
+            if ($duration === 'permanent') $until = '2099-12-31 00:00:00';
+    
+            // Įrašome į community_blocks
+            $stmt = $pdo->prepare('INSERT INTO community_blocks (user_id, banned_until, reason) VALUES (?, ?, ?)');
+            $stmt->execute([$userId, $until, $reason]);
+            $_SESSION['flash_success'] = "Vartotojas (ID: $userId) užblokuotas.";
+        }
+        header('Location: ?view=community'); exit;
+    }
+    if ($action === 'unblock_user') {
+        $id = (int)$_POST['id'];
+        // Galime arba trinti įrašą, arba nustatyti datą į praeitį. Trinimas švariau.
+        $pdo->prepare('DELETE FROM community_blocks WHERE id = ?')->execute([$id]);
+        $_SESSION['flash_success'] = 'Vartotojas atblokuotas.';
+        header('Location: ?view=community'); exit;
+    }
     // --- TURINIO TRYNIMAS ---
     if ($action === 'delete_news') {
         $id = (int)($_POST['id'] ?? 0);
