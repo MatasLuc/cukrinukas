@@ -115,15 +115,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
   <title>Parduotuvė | Cukrinukas</title>
   <?php echo headerStyles(); ?>
   <style>
-    :root { --bg: #f7f7fb; --card: #ffffff; --border: #e4e7ec; --text: #1f2937; --muted: #52606d; --accent: #7c3aed; }
+    /* PAKEISTA SPALVA: --accent dabar mėlyna (#2563eb), nebe violetinė */
+    :root { --bg: #f7f7fb; --card: #ffffff; --border: #e4e7ec; --text: #1f2937; --muted: #52606d; --accent: #2563eb; }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
     a { color:inherit; text-decoration:none; }
 
     .page { max-width: 1200px; margin: 0 auto; padding: 32px 20px 72px; display: grid; gap: 28px; }
 
+    /* PAKEISTA: Hero fonas šiek tiek mėlynesnis */
     .hero {
-      padding: 26px; border-radius: 28px; background: linear-gradient(135deg, #eef2ff, #e0f2fe);
+      padding: 26px; border-radius: 28px; background: linear-gradient(135deg, #eff6ff, #dbeafe);
       border: 1px solid #e5e7eb; box-shadow: 0 18px 48px rgba(0,0,0,0.08);
       display: grid; grid-template-columns: 1.4fr 0.6fr; align-items: center; gap: 22px;
     }
@@ -131,8 +133,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     .hero h1 { margin: 10px 0 8px; font-size: clamp(26px, 5vw, 36px); color: #0f172a; }
     .hero p { margin: 0; color: var(--muted); line-height: 1.6; }
     .hero-cta { margin-top: 14px; display:flex; gap:10px; }
-    .btn-large { padding: 11px 24px; border-radius: 12px; border: 1px solid #4338ca; background: #fff; color: #4338ca; font-weight: 600; transition: all .2s; }
-    .btn-large:hover { background: #4338ca; color: #fff; }
+    
+    /* PAKEISTA: btn-large naudoja mėlyną atspalvį (#1d4ed8) */
+    .btn-large { padding: 11px 24px; border-radius: 12px; border: 1px solid #1d4ed8; background: #fff; color: #1d4ed8; font-weight: 600; transition: all .2s; }
+    .btn-large:hover { background: #1d4ed8; color: #fff; }
 
     /* FILTRAI */
     .filter-bar { display:flex; justify-content: space-between; align-items:center; gap:16px; flex-wrap: wrap; }
@@ -158,8 +162,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
       white-space: nowrap; user-select: none; position: relative; z-index: 20;
     }
     .chip:hover, .chip.active {
-      border-color: var(--accent); color: var(--accent); background: #fdfaff;
-      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.1);
+      border-color: var(--accent); color: var(--accent); background: #f0f9ff;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
     }
     .chip-arrow { font-size: 10px; opacity: 0.6; margin-left: 2px; }
 
@@ -210,7 +214,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
         transition: all .2s;
     }
 
-    /* KREPŠELIO IKONA - BALTAS FONAS + MĖLYNA IKONA */
+    /* KREPŠELIO IKONA */
     .btn-cart-icon {
         background: #fff;
         border: 1px solid var(--border);
@@ -324,7 +328,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
                 <div class="ribbon"><?php echo htmlspecialchars($product['ribbon_text']); ?></div>
               <?php endif; ?>
               <?php if ($isGift): ?>
-                <div style="position:absolute; top:12px; right:12px; background:#fff; color:#4338ca; padding:4px 8px; border-radius:20px; font-size:12px; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.1); border:1px solid #eef2ff;">🎁 Nemokamai</div>
+                <div style="position:absolute; top:12px; right:12px; background:#fff; color:#1d4ed8; padding:4px 8px; border-radius:20px; font-size:12px; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.1); border:1px solid #eef2ff;">🎁 Nemokamai</div>
               <?php endif; ?>
               <a href="/product.php?id=<?php echo (int)$product['id']; ?>">
                 <img src="<?php echo htmlspecialchars($cardImage); ?>" alt="<?php echo htmlspecialchars($product['title']); ?>" loading="lazy">
