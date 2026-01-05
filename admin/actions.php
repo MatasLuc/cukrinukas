@@ -265,16 +265,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // Variations
+            // Variations - STATIC 3 ROWS LOGIC
             $pdo->prepare('DELETE FROM product_variations WHERE product_id = ?')->execute([$productId]);
-            $varNames = $_POST['variation_name'] ?? [];
-            $varPrices = $_POST['variation_price'] ?? [];
-            if ($varNames) {
+            
+            $postedVariations = $_POST['variations'] ?? [];
+            if (is_array($postedVariations)) {
                 $insertVar = $pdo->prepare('INSERT INTO product_variations (product_id, name, price_delta) VALUES (?, ?, ?)');
-                foreach ($varNames as $idx => $vName) {
-                    $vName = trim($vName);
-                    $delta = isset($varPrices[$idx]) && $varPrices[$idx] !== '' ? (float)$varPrices[$idx] : 0;
-                    if ($vName !== '') {
+                
+                foreach ($postedVariations as $var) {
+                    // Tikriname ar variacija pažymėta kaip "active" ir ar turi pavadinimą
+                    if (isset($var['active']) && $var['active'] == '1' && !empty(trim($var['name'] ?? ''))) {
+                        $vName = trim($var['name']);
+                        $delta = isset($var['price']) && $var['price'] !== '' ? (float)$var['price'] : 0;
                         $insertVar->execute([$productId, $vName, $delta]);
                     }
                 }
