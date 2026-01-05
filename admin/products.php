@@ -13,7 +13,7 @@ if (isset($_SESSION['flash_error'])) {
 
 // 2. DUOMENŲ SURINKIMAS
 
-// Featured prekės (iš featured_products lentelės)
+// Featured prekės (iš featured_products lentelės - naudojama index.php)
 $fProds = $pdo->query('
     SELECT p.*, fp.id as fp_id 
     FROM featured_products fp
@@ -22,7 +22,7 @@ $fProds = $pdo->query('
 ')->fetchAll(PDO::FETCH_ASSOC);
 
 // Visos prekės
-// Pridedame 'is_featured_flag' lauką, kuris patikrina ar prekė yra featured_products lentelėje
+// Pridedame 'is_featured_flag', kad žinotumėme, ar pažymėti checkbox redaguojant
 $stmt = $pdo->query('
     SELECT p.*, c.name AS category_name,
            (SELECT path FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image,
@@ -136,7 +136,7 @@ foreach ($allCats as $c) {
 
 <div class="card" style="margin-bottom:20px; border:1px dashed #4f46e5; background:#f5f6ff;">
     <h4 style="margin-top:0; font-size:14px; text-transform:uppercase; color:#4338ca;">Pagrindinio puslapio prekės (Featured)</h4>
-    <p class="muted" style="font-size:12px; margin-bottom:12px;">Šios prekės rodomos pagrindiniame puslapyje (Store sekcijoje). Rekomenduojama 3 vnt.</p>
+    <p class="muted" style="font-size:12px; margin-bottom:12px;">Šios prekės rodomos pagrindiniame puslapyje (Store sekcijoje).</p>
     
     <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
         <?php foreach ($fProds as $fp): ?>
@@ -309,8 +309,8 @@ foreach ($allCats as $c) {
                 </div>
                 <hr style="margin:20px 0; border:0; border-top:1px dashed #eee;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                    <label>Variacijos</label>
-                    <button type="button" class="btn secondary" style="font-size:12px;" onclick="addVarRow()">+ Variacija</button>
+                    <label>Variacijos (pvz. Dydis, Spalva)</label>
+                    <button type="button" class="btn secondary" style="font-size:12px;" onclick="window.addVarRow()">+ Variacija</button>
                 </div>
                 <div id="variationsContainer"></div>
             </div>
@@ -357,7 +357,7 @@ foreach ($allCats as $c) {
     });
 
     // Helper: Rich Text Toolbar
-    function createToolbar(containerId) {
+    window.createToolbar = function(containerId) {
         const c = document.getElementById(containerId);
         if(!c) return;
         const tools = [ {c:'bold',l:'B'}, {c:'italic',l:'I'}, {c:'insertUnorderedList',l:'• List'}, {c:'createLink',l:'🔗'} ];
@@ -370,13 +370,16 @@ foreach ($allCats as $c) {
     }
 
     // Variacijos
-    function addVarRow(name='', price='') {
+    window.addVarRow = function(name='', price='') {
         const c = document.getElementById('variationsContainer');
         if(!c) return;
         const d = document.createElement('div');
         d.style.cssText = "display:grid; grid-template-columns: 1fr 100px 40px; gap:10px; margin-bottom:8px;";
+        // Escape quotes in name to prevent JS errors
+        const safeName = name.replace(/"/g, '&quot;');
+        
         d.innerHTML = `
-            <input name="variation_name[]" class="form-control" placeholder="Pavadinimas" value="${name.replace(/"/g, '&quot;')}">
+            <input name="variation_name[]" class="form-control" placeholder="Pavadinimas (pvz. Raudona, XL)" value="${safeName}">
             <input name="variation_price[]" type="number" step="0.01" class="form-control" placeholder="+/- €" value="${price}">
             <button type="button" onclick="this.parentElement.remove()" style="color:red; border:none; cursor:pointer; background:none;">&times;</button>
         `;
@@ -384,14 +387,16 @@ foreach ($allCats as $c) {
     }
 
     // Specifikacijos (Rich attr)
-    function addRichAttrRow(label='', val='') {
+    window.addRichAttrRow = function(label='', val='') {
         const c = document.getElementById('attributesContainer');
         if(!c) return;
         const uid = 'ae_'+Date.now()+Math.random();
         const d = document.createElement('div');
         d.className = 'attr-row';
+        const safeLabel = label.replace(/"/g, '&quot;');
+        
         d.innerHTML = `
-            <input name="attr_label[]" class="form-control" placeholder="Savybė" value="${label.replace(/"/g, '&quot;')}">
+            <input name="attr_label[]" class="form-control" placeholder="Savybė" value="${safeLabel}">
             <div class="rich-editor-wrapper mini-editor"><div class="editor-toolbar" id="tb_${uid}"></div><div class="editor-content" id="${uid}" contenteditable="true">${val}</div><textarea name="attr_value[]" hidden></textarea></div>
             <button type="button" onclick="this.parentElement.remove()" style="color:red; border:none; cursor:pointer; background:none;">&times;</button>
         `;
@@ -400,7 +405,7 @@ foreach ($allCats as $c) {
     }
 
     // Modal control
-    function openProductModal(mode, data=null) {
+    window.openProductModal = function(mode, data=null) {
         const f = document.querySelector('form.modal-window');
         if(f) f.reset();
         
@@ -429,7 +434,7 @@ foreach ($allCats as $c) {
             document.getElementById('p_ribbon').value = data.ribbon_text||'';
             document.getElementById('p_meta_tags').value = data.meta_tags||'';
             
-            // Pažymime checkbox, jei prekė yra featured_products lentelėje
+            // Featured pagal is_featured_flag (ar yra featured_products lentelėje)
             if(data.is_featured_flag > 0) document.getElementById('p_featured').checked = true;
 
             // Categories
@@ -438,8 +443,10 @@ foreach ($allCats as $c) {
                 if(cb) cb.checked = true;
             });
 
-            // Attributes & Vars
+            // Attributes
             if(data.attributes) data.attributes.forEach(a => addRichAttrRow(a.label, a.value));
+            
+            // Variacijos - užkrauname esamas
             if(data.variations) data.variations.forEach(v => addVarRow(v.name, v.price_delta));
 
             // Images with Primary Select
@@ -467,17 +474,17 @@ foreach ($allCats as $c) {
         setTimeout(() => document.getElementById('productModal').classList.add('open'), 10);
     }
 
-    function updateStars(radio) {
+    window.updateStars = function(radio) {
         document.querySelectorAll('.star-btn').forEach(b => b.classList.remove('active'));
         radio.parentElement.classList.add('active');
     }
 
-    function closeProductModal() {
+    window.closeProductModal = function() {
         document.getElementById('productModal').classList.remove('open');
         setTimeout(() => document.getElementById('productModal').style.display = 'none', 200);
     }
 
-    function syncEditors() {
+    window.syncEditors = function() {
         document.getElementById('p_description').value = document.getElementById('mainDescEditor').innerHTML;
         document.querySelectorAll('.attr-row').forEach(row => {
             row.querySelector('textarea').value = row.querySelector('.editor-content').innerHTML;
@@ -485,7 +492,7 @@ foreach ($allCats as $c) {
         return true;
     }
 
-    function switchTab(id) {
+    window.switchTab = function(id) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         const content = document.getElementById('tab-'+id);
@@ -500,19 +507,19 @@ foreach ($allCats as $c) {
     }
     
     // Bulk & Search
-    function toggleAll(s) { document.querySelectorAll('.prod-check').forEach(c=>c.checked=s.checked); updateBulkUI(); }
-    function updateBulkUI() {
+    window.toggleAll = function(s) { document.querySelectorAll('.prod-check').forEach(c=>c.checked=s.checked); updateBulkUI(); }
+    window.updateBulkUI = function() {
         const n = document.querySelectorAll('.prod-check:checked').length;
         document.getElementById('selectedCount').innerText = n;
         document.getElementById('bulkActionsPanel').classList.toggle('visible', n>0);
     }
-    function submitBulkDelete() { if(confirm('Trinti?')) document.getElementById('productsListForm').submit(); }
-    function filterTable() {
+    window.submitBulkDelete = function() { if(confirm('Trinti?')) document.getElementById('productsListForm').submit(); }
+    window.filterTable = function() {
         const v = document.getElementById('tableSearch').value.toUpperCase();
         document.querySelectorAll('#productsTable tbody tr').forEach(tr => tr.style.display = tr.innerText.toUpperCase().includes(v) ? '' : 'none');
     }
 
-    function previewModalImages(input) {
+    window.previewModalImages = function(input) {
         const c = document.getElementById('modalImgPreview');
         c.innerHTML = '';
         if(input.files) {
