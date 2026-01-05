@@ -45,102 +45,142 @@ $listings = $listingsStmt->fetchAll();
   <title>Bendruomenės turgus | Cukrinukas</title>
   <?php echo headerStyles(); ?>
 <style>
-.page-wrap { max-width: 1100px; margin: 36px auto 70px; padding: 0 18px; display:flex; flex-direction:column; gap:18px; }
-.hero-box { background: linear-gradient(135deg,#7896e9,#a3b8ff); color:#0b0b0b; border-radius:22px; padding:26px; box-shadow:0 22px 48px rgba(90,118,194,0.35); position:relative; overflow:hidden; }
-.hero-box:after { content:''; position:absolute; width:180px; height:180px; border-radius:50%; background:rgba(255,255,255,0.24); top:-60px; right:-40px; filter:blur(6px); }
-.cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:14px; }
-.card { background:#fff; border:1px solid #e6e6ef; border-radius:16px; padding:14px; box-shadow:0 14px 32px rgba(0,0,0,0.06); display:flex; gap:12px; transition: transform .08s ease, box-shadow .12s ease; position:relative; overflow:hidden; text-decoration:none; color:inherit; }
-.card:hover { transform: translateY(-2px); box-shadow:0 16px 34px rgba(0,0,0,0.08); }
-.thumb { width:74px; height:74px; border-radius:12px; object-fit:cover; background:#e8edfa; display:flex; align-items:center; justify-content:center; font-weight:700; color:#6b6b7a; flex-shrink:0; }
-.meta { font-size:12px; color:#4a4a55; }
-.price { font-weight:800; font-size:16px; }
-.sold { color:#c0392b; font-weight:800; font-size:15px; }
-.badge { padding:6px 10px; border-radius:999px; background:rgba(0,0,0,0.08); font-weight:700; }
-.chip { padding:6px 10px; border-radius:999px; background:#fff; border:1px solid #d7dbf3; font-weight:700; font-size:12px; }
-.alert { border-radius:12px; padding:12px; }
-.alert-success { background:#edf9f0; border:1px solid #b8e2c4; }
-.alert-error { background:#fff1f1; border:1px solid #f3b7b7; }
-.filter-row { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start; }
-.filter-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; background:#f6f7fb; border:1px solid #e0e4f4; border-radius:999px; padding:6px 10px; flex:1; row-gap:6px; }
-.filter-pill { padding:8px 12px; border-radius:14px; border:1px solid transparent; background:#fff; box-shadow:0 6px 16px rgba(0,0,0,0.04); font-weight:700; font-size:13px; color:#232334; text-decoration:none; transition: all .12s ease; white-space:nowrap; }
-.filter-pill:hover { transform:translateY(-1px); box-shadow:0 10px 20px rgba(0,0,0,0.08); text-decoration:none; }
-.filter-pill.active { background:linear-gradient(135deg,#5a76c2,#0b0b0b); color:#fff; border-color:rgba(255,255,255,0.26); box-shadow:0 14px 26px rgba(15,16,35,0.28); }
-.filter-label { font-size:13px; font-weight:700; color:#5b5b6c; margin-right:4px; }
-.filter-meta { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+/* Bendras stilius */
+:root { --bg: #f7f7fb; --card: #ffffff; --border: #e4e7ec; --text: #1f2937; --muted: #52606d; --accent: #2563eb; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+a { color:inherit; text-decoration:none; }
+
+.page { max-width: 1200px; margin: 0 auto; padding: 32px 20px 72px; display: grid; gap: 28px; }
+
+/* Hero sekcija */
+.hero {
+  padding: 26px; border-radius: 28px; background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border: 1px solid #e5e7eb; box-shadow: 0 18px 48px rgba(0,0,0,0.08);
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 22px;
+}
+.hero__pill { display:inline-flex; align-items:center; gap:8px; background:#fff; padding:10px 14px; border-radius:999px; font-weight:700; font-size: 15px; color: #0f172a; box-shadow:0 6px 20px rgba(0,0,0,0.05); }
+.hero h1 { margin: 10px 0 8px; font-size: clamp(26px, 5vw, 36px); color: #0f172a; }
+.hero p { margin: 0; color: var(--muted); line-height: 1.6; max-width: 640px; }
+
+/* Mygtukai */
+.btn-large { padding: 11px 24px; border-radius: 12px; border: 1px solid #1d4ed8; background: #fff; color: #1d4ed8; font-weight: 600; transition: all .2s; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.btn-large:hover { background: #1d4ed8; color: #fff; }
+
+.card-container { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+/* Skelbimų tinklelis */
+.cards-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-top: 20px; }
+.listing-card { 
+    background: #fff; 
+    border: 1px solid var(--border); 
+    border-radius: 16px; 
+    padding: 16px; 
+    display: flex; gap: 14px; 
+    transition: transform .2s, border-color .2s; 
+    text-decoration: none; color: inherit; 
+    align-items: flex-start;
+}
+.listing-card:hover { transform: translateY(-4px); border-color: var(--accent); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1); }
+
+.thumb { width:80px; height:80px; border-radius:12px; object-fit:cover; background:#f3f4f6; display:flex; align-items:center; justify-content:center; font-weight:600; color:var(--muted); flex-shrink:0; font-size: 12px; border: 1px solid var(--border); }
+.meta { font-size:13px; color:var(--muted); margin-top: 4px; }
+.price { font-weight:800; font-size:16px; color: var(--text); }
+.sold { color:#dc2626; font-weight:800; font-size:15px; }
+
+/* Filtrai (Chips) */
+.filter-row { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-top: 16px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 99px;
+  background: #fff; border: 1px solid var(--border);
+  font-weight: 600; color: var(--muted); cursor: pointer; transition: all .2s;
+  white-space: nowrap; user-select: none; text-decoration: none; font-size: 13px;
+}
+.chip:hover, .chip.active {
+  border-color: var(--accent); color: var(--accent); background: #f0f9ff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+}
+
+.alert { border-radius:12px; padding:12px; margin-bottom: 12px; }
+.alert-success { background:#ecfdf5; border:1px solid #a7f3d0; color: #065f46; }
+.alert-error { background:#fef2f2; border:1px solid #fecaca; color: #991b1b; }
 </style>
 </head>
 <body>
   <?php renderHeader($pdo, 'community'); ?>
-<main class="page-wrap">
-  <section class="hero-box">
-    <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start;position:relative;z-index:2;">
-      <div style="max-width:640px;">
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <span class="badge">Bendruomenės turgus</span>
-          <span class="badge" style="background:rgba(255,255,255,0.4);">Skelbimai tarp narių</span>
-        </div>
-        <h1 style="margin:10px 0 6px 0;">Parduok, mainyk arba rask tai, ko ieškai</h1>
-        <p style="margin:0; max-width:640px;">Skaidrus kainų nurodymas ir pagarbus bendravimas – pagrindinės taisyklės. Jei prekė parduota, ji aiškiai pažymima.</p>
-      </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+  
+<div class="page">
+  <section class="hero">
+    <div style="flex:1; min-width: 300px;">
+        <div class="hero__pill">🛍️ Bendruomenės turgus</div>
+        <h1>Parduok, mainyk arba rask</h1>
+        <p>Skaidrus kainų nurodymas ir pagarbus bendravimas – pagrindinės taisyklės. Čia skelbimai tarp bendruomenės narių.</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
         <?php if ($user['id'] && !$blocked): ?>
-          <a class="btn" href="/community_listing_new.php" style="background:#0b0b0b;color:#fff;border-color:#0b0b0b;">Naujas skelbimas</a>
+          <a class="btn-large" href="/community_listing_new.php">Naujas skelbimas</a>
         <?php else: ?>
-          <a class="btn" href="/login.php" style="background:#0b0b0b;color:#fff;border-color:#0b0b0b;">Prisijunkite kelti</a>
+          <a class="btn-large" href="/login.php">Prisijunkite kelti</a>
         <?php endif; ?>
-        <a class="btn btn-secondary" href="/community_discussions.php" style="border-color:#0b0b0b;">Į diskusijas</a>
-      </div>
+        <a class="btn-large" href="/community_discussions.php" style="border-color:var(--border); color:var(--text);">Į diskusijas</a>
     </div>
   </section>
 
-  <?php foreach ($messages as $msg): ?>
-    <div class="alert alert-success">&check; <?php echo htmlspecialchars($msg); ?></div>
-  <?php endforeach; ?>
-  <?php foreach ($errors as $err): ?>
-    <div class="alert alert-error">&times; <?php echo htmlspecialchars($err); ?></div>
-  <?php endforeach; ?>
-  <?php if ($blocked): ?>
-    <div class="alert alert-error">Jūsų prieiga prie bendruomenės apribota iki <?php echo htmlspecialchars($blocked['banned_until'] ?? 'neribotai'); ?>.</div>
+  <?php if (!empty($messages) || !empty($errors) || $blocked): ?>
+    <div>
+        <?php foreach ($messages as $msg): ?>
+            <div class="alert alert-success">&check; <?php echo htmlspecialchars($msg); ?></div>
+        <?php endforeach; ?>
+        <?php foreach ($errors as $err): ?>
+            <div class="alert alert-error">&times; <?php echo htmlspecialchars($err); ?></div>
+        <?php endforeach; ?>
+        <?php if ($blocked): ?>
+            <div class="alert alert-error">Jūsų prieiga prie bendruomenės apribota iki <?php echo htmlspecialchars($blocked['banned_until'] ?? 'neribotai'); ?>.</div>
+        <?php endif; ?>
+    </div>
   <?php endif; ?>
 
-  <section style="background:#fff;border:1px solid #e6e6ef;border-radius:18px;padding:16px;box-shadow:0 14px 32px rgba(0,0,0,0.06);">
+  <section class="card-container">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
       <div>
-        <h2 style="margin:0;">Naujausi pasiūlymai</h2>
-        <p class="muted" style="margin:4px 0 0 0;">Aktyvūs bendruomenės skelbimai ir aiškios kainos.</p>
+        <h2 style="margin:0; font-size: 20px;">Naujausi pasiūlymai</h2>
+        <p style="margin:4px 0 0 0; color:var(--muted); font-size:14px;">Aktyvūs bendruomenės skelbimai.</p>
       </div>
-      <div class="filter-meta" style="margin-top:0;">
-        <span class="chip">Skelbimų: <?php echo count($listings); ?></span>
-      </div>
-    </div>
-    <div class="filter-row" style="margin-top:10px;">
-      <div class="filter-bar">
-        <span class="filter-label">Kategorija:</span>
-        <a class="filter-pill <?php echo $categoryId === 0 ? 'active' : ''; ?>" href="/community_market.php">Visos</a>
-        <?php foreach ($categories as $cat): ?>
-          <a class="filter-pill <?php echo $categoryId === (int)$cat['id'] ? 'active' : ''; ?>" href="/community_market.php?category=<?php echo (int)$cat['id']; ?>">#<?php echo htmlspecialchars($cat['name']); ?></a>
-        <?php endforeach; ?>
+      <div>
+        <span class="chip" style="cursor:default; hover:none;">Skelbimų: <?php echo count($listings); ?></span>
       </div>
     </div>
-    <div class="cards" style="margin-top:12px;">
+
+    <div class="filter-row">
+      <a class="chip <?php echo $categoryId === 0 ? 'active' : ''; ?>" href="/community_market.php">Visos kategorijos</a>
+      <?php foreach ($categories as $cat): ?>
+        <a class="chip <?php echo $categoryId === (int)$cat['id'] ? 'active' : ''; ?>" href="/community_market.php?category=<?php echo (int)$cat['id']; ?>">
+            #<?php echo htmlspecialchars($cat['name']); ?>
+        </a>
+      <?php endforeach; ?>
+    </div>
+
+    <div class="cards-grid">
       <?php foreach ($listings as $listing): ?>
-        <a class="card" href="/community_listing.php?id=<?php echo (int)$listing['id']; ?>">
+        <a class="listing-card" href="/community_listing.php?id=<?php echo (int)$listing['id']; ?>">
           <?php if ($listing['image_url']): ?>
             <img class="thumb" src="<?php echo htmlspecialchars($listing['image_url']); ?>" alt="<?php echo htmlspecialchars($listing['title']); ?>">
           <?php else: ?>
             <div class="thumb">Nėra</div>
           <?php endif; ?>
+          
           <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
             <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">
               <div>
-                <div style="font-weight:700;font-size:15px;">
+                <div style="font-weight:700;font-size:15px; color:#1f2937;">
                   <?php echo htmlspecialchars($listing['title']); ?>
                 </div>
-                <div class="meta" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                  <span>Pardavėjas: <?php echo htmlspecialchars($listing['name']); ?></span>
-                  <?php if ($listing['category_name']): ?>
-                    <span class="badge" style="background:#f6f8ff;border:1px solid #e0e5f7;">#<?php echo htmlspecialchars($listing['category_name']); ?></span>
-                  <?php endif; ?>
+                <div class="meta">
+                   <?php echo htmlspecialchars($listing['name']); ?>
+                   <?php if ($listing['category_name']): ?>
+                     <span style="color:var(--accent);"> • <?php echo htmlspecialchars($listing['category_name']); ?></span>
+                   <?php endif; ?>
                 </div>
               </div>
               <div style="text-align:right;">
@@ -151,16 +191,18 @@ $listings = $listingsStmt->fetchAll();
                 <?php endif; ?>
               </div>
             </div>
-            <p class="muted" style="margin:0;line-height:1.5;max-height:60px;overflow:hidden;"><?php echo htmlspecialchars($listing['description']); ?></p>
+            <p style="margin:0; font-size:13px; color:var(--muted); line-height:1.4; max-height:40px; overflow:hidden;">
+                <?php echo htmlspecialchars($listing['description']); ?>
+            </p>
           </div>
         </a>
-  <?php endforeach; ?>
-  <?php if (!$listings): ?>
-    <div class="muted">Kol kas nėra skelbimų – sukurkite pirmąjį!</div>
-  <?php endif; ?>
-  </div>
-</section>
-</main>
+      <?php endforeach; ?>
+      <?php if (!$listings): ?>
+        <div style="grid-column: 1/-1; text-align:center; padding: 40px; color: var(--muted);">Kol kas nėra skelbimų – sukurkite pirmąjį!</div>
+      <?php endif; ?>
+    </div>
+  </section>
+</div>
 
 <?php renderFooter($pdo); ?>
 </body>
