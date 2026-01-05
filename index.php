@@ -104,13 +104,6 @@ $storyband = [
     'card_title' => $siteContent['storyband_card_title'] ?? '„Cukrinukas“ rinkiniai',
     'card_body' => $siteContent['storyband_card_body'] ?? 'Starteriai su gliukometrais, užkandžiais ir atsargomis 30 dienų.',
 ];
-$storybandMetrics = [];
-for ($i = 1; $i <= 3; $i++) {
-    $storybandMetrics[] = [
-        'value' => $siteContent['storyband_metric_' . $i . '_value'] ?? '',
-        'label' => $siteContent['storyband_metric_' . $i . '_label'] ?? '',
-    ];
-}
 
 $storyRow = [
     'title' => $siteContent['storyrow_title'] ?? 'Stebėjimas, užkandžiai ir ramybė',
@@ -219,12 +212,12 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .btn:hover { opacity:0.9; transform:translateY(-1px); }
     .btn.secondary { background:#fff; color:#0b0b0b; border-color:var(--border); }
     
-    /* PILLS */
+    /* PILLS - PAKEISTAS DIZAINAS (Kaip action-btn) */
     .pill {
         display:inline-flex; align-items:center; padding:6px 14px; 
         border-radius:999px; font-size:13px; font-weight:600;
         background:#fff; 
-        color:#1f2937; 
+        color:#1f2937; /* Tamsus tekstas */
         border:1px solid var(--border);
         transition: all .2s;
         text-decoration: none;
@@ -232,7 +225,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .pill:hover { 
         border-color:var(--accent); 
         color:var(--accent); 
-        background:#f0f9ff;
+        background:#f0f9ff; /* Šviesiai mėlynas */
     }
 
     .section-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:24px; flex-wrap: wrap; }
@@ -249,12 +242,13 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .hero__copy h1 { margin:0 0 12px; font-size:clamp(32px, 5vw, 42px); line-height:1.2; color:#fff; }
     .hero__copy p { margin:0 0 24px; font-size:18px; line-height:1.6; color:#e0f2fe; max-width:540px; }
     
+    /* GLASS CARD FIX */
     .glass-card { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:16px; padding:20px; backdrop-filter:blur(12px); box-shadow:0 10px 30px rgba(0,0,0,0.1); color:#fff; }
     .glass-card h3 { margin:0 0 8px; font-size:18px; color:#fff; }
     .glass-card p { margin:0 0 12px; font-size:14px; color:#e0f2fe; line-height:1.5; }
     .glass-card a { font-weight:700; text-decoration:none; color:#fff; } 
 
-    /* PROMO CARDS */
+    /* PROMO CARDS - NUORODOS */
     .promo-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:20px; }
     a.promo-card { 
         text-decoration:none; color:inherit;
@@ -267,20 +261,28 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .promo-card h3 { margin:0 0 4px; font-size:16px; }
     .promo-card p { margin:0; color:var(--muted); font-size:14px; line-height:1.5; }
 
-    /* STORYBAND */
+    /* STORYBAND - PAKEISTA: BALTAS FONAS */
     .storyband-box { 
         background: #fff;
         border:1px solid var(--border); border-radius:20px; padding:32px;
         display:grid; grid-template-columns: 1fr 300px; gap:40px; align-items:center;
     }
-    .metrics { display:flex; gap:12px; margin-top:20px; flex-wrap:wrap; }
-    .metric { background:#fff; padding:10px 14px; border-radius:10px; border:1px solid #e0e7ff; min-width:100px; }
-    .metric strong { display:block; font-size:18px; color:#0f172a; }
-    .metric span { font-size:12px; color:var(--muted); }
+    /* METRICS PAKEISTAS Į MYGTUKĄ */
+    .metrics { margin-top:20px; }
+    .btn-recipes {
+        display: inline-flex; align-items: center; justify-content: center; width: 100%;
+        padding: 14px; background: #fff; border: 1px solid var(--border);
+        border-radius: 12px; font-weight: 700; color: #1f2937;
+        text-decoration: none; transition: all .2s;
+        box-shadow: var(--shadow-sm);
+    }
+    .btn-recipes:hover {
+        background: var(--accent-light); color: var(--accent); border-color: var(--accent);
+    }
     
     .story-card-inner { background:#fff; border-radius:14px; padding:20px; box-shadow:var(--shadow-md); border:1px solid #e0e7ff; }
 
-    /* STORE GRID */
+    /* STORE GRID - 3 EILĖJE */
     .store-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:20px; }
     .product-card { 
         background:#fff; border:1px solid var(--border); border-radius:16px; 
@@ -304,6 +306,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
         border:1px solid #bae6fd; border-radius:20px; padding:24px;
     }
     .fs-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #e0f2fe; padding-bottom:16px; }
+    /* Pakeista spalva į juodą */
     .fs-title { display:flex; align-items:center; gap:10px; font-size:18px; font-weight:700; color:#0f172a; }
     .fs-icon { font-size:24px; color: #0f172a; }
     .fs-subtitle { font-size:14px; color:#0c4a6e; }
@@ -319,27 +322,27 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .fs-card h4 { margin:0 0 2px; font-size:13px; font-weight:600; line-height:1.3; }
     .fs-price { font-size:14px; font-weight:700; color:#0284c7; }
 
-    /* HIGHLIGHT SECTION - PAKEISTA: KAIP SUPPORT BAND */
-    .highlight-box { 
-        background:#fff; border:1px solid var(--border); border-radius:20px; padding:32px;
-        display:grid; grid-template-columns: 1.2fr 1fr; gap:40px; box-shadow:var(--shadow-sm);
-    }
-    .highlight-content h2 { margin:0 0 12px; font-size:24px; color:#0f172a; }
-    .highlight-text { color:#475467; line-height:1.6; margin-bottom:20px; }
+    /* HIGHLIGHT SECTION - PAKEISTA: BALTAS FONAS IR TVARKINGIAU */
+    .split-panel { display:grid; grid-template-columns: 1fr 1fr; gap:24px; }
+    .story-card { background:#fff; border:1px solid var(--border); border-radius:20px; padding:24px; }
+    .story-card h3 { margin:0 0 10px; font-size:22px; color:#0f172a; }
+    .story-card p { margin:0 0 16px; line-height:1.6; color:#374151; font-size:15px; }
     
-    .highlight-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:20px; }
-    /* Mygtukas toks pat kaip support */
-    .highlight-card .btn { 
-        width:100%; 
-        background: #fff; 
-        color: #1f2937; 
-        border: 1px solid var(--border);
-        font-weight: 600;
-        border-radius: 999px;
+    /* PAKEISTA: BALTAS FONAS IR IŠDĖSTYMAS */
+    .story-visual { 
+        background: #fff; /* Baltas fonas */
+        border: 1px solid var(--border); 
+        border-radius:20px; padding:32px; 
+        display:flex; flex-direction:column; justify-content:space-between; gap:24px; 
+        min-height: 280px;
     }
-    .highlight-card .btn:hover { border-color: var(--accent); color: var(--accent); background: #f0f9ff; }
-    
-    .chips { display:flex; gap:8px; flex-wrap:wrap; }
+    /* PAKEISTA: Burbulų dizainas */
+    .story-bubble { 
+        background:#f8fafc; /* Šviesiai pilkas/mėlynas */
+        padding:16px; border-radius:14px; 
+        box-shadow:var(--shadow-sm); border:1px solid #e2e8f0; 
+        max-width: 85%;
+    }
 
     /* TESTIMONIALS */
     .testimonials-box { 
@@ -369,8 +372,9 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     }
     .support-content h2 { margin:0 0 12px; font-size:24px; color:#0f172a; }
     .support-content p { color:#475467; line-height:1.6; margin-bottom:20px; }
-    
+    .chips { display:flex; gap:8px; flex-wrap:wrap; }
     .support-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:20px; }
+    
     .support-card .btn { 
         width:100%; 
         background: #fff; 
@@ -383,7 +387,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
 
     /* MEDIA QUERIES */
     @media (max-width: 900px) {
-        .storyband-box, .highlight-box, .support-box { grid-template-columns: 1fr; gap:24px; }
+        .storyband-box, .split-panel, .support-box { grid-template-columns: 1fr; gap:24px; }
         .testimonial-grid, .news-grid, .store-grid { grid-template-columns: 1fr 1fr; }
         .fs-grid { grid-template-columns: 1fr; }
     }
@@ -416,7 +420,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
           <h1><?php echo htmlspecialchars($heroTitle); ?></h1>
           <p><?php echo htmlspecialchars($heroBody); ?></p>
           <div class="hero__actions">
-            <a class="btn" style="background:#fff; color:#000; border-color:#fff;" href="<?php echo htmlspecialchars($heroCtaUrl); ?>"><?php echo htmlspecialchars($heroCtaLabel); ?></a>
+            <a class="btn" style="background:#fff; color:#1d4ed8; border-color:#fff;" href="<?php echo htmlspecialchars($heroCtaUrl); ?>"><?php echo htmlspecialchars($heroCtaLabel); ?></a>
           </div>
         </div>
         <div class="glass-card support-mini">
@@ -453,9 +457,9 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
         <div>
           <p style="margin:0 0 16px; color:#475467; line-height:1.7; font-size:16px;"><?php echo htmlspecialchars($storyband['body']); ?></p>
           <div class="metrics">
-            <?php foreach ($storybandMetrics as $metric): ?>
-              <div class="metric"><strong><?php echo htmlspecialchars($metric['value']); ?></strong><span><?php echo htmlspecialchars($metric['label']); ?></span></div>
-            <?php endforeach; ?>
+            <a href="/recipes.php" class="btn-recipes">
+                Peržiūrėk visus mūsų receptus
+            </a>
           </div>
         </div>
         <div class="story-card-inner">
@@ -565,7 +569,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     <section class="section-shell testimonials">
       <div class="section-head">
         <h2>Klientų atsiliepimai</h2>
-        </div>
+      </div>
       <div class="testimonials-box">
         <div class="testimonial-grid">
             <?php foreach ($testimonials as $t): ?>
