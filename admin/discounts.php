@@ -5,12 +5,14 @@
 $discountCodes = getAllDiscountCodes($pdo);
 $globalDiscount = getGlobalDiscount($pdo);
 
-// Kategorijų nuolaidoms (tiesioginė užklausa, kad būtų patikimiau)
+// 2. Pataisyta užklausa: jungiame categories su category_discounts
 $activeCatDiscounts = $pdo->query("
-    SELECT * FROM categories 
-    WHERE discount_type IN ('percent', 'amount', 'free_shipping') 
-    AND (discount_value > 0 OR discount_type = 'free_shipping')
-    ORDER BY name ASC
+    SELECT c.id, c.name, d.type as discount_type, d.value as discount_value, d.free_shipping
+    FROM categories c
+    JOIN category_discounts d ON c.id = d.category_id
+    WHERE d.active = 1 
+    AND (d.type IN ('percent', 'amount') OR d.free_shipping = 1)
+    ORDER BY c.name ASC
 ")->fetchAll();
 
 $allCategories = $pdo->query('SELECT id, name FROM categories ORDER BY name ASC')->fetchAll();
@@ -30,7 +32,7 @@ $allCategories = $pdo->query('SELECT id, name FROM categories ORDER BY name ASC'
     .tab-content.active { display:block; }
     @keyframes fadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
 
-    /* Kortelės ir lentelės */
+    /* Kortelės */
     .disc-card {
         background: #fff; border: 1px solid #e1e3ef; border-radius: 12px; padding: 16px;
         margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;
@@ -135,12 +137,14 @@ $allCategories = $pdo->query('SELECT id, name FROM categories ORDER BY name ASC'
                     <div class="muted" style="font-size:12px;">ID: <?php echo $catDisc['id']; ?></div>
                 </div>
                 <div>
-                    <?php if($catDisc['discount_type'] == 'percent'): ?>
-                        <span class="badge badge-blue">-<?php echo (float)$catDisc['discount_value']; ?>%</span>
-                    <?php elseif($catDisc['discount_type'] == 'amount'): ?>
-                        <span class="badge badge-blue">-<?php echo number_format($catDisc['discount_value'], 2); ?> €</span>
-                    <?php elseif($catDisc['discount_type'] == 'free_shipping'): ?>
+                    <?php if($catDisc['free_shipping']): ?>
                         <span class="badge badge-green">Nemokamas siuntimas</span>
+                    <?php endif; ?>
+                    
+                    <?php if($catDisc['discount_type'] == 'percent' && $catDisc['discount_value'] > 0): ?>
+                        <span class="badge badge-blue">-<?php echo (float)$catDisc['discount_value']; ?>%</span>
+                    <?php elseif($catDisc['discount_type'] == 'amount' && $catDisc['discount_value'] > 0): ?>
+                        <span class="badge badge-blue">-<?php echo number_format($catDisc['discount_value'], 2); ?> €</span>
                     <?php endif; ?>
                 </div>
                 <div style="display:flex; gap:8px;">
@@ -161,7 +165,7 @@ $allCategories = $pdo->query('SELECT id, name FROM categories ORDER BY name ASC'
 <div id="tab-global" class="tab-content">
     <div class="card" style="max-width:600px; margin:0 auto;">
         <h3>Bendri krepšelio nustatymai</h3>
-        <p class="muted" style="font-size:13px; margin-bottom:20px;">Ši nuolaida taikoma visam krepšeliui automatiškai (pvz. Kalėdinis išpardavimas viskam).</p>
+        <p class="muted" style="font-size:13px; margin-bottom:20px;">Ši nuolaida taikoma visam krepšeliui automatiškai.</p>
         
         <form method="post">
             <?php echo csrfField(); ?>
@@ -199,10 +203,9 @@ $allCategories = $pdo->query('SELECT id, name FROM categories ORDER BY name ASC'
             <input type="hidden" name="id" id="c_id" value="">
             
             <div class="form-group">
-                <label>Kodas (pvz. PAVASARIS)</label>
+                <label>Kodas</label>
                 <input type="text" name="code" id="c_code" required class="form-control" style="font-weight:700; text-transform:uppercase;">
             </div>
-
             <div style="display:flex; gap:16px;">
                 <div class="form-group" style="flex:1;">
                     <label>Tipas</label>
@@ -217,18 +220,15 @@ $allCategories = $pdo->query('SELECT id, name FROM categories ORDER BY name ASC'
                     <input type="number" step="0.01" name="value" id="c_value" class="form-control">
                 </div>
             </div>
-
             <div class="form-group">
                 <label>Panaudojimų limitas (0 - neribota)</label>
                 <input type="number" name="usage_limit" id="c_limit" class="form-control" value="0">
             </div>
-
             <div class="form-group">
                 <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
                     <input type="checkbox" name="active" id="c_active" value="1" checked> Aktyvus
                 </label>
             </div>
-            
             <button type="submit" class="btn" style="width:100%;">Išsaugoti</button>
         </form>
     </div>
@@ -252,7 +252,6 @@ $allCategories = $pdo->query('SELECT id, name FROM categories ORDER BY name ASC'
                     <?php endforeach; ?>
                 </select>
             </div>
-
             <div style="display:flex; gap:16px;">
                 <div class="form-group" style="flex:1;">
                     <label>Tipas</label>
@@ -264,34 +263,28 @@ $allCategories = $pdo->query('SELECT id, name FROM categories ORDER BY name ASC'
                 </div>
                 <div class="form-group" style="flex:1;" id="cat_val_group">
                     <label>Reikšmė</label>
-                    <input type="number" step="0.01" name="discount_value" id="cat_value" class="form-control" placeholder="pvz. 20">
+                    <input type="number" step="0.01" name="discount_value" id="cat_value" class="form-control">
                 </div>
             </div>
-            
             <button type="submit" class="btn" style="width:100%;">Išsaugoti</button>
         </form>
     </div>
 </div>
 
 <script>
-    // Tabs
     function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         document.getElementById('tab-' + tabId).classList.add('active');
-        
-        // Button active state
         const btns = document.querySelectorAll('.tab-btn');
         if(tabId === 'codes') btns[0].classList.add('active');
         if(tabId === 'categories') btns[1].classList.add('active');
         if(tabId === 'global') btns[2].classList.add('active');
-        
         localStorage.setItem('admin_discounts_tab', tabId);
     }
     const savedTab = localStorage.getItem('admin_discounts_tab');
     if(savedTab) switchTab(savedTab);
 
-    // Modals
     function closeModal(id) {
         document.getElementById(id).classList.remove('open');
         setTimeout(() => document.getElementById(id).style.display = 'none', 200);
@@ -301,7 +294,6 @@ $allCategories = $pdo->query('SELECT id, name FROM categories ORDER BY name ASC'
         const modal = document.getElementById('codeModal');
         modal.style.display = 'flex';
         setTimeout(() => modal.classList.add('open'), 10);
-
         if (data) {
             document.getElementById('codeModalTitle').innerText = 'Redaguoti kodą';
             document.getElementById('c_id').value = data.id;
@@ -326,11 +318,11 @@ $allCategories = $pdo->query('SELECT id, name FROM categories ORDER BY name ASC'
         const modal = document.getElementById('catModal');
         modal.style.display = 'flex';
         setTimeout(() => modal.classList.add('open'), 10);
-
         if (data) {
             document.getElementById('cat_id').value = data.id;
-            document.getElementById('cat_type').value = data.discount_type;
+            document.getElementById('cat_type').value = data.discount_type || 'percent';
             document.getElementById('cat_value').value = data.discount_value;
+            if(data.free_shipping == 1) document.getElementById('cat_type').value = 'free_shipping';
         } else {
             document.getElementById('cat_type').value = 'percent';
             document.getElementById('cat_value').value = '';
@@ -338,35 +330,21 @@ $allCategories = $pdo->query('SELECT id, name FROM categories ORDER BY name ASC'
         toggleCatVal(document.getElementById('cat_type').value);
     }
 
-    // Toggle fields based on type
     function toggleCodeVal(val) {
-        const group = document.getElementById('c_val_group');
-        const input = document.getElementById('c_value');
-        if (val === 'free_shipping') {
-            input.disabled = true; input.value = '0'; group.style.opacity = '0.5';
-        } else {
-            input.disabled = false; group.style.opacity = '1';
-        }
+        const g = document.getElementById('c_val_group');
+        const i = document.getElementById('c_value');
+        if (val === 'free_shipping') { i.disabled = true; i.value = '0'; g.style.opacity = '0.5'; } else { i.disabled = false; g.style.opacity = '1'; }
     }
     function toggleCatVal(val) {
-        const group = document.getElementById('cat_val_group');
-        const input = document.getElementById('cat_value');
-        if (val === 'free_shipping') {
-            input.disabled = true; input.value = '0'; group.style.opacity = '0.5';
-        } else {
-            input.disabled = false; group.style.opacity = '1';
-        }
+        const g = document.getElementById('cat_val_group');
+        const i = document.getElementById('cat_value');
+        if (val === 'free_shipping') { i.disabled = true; i.value = '0'; g.style.opacity = '0.5'; } else { i.disabled = false; g.style.opacity = '1'; }
     }
     function toggleGlobalVal(val) {
-        const group = document.getElementById('globalValGroup');
-        const input = group.querySelector('input');
-        if (val === 'free_shipping' || val === 'none') {
-            input.disabled = true; input.value = '0'; group.style.opacity = '0.5';
-        } else {
-            input.disabled = false; group.style.opacity = '1';
-        }
+        const g = document.getElementById('globalValGroup');
+        const i = g.querySelector('input');
+        if (val === 'free_shipping' || val === 'none') { i.disabled = true; i.value = '0'; g.style.opacity = '0.5'; } else { i.disabled = false; g.style.opacity = '1'; }
     }
-
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', function(e) { if (e.target === this) closeModal(this.id); });
     });
