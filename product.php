@@ -105,7 +105,7 @@ $meta = [
       --border: #e4e7ec;
       --text: #0f172a;
       --muted: #475467;
-      /* PAKEISTA: Pagrindinė spalva pagal prašymą */
+      /* Pagrindinė spalva */
       --accent: #829ed6;
       --accent-hover: #6a8bc9;
     }
@@ -119,7 +119,6 @@ $meta = [
     .main-image { position:relative; border-radius:16px; overflow:hidden; background:#fff; cursor:zoom-in; }
     .main-image img { width:100%; display:block; height:420px; object-fit:cover; }
     
-    /* PAKEISTA: Ribbon spalva */
     .ribbon { position:absolute; top:12px; left:12px; background: var(--accent); color:#fff; padding:8px 12px; border-radius:12px; font-weight:700; box-shadow:0 10px 22px rgba(0,0,0,0.12); }
     
     .thumbs { display:flex; gap:10px; flex-wrap:wrap; }
@@ -132,7 +131,7 @@ $meta = [
     h1 { margin:0; font-size:32px; letter-spacing:-0.02em; }
     .subtitle { margin:0; color:var(--accent); }
     
-    /* PAKEISTA: Sutvarkytas aprašymo stilius, kad veiktų sąrašai ir tarpai */
+    /* Aprašymo stilius (kad veiktų sąrašai ir tarpai) */
     .description { margin:0; color: var(--muted); line-height:1.65; }
     .description ul, .description ol { margin: 10px 0; padding-left: 20px; }
     .description li { margin-bottom: 5px; }
@@ -143,7 +142,7 @@ $meta = [
     .form-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:4px; }
     .quantity { width:90px; padding:11px; border-radius:12px; border:1px solid var(--border); background:#f8fafc; }
     
-    /* PAKEISTA: Mygtukas pritaikytas naujai spalvai */
+    /* Mygtukas */
     .btn { 
         display:inline-flex; align-items:center; justify-content:center; 
         padding:12px 16px; border-radius:12px; border:none; 
@@ -153,7 +152,7 @@ $meta = [
     }
     .btn:hover { background: var(--accent-hover); }
     
-    /* PAKEISTA: Širdelės mygtukas identiškas products.php (baltas su rėmeliu) */
+    /* Širdelės mygtukas */
     .heart-btn { 
         width:44px; height:44px; border-radius:12px; 
         border:1px solid var(--border); background:#fff; 
@@ -170,14 +169,19 @@ $meta = [
     .info-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:12px; }
     .info-card { background:#f8fafc; border:1px solid var(--border); border-radius:14px; padding:12px 14px; color: var(--muted); font-weight:600; }
     .section { background:var(--card); border:1px solid var(--border); border-radius:18px; padding:16px 18px; box-shadow:0 12px 28px rgba(0,0,0,0.08); display:grid; gap:12px; }
+    
     .attr-card { background:#fff; border:1px solid var(--border); border-radius:12px; padding:12px; box-shadow:0 8px 18px rgba(0,0,0,0.06); }
+    /* PAKEISTA: Pridėtas stilius, kad ypatybių tekstas atrodytų tvarkingai */
+    .attr-value ul, .attr-value ol { margin: 6px 0 6px 20px; padding: 0; }
+    .attr-value li { margin-bottom: 2px; }
+    .attr-value p { margin: 0 0 4px 0; }
+
     .pill { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:12px; background:#ecfdf3; color:#15803d; font-weight:700; font-size:13px; }
     .related-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:14px; }
     .related-card { background:#fff; border:1px solid var(--border); border-radius:14px; padding:12px; box-shadow:0 12px 26px rgba(0,0,0,0.08); color:var(--text); display:grid; gap:8px; }
     .related-card img { width:100%; height:150px; object-fit:cover; border-radius:12px; }
     .related-price { font-weight:800; }
     
-    /* PAKEISTA: Variacijų stilius su nauja spalva */
     .variation-chip { border:1px solid var(--border); padding:10px 12px; border-radius:12px; background:#f8fafc; color:var(--text); font-weight:700; cursor:pointer; display:inline-flex; gap:8px; align-items:center; transition:border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease; }
     .variation-chip.active { border-color:var(--accent); box-shadow:0 8px 18px rgba(130, 158, 214, 0.2); background:#eef2ff; color: var(--accent); }
     
@@ -287,7 +291,7 @@ $meta = [
           <?php foreach ($attributes as $attr): ?>
             <div class="attr-card">
               <div style="font-weight:700; margin-bottom:4px; color:var(--text); "><?php echo htmlspecialchars($attr['label']); ?></div>
-              <div style="color:var(--muted);"><?php echo htmlspecialchars($attr['value']); ?></div>
+              <div class="attr-value" style="color:var(--muted);"><?php echo $attr['value']; ?></div>
             </div>
           <?php endforeach; ?>
         </div>
