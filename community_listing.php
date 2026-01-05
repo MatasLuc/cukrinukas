@@ -190,7 +190,7 @@ a { color:inherit; text-decoration:none; }
              
              <?php if (!$isOwner && $listing['status'] !== 'sold'): ?>
                  <div class="msg-box">
-                    <div class="msg-title">💬 Cukrinukas Messages</div>
+                    <div class="msg-title">💬 Cukrinukas žinutės</div>
                     <p class="msg-text">
                         Greičiausias ir saugiausias būdas susitarti dėl prekės. 
                         Bendraukite tiesiogiai per sistemą.
