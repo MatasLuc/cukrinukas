@@ -127,7 +127,7 @@ $meta = [
     
     .details { background:var(--card); border:1px solid var(--border); border-radius:20px; padding:18px 20px; box-shadow:0 14px 34px rgba(0,0,0,0.08); display:grid; gap:12px; }
     .badge { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:12px; background:#eef2ff; color:var(--accent); font-weight:700; }
-    .badge.gift { background:#ecfdf3; color:#166534; border:1px solid #829ed6; }
+    .badge.gift { background:#ecfdf3; color:#000; border:1px solid #829ed6; }
     h1 { margin:0; font-size:32px; letter-spacing:-0.02em; }
     .subtitle { margin:0; color:var(--accent); }
     
@@ -250,7 +250,7 @@ $meta = [
 
         <div class="info-grid">
           <?php if ($isFreeShippingGift): ?>
-            <div class="info-card" style="display:flex; align-items:center; gap:8px; background:#f0fdf4; border-color:#bbf7d0; color:#166534;">
+            <div class="info-card" style="display:flex; align-items:center; gap:8px; background:#f0fdf4; border-color:#bbf7d0; color:#000;">
               <span>🎁Pirkite šią prekę ir gausite nemokamą viso užsakymo pristatymą dovanų.</span>
             </div>
           <?php endif; ?>
