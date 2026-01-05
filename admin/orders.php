@@ -22,10 +22,6 @@ foreach ($allOrders as &$order) {
     $order['items'] = $orderItemsStmt->fetchAll(PDO::FETCH_ASSOC);
 }
 unset($order); // Nutraukiame nuorodą
-
-// Kategorijų nuolaidų dalis (paliekame kaip buvo, tik vizualiai atskiriame)
-$categoryDiscounts = getCategoryDiscounts($pdo);
-$allCategoriesSimple = $pdo->query('SELECT id, name FROM categories ORDER BY name')->fetchAll();
 ?>
 
 <style>
@@ -169,41 +165,6 @@ $allCategoriesSimple = $pdo->query('SELECT id, name FROM categories ORDER BY nam
       <?php endforeach; ?>
       <?php if (!$allOrders): ?>
         <tr><td colspan="6" class="muted" style="text-align:center; padding:20px;">Užsakymų nerasta.</td></tr>
-      <?php endif; ?>
-    </tbody>
-  </table>
-</div>
-
-<div class="card" style="margin-top:24px;">
-  <h3>Aktyvios kategorijų nuolaidos</h3>
-  <table>
-    <thead><tr><th>Kategorija</th><th>Tipas</th><th>Reikšmė</th><th>Nemokamas pristatymas</th><th>Aktyvi</th><th>Veiksmai</th></tr></thead>
-    <tbody>
-      <?php foreach ($categoryDiscounts as $catId => $disc): ?>
-        <tr>
-          <td><?php echo htmlspecialchars($allCategoriesSimple[array_search($catId, array_column($allCategoriesSimple, 'id'))]['name'] ?? ('ID ' . $catId)); ?></td>
-          <?php
-            $typeLabel = 'Išjungta';
-            if ($disc['type'] === 'percent') { $typeLabel = 'Procentai'; }
-            elseif ($disc['type'] === 'amount') { $typeLabel = 'Suma'; }
-            elseif ($disc['type'] === 'free_shipping') { $typeLabel = 'Nemokamas pristatymas'; }
-          ?>
-          <td><?php echo htmlspecialchars($typeLabel); ?></td>
-          <td><?php echo $disc['type'] === 'free_shipping' ? '–' : number_format((float)$disc['value'], 2) . ($disc['type'] === 'percent' ? ' %' : ' €'); ?></td>
-          <td><?php echo (!empty($disc['free_shipping']) || $disc['type'] === 'free_shipping') ? 'Taip' : 'Ne'; ?></td>
-          <td><?php echo (int)$disc['active'] ? 'Taip' : 'Ne'; ?></td>
-          <td>
-            <form method="post" style="display:inline-block;">
-              <?php echo csrfField(); ?>
-              <input type="hidden" name="action" value="delete_category_discount">
-              <input type="hidden" name="category_id" value="<?php echo (int)$catId; ?>">
-              <button class="btn" type="submit" style="background:#fff1f1; color:#b91c1c; border-color:#fecaca; padding:6px 12px; font-size:12px;">Šalinti</button>
-            </form>
-          </td>
-        </tr>
-      <?php endforeach; ?>
-      <?php if (!$categoryDiscounts): ?>
-        <tr><td colspan="6" class="muted">Kategorijų nuolaidų nėra.</td></tr>
       <?php endif; ?>
     </tbody>
   </table>
