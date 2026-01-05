@@ -40,13 +40,10 @@ function headerStyles(?int $overrideShadow = null): string {
   --header-border: #e6e6ef;
 }
 
-/* PAKEITIMAS 1: Pašaliname font-weight resetą nuo '*' selektoriaus, perkeliame į body */
 body { margin: 0; background: var(--surface); color: var(--text-color); font-family: var(--font-family); font-weight: var(--font-weight-regular); }
 * { font-family: var(--font-family); }
 
 h1, h2, h3, h4, h5, h6 { font-weight: var(--font-weight-semibold); letter-spacing: -0.01em; color: var(--text-color); }
-
-/* PAKEITIMAS 2: Priverstinis Bold stilius visiems paryškinimams */
 strong, b { font-weight: 700 !important; color: var(--text-color); }
 
 a { color: var(--text-color); }
@@ -89,13 +86,13 @@ a { color: var(--text-color); }
 }
 .nav-toggle {
   display: none;
-  background: #f3f3f8;
-  border: 1px solid #dcdce7;
+  background: transparent;
+  border: none;
   color: #0b0b0b;
-  padding: 10px 12px;
-  border-radius: 12px;
-  font-weight: var(--font-weight-semibold);
+  padding: 8px;
+  font-size: 24px;
   cursor: pointer;
+  line-height: 1;
 }
 .brand {
   display: inline-flex;
@@ -161,6 +158,7 @@ a { color: var(--text-color); }
   font-weight: var(--font-weight-medium);
   box-shadow:0 10px 20px rgba(0,0,0,0.08);
   position: relative;
+  cursor: pointer;
 }
 .user-button__badge {
   position:absolute;
@@ -192,6 +190,7 @@ a { color: var(--text-color); }
   opacity:0;
   pointer-events:none;
   transition:opacity .15s ease;
+  z-index: 31;
 }
 .checkbox-row {
   display:flex;
@@ -266,6 +265,7 @@ input[type=checkbox] {
   transform: translateX(0);
   overflow-y: auto;
   max-height: 70vh;
+  z-index: 100;
 }
 .cart-link:hover .cart-dropdown,
 .cart-link:focus-within .cart-dropdown,
@@ -305,13 +305,102 @@ input[type=checkbox] {
   font-size: 12px;
   font-weight: var(--font-weight-semibold);
 }
+
+/* MOBILE MENU STYLES */
 @media (max-width: 900px) {
-  .navbar { flex-wrap: wrap; }
-  .nav-links { display:none; width: 100%; justify-content: flex-start; flex-wrap: wrap; flex-direction:column; align-items:flex-start; background:#fff; padding:12px; border-radius:14px; border:1px solid #e6e6ef; box-shadow:0 12px 26px rgba(0,0,0,0.08); }
-  .nav-links.open { display:flex; }
-  .nav-toggle { display: inline-flex; margin-left:auto; }
-  .brand { padding:8px 0; background:none; }
-  .cart-dropdown { min-width: 90vw; right: 0; }
+  .navbar {
+    justify-content: flex-start;
+  }
+  .brand {
+    margin-right: auto;
+  }
+  .nav-toggle { 
+    display: inline-flex; 
+    margin-right: 8px;
+  }
+  .cart-link {
+    order: 2;
+  }
+  
+  .nav-links {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: #ffffff;
+    border-bottom: 1px solid #e6e6ef;
+    padding: 20px;
+    box-sizing: border-box;
+    flex-direction: column;
+    align-items: stretch;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    z-index: 1000;
+  }
+  .nav-links.open { display: flex; }
+  
+  .nav-item {
+    width: 100%;
+  }
+  .nav-links a {
+    display: block;
+    padding: 12px 15px;
+    font-size: 16px;
+    background: #fcfcfd;
+    border: 1px solid transparent;
+    margin-bottom: 4px;
+  }
+  .nav-links a:active,
+  .nav-links a:hover {
+    background: #f3f3f8;
+    border-color: #e6e6ef;
+  }
+  
+  .nav-submenu {
+    position: static;
+    box-shadow: none;
+    border: none;
+    padding: 0 0 0 15px;
+    display: none;
+    width: 100%;
+    min-width: auto;
+  }
+  /* Show submenus by default on mobile or rely on JS? 
+     For simplicity, let's just make them visible if parent hovered or always.
+     A simpler approach for this layout is to just show them or create a flat list.
+     Here we allow them to flow. */
+  .nav-item:hover .nav-submenu { display: flex; }
+
+  .user-area {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 2px solid #f0f0f5;
+    width: 100%;
+  }
+  .user-button {
+    width: 100%;
+    justify-content: center;
+  }
+  .user-menu {
+    position: static;
+    opacity: 1;
+    pointer-events: auto;
+    box-shadow: none;
+    border: 1px solid #f0f0f5;
+    margin-top: 10px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .cart-dropdown {
+    position: fixed;
+    top: 60px;
+    left: 2%;
+    right: 2%;
+    width: 96%;
+    min-width: auto;
+    max-height: 80vh;
+  }
 }
 </style>
 CSS;
@@ -432,11 +521,38 @@ function renderHeader(PDO $pdo, string $active = '', array $meta = []): void {
     <?php endif; ?>
   <header class="header" style="top: <?php echo ($bannerEnabled && $bannerText) ? '44px' : '0'; ?>;">
     <nav class="navbar">
+      <button class="nav-toggle" type="button" aria-label="Meniu" aria-expanded="false">
+         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
       <a class="brand" href="/">Cukrinukas.lt</a>
-      <button class="nav-toggle" type="button" aria-label="Meniu" aria-expanded="false">☰</button>
+      
       <div class="nav-links">
         <?php echo $renderNav($navItems); ?>
-          <div class="cart-link">
+          
+          <?php if ($user['id']): ?>
+              <div class="user-area">
+                <button class="user-button" type="button">Labas, <?php echo htmlspecialchars($user['name']); ?><?php if ($unreadMessages): ?><span class="user-button__badge"><?php echo $unreadMessages; ?></span><?php endif; ?></button>
+                <div class="user-menu">
+                  <a class="user-menu__action" href="/orders.php">Užsakymai</a>
+                  <a class="user-menu__action" href="/account.php">Paskyros redagavimas</a>
+                  <a class="user-menu__action" href="/messages.php">Žinutės<?php if ($unreadMessages): ?> <span class="pill-count"><?php echo $unreadMessages; ?></span><?php endif; ?></a>
+                  <a class="user-menu__action" href="/saved.php">Mano išsaugoti</a>
+                  <?php if ($user['is_admin']): ?>
+                    <a class="user-menu__action" href="/admin.php">Administravimas</a>
+                  <?php endif; ?>
+                  <form method="post" action="/login.php" style="margin:0;">
+                    <?php echo csrfField(); ?>
+<input type="hidden" name="logout" value="1">
+                    <button class="user-menu__action" type="submit">Atsijungti</button>
+                  </form>
+                </div>
+              </div>
+          <?php else: ?>
+            <a href="/login.php">Prisijungti</a>
+          <?php endif; ?>
+      </div>
+
+      <div class="cart-link">
             <a class="cart-icon" href="/cart.php" aria-label="Krepšelis">
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M5 5h2l1 11h8l1-8H7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
@@ -480,29 +596,7 @@ function renderHeader(PDO $pdo, string $active = '', array $meta = []): void {
               <?php endif; ?>
             </div>
           </div>
-          <?php if ($user['id']): ?>
-              <div class="user-area">
-                <button class="user-button" type="button">Labas, <?php echo htmlspecialchars($user['name']); ?><?php if ($unreadMessages): ?><span class="user-button__badge"><?php echo $unreadMessages; ?></span><?php endif; ?></button>
-                <div class="user-menu">
-                  <a class="user-menu__action" href="/orders.php">Užsakymai</a>
-                  <a class="user-menu__action" href="/account.php">Paskyros redagavimas</a>
-                  <a class="user-menu__action" href="/messages.php">Žinutės<?php if ($unreadMessages): ?> <span class="pill-count"><?php echo $unreadMessages; ?></span><?php endif; ?></a>
-                  <a class="user-menu__action" href="/saved.php">Mano išsaugoti</a>
-                  <?php if ($user['is_admin']): ?>
-                    <a class="user-menu__action" href="/admin.php">Administravimas</a>
-                  <?php endif; ?>
-                  <form method="post" action="/login.php" style="margin:0;">
-                    <?php echo csrfField(); ?>
-<input type="hidden" name="logout" value="1">
-                    <button class="user-menu__action" type="submit">Atsijungti</button>
-                  </form>
-                </div>
-              </div>
-          <?php else: ?>
-            <a href="/login.php">Prisijungti</a>
-          <?php endif; ?>
-        </div>
-      </nav>
+    </nav>
     </header>
     <script>
       document.querySelectorAll('.user-area').forEach(function(area){
@@ -580,34 +674,35 @@ function renderFooter(?PDO $pdo = null): void {
     $footer = [
         'brand_title' => $siteContent['footer_brand_title'] ?? 'Cukrinukas.lt',
         'brand_body' => $siteContent['footer_brand_body'] ?? 'Diabeto priemonės, mažo GI užkandžiai ir kasdienių sprendimų gidai vienoje vietoje.',
-        'brand_pill' => $siteContent['footer_brand_pill'] ?? 'Kasdienė priežiūra',
-        'quick_title' => $siteContent['footer_quick_title'] ?? 'Greitos nuorodos',
-        'help_title' => $siteContent['footer_help_title'] ?? 'Pagalba',
-        'contact_title' => $siteContent['footer_contact_title'] ?? 'Kontaktai',
         'contact_email' => $siteContent['footer_contact_email'] ?? 'info@cukrinukas.lt',
         'contact_phone' => $siteContent['footer_contact_phone'] ?? '+370 600 00000',
         'contact_hours' => $siteContent['footer_contact_hours'] ?? 'I–V 09:00–18:00',
     ];
     $footerLinks = getFooterLinks($pdo);
+    // Merge quick and help links into one "Info" list for cleaner look
+    $mergedLinks = array_merge($footerLinks['quick'] ?? [], $footerLinks['help'] ?? []);
 
     static $footerCssPrinted = false;
     if (!$footerCssPrinted) {
         $footerCssPrinted = true;
         echo <<<CSS
 <style>
-.footer { background:#0b0b0b; color:#fff; padding:26px 22px 32px; margin-top:40px; }
-.footer-grid { max-width:1200px; margin:0 auto; display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:18px; }
-.footer h3, .footer h4 { color:#fff; margin:0 0 10px; }
-.footer p { margin:0 0 8px; color:#e2e6f5; }
-.footer strong { color:#f5f6ff; }
-.footer ul { list-style:none; padding:0; margin:0; display:grid; gap:6px; }
-.footer a { color:#e2e6f5; text-decoration:none; }
+.footer { background:#121212; color:#fff; padding:60px 22px; margin-top:60px; font-size: 15px; }
+.footer-grid { max-width:1200px; margin:0 auto; display:grid; grid-template-columns: 1.5fr 1fr 1fr; gap:40px; }
+.footer h3 { color:#fff; margin:0 0 16px; font-size: 18px; }
+.footer p { margin:0; color:#888; line-height: 1.6; max-width: 320px; }
+.footer ul { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
+.footer a { color:#bbb; text-decoration:none; transition: color .2s; }
 .footer a:hover { color:#fff; }
-.footer-pill { display:inline-flex; padding:8px 12px; border-radius:999px; background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.26); font-weight:700; }
-.footer .contact-row { color:#e2e6f5; display:grid; gap:3px; }
-.footer .contact-label { color:#cfd4ec; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; font-size:12px; }
-.footer .contact-value { color:#fff; font-weight:600; }
-.footer .muted { color:#d4d9ec; }
+.footer .contact-row { display:flex; flex-direction: column; margin-bottom: 12px; }
+.footer .contact-label { color:#666; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; margin-bottom: 4px; }
+.footer .contact-value { color:#eee; }
+
+@media (max-width: 768px) {
+    .footer-grid { grid-template-columns: 1fr; gap: 30px; text-align: center; }
+    .footer p { margin: 0 auto; }
+    .footer ul { align-items: center; }
+}
 </style>
 CSS;
     }
@@ -615,37 +710,30 @@ CSS;
     <footer class="footer">
       <div class="footer-grid">
         <div>
-          <div class="footer-pill"><?php echo htmlspecialchars($footer['brand_pill']); ?></div>
           <h3><?php echo htmlspecialchars($footer['brand_title']); ?></h3>
           <p><?php echo htmlspecialchars($footer['brand_body']); ?></p>
         </div>
+        
         <div>
-          <h4><?php echo htmlspecialchars($footer['quick_title']); ?></h4>
+          <h3>Informacija</h3>
           <ul>
-            <?php foreach ($footerLinks['quick'] ?? [] as $link): ?>
+            <?php foreach ($mergedLinks as $link): ?>
               <li><a href="<?php echo htmlspecialchars($link['url']); ?>"><?php echo htmlspecialchars($link['label']); ?></a></li>
             <?php endforeach; ?>
           </ul>
         </div>
+        
         <div>
-          <h4><?php echo htmlspecialchars($footer['help_title']); ?></h4>
-          <ul>
-            <?php foreach ($footerLinks['help'] ?? [] as $link): ?>
-              <li><a href="<?php echo htmlspecialchars($link['url']); ?>"><?php echo htmlspecialchars($link['label']); ?></a></li>
-            <?php endforeach; ?>
-          </ul>
-        </div>
-        <div>
-          <h4><?php echo htmlspecialchars($footer['contact_title']); ?></h4>
+          <h3>Kontaktai</h3>
           <div class="contact-row">
             <span class="contact-label">El. paštas</span>
-            <span class="contact-value"><?php echo htmlspecialchars($footer['contact_email']); ?></span>
+            <span class="contact-value"><a href="mailto:<?php echo htmlspecialchars($footer['contact_email']); ?>"><?php echo htmlspecialchars($footer['contact_email']); ?></a></span>
           </div>
-          <div class="contact-row" style="margin-top:8px;">
-            <span class="contact-label">Tel.</span>
-            <span class="contact-value"><?php echo htmlspecialchars($footer['contact_phone']); ?></span>
+          <div class="contact-row">
+            <span class="contact-label">Telefonas</span>
+            <span class="contact-value"><a href="tel:<?php echo htmlspecialchars($footer['contact_phone']); ?>"><?php echo htmlspecialchars($footer['contact_phone']); ?></a></span>
           </div>
-          <div class="contact-row" style="margin-top:8px;">
+          <div class="contact-row">
             <span class="contact-label">Darbo laikas</span>
             <span class="contact-value"><?php echo htmlspecialchars($footer['contact_hours']); ?></span>
           </div>
