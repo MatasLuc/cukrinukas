@@ -416,7 +416,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
           <h1><?php echo htmlspecialchars($heroTitle); ?></h1>
           <p><?php echo htmlspecialchars($heroBody); ?></p>
           <div class="hero__actions">
-            <a class="btn" style="background:#fff; color:#1d4ed8; border-color:#fff;" href="<?php echo htmlspecialchars($heroCtaUrl); ?>"><?php echo htmlspecialchars($heroCtaLabel); ?></a>
+            <a class="btn" style="background:#fff; color:#000; border-color:#fff;" href="<?php echo htmlspecialchars($heroCtaUrl); ?>"><?php echo htmlspecialchars($heroCtaLabel); ?></a>
           </div>
         </div>
         <div class="glass-card support-mini">
