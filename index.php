@@ -428,7 +428,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
 
     <section class="section-shell promo-section">
       <div class="section-head">
-        <h2>Greiti akcentai</h2>
+        <h2>SVETAINĖS AKCENTAI</h2>
       </div>
       <div class="promo-grid">
         <?php foreach ($promoCards as $card): ?>
@@ -466,7 +466,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
 
     <section class="section-shell store-section" id="parduotuve">
       <div class="section-head">
-        <h2>Populiariausios prekės</h2>
+        <h2>REKOMENDUOJAMOS PREKĖS</h2>
         <a class="pill" href="/products.php">Visos prekės →</a>
       </div>
 
@@ -557,7 +557,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
 
     <section class="section-shell testimonials">
       <div class="section-head">
-        <h2>Klientų atsiliepimai</h2>
+        <h2>ATSILIEPIMAI</h2>
       </div>
       <div class="testimonials-box">
         <div class="testimonial-grid">
@@ -574,7 +574,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
 
     <section class="section-shell news-block" id="naujienos">
       <div class="section-head">
-        <h2>Naujienos</h2>
+        <h2>NAUJIENOS</h2>
         <a class="pill" href="/news.php">Visos naujienos →</a>
       </div>
       <div class="news-grid">
