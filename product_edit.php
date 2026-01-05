@@ -247,106 +247,109 @@ foreach ($allCategories as $c) {
         <div style="background:#fff1f1; border:1px solid #f3b7b7; padding:12px; border-radius:12px; color:#991b1b; margin-bottom:10px;">&times; <?php echo htmlspecialchars($err); ?></div>
       <?php endforeach; ?>
 
-      <form id="product-form" method="post" enctype="multipart/form-data" style="display:grid; grid-template-columns: 2fr 1fr; gap:16px; align-items:start;" onsubmit="return syncAllEditors();">
-        <?php echo csrfField(); ?>
-        <input type="hidden" name="action" value="edit_product">
+      <div style="display:grid; grid-template-columns: 2fr 1fr; gap:16px; align-items:start;">
         
         <div>
-          <label>Pavadinimas</label>
-          <input name="title" value="<?php echo htmlspecialchars($product['title']); ?>" required>
-          
-          <label>Paantraštė</label>
-          <input name="subtitle" value="<?php echo htmlspecialchars($product['subtitle'] ?? ''); ?>">
-          
-          <label>Aprašymas ir turinys</label>
-          <div class="toolbar">
-             <button type="button" onmousedown="event.preventDefault()" onclick="format('bold')"><b>B</b></button>
-             <button type="button" onmousedown="event.preventDefault()" onclick="format('italic')"><em>I</em></button>
-             <button type="button" onmousedown="event.preventDefault()" onclick="format('insertUnorderedList')">• Sąrašas</button>
-             <button type="button" onmousedown="event.preventDefault()" onclick="createLink()">🔗</button>
-             <button type="button" onmousedown="event.preventDefault()" onclick="format('removeFormat')">Išvalyti</button>
-          </div>
-
-          <div id="desc-editor" class="rich-editor" contenteditable="true"><?php echo $product['description']; ?></div>
-          <textarea name="description" id="desc-textarea" hidden></textarea>
-
-          <label>Juostelės tekstas</label>
-          <input name="ribbon_text" value="<?php echo htmlspecialchars($product['ribbon_text'] ?? ''); ?>">
-          
-          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:10px;">
-            <label>Kaina<input type="number" step="0.01" name="price" value="<?php echo htmlspecialchars($product['price']); ?>" required></label>
-            <label>Kaina su nuolaida<input type="number" step="0.01" name="sale_price" value="<?php echo htmlspecialchars($product['sale_price'] ?? ''); ?>"></label>
-            <label>Kiekis<input type="number" name="quantity" min="0" value="<?php echo (int)$product['quantity']; ?>" required></label>
-          </div>
-
-          <label>Kategorijos (Hierarchinis pasirinkimas)</label>
-          <div class="cat-grid">
-            <?php foreach ($catTree as $branch): ?>
-              <div class="cat-group">
-                  <label class="cat-parent cat-item">
-                      <input type="checkbox" name="categories[]" value="<?php echo (int)$branch['self']['id']; ?>" <?php echo in_array($branch['self']['id'], $currentCatIds) ? 'checked' : ''; ?>>
-                      <?php echo htmlspecialchars($branch['self']['name']); ?>
-                  </label>
-                  
-                  <?php if(!empty($branch['children'])): ?>
-                    <div class="cat-children">
-                        <?php foreach ($branch['children'] as $child): ?>
-                            <label class="cat-item">
-                                <input type="checkbox" name="categories[]" value="<?php echo (int)$child['id']; ?>" <?php echo in_array($child['id'], $currentCatIds) ? 'checked' : ''; ?>>
-                                <?php echo htmlspecialchars($child['name']); ?>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                  <?php endif; ?>
+          <form id="product-form" method="post" enctype="multipart/form-data" onsubmit="return syncAllEditors();">
+              <?php echo csrfField(); ?>
+              <input type="hidden" name="action" value="edit_product">
+              
+              <label>Pavadinimas</label>
+              <input name="title" value="<?php echo htmlspecialchars($product['title']); ?>" required>
+              
+              <label>Paantraštė</label>
+              <input name="subtitle" value="<?php echo htmlspecialchars($product['subtitle'] ?? ''); ?>">
+              
+              <label>Aprašymas ir turinys</label>
+              <div class="toolbar">
+                 <button type="button" onmousedown="event.preventDefault()" onclick="format('bold')"><b>B</b></button>
+                 <button type="button" onmousedown="event.preventDefault()" onclick="format('italic')"><em>I</em></button>
+                 <button type="button" onmousedown="event.preventDefault()" onclick="format('insertUnorderedList')">• Sąrašas</button>
+                 <button type="button" onmousedown="event.preventDefault()" onclick="createLink()">🔗</button>
+                 <button type="button" onmousedown="event.preventDefault()" onclick="format('removeFormat')">Išvalyti</button>
               </div>
-            <?php endforeach; ?>
-          </div>
 
-          <label>Pridėti nuotraukų</label>
-          <input type="file" name="images[]" multiple accept="image/*">
-          
-          <label>SEO žymės</label>
-          <textarea name="meta_tags" style="min-height:80px; width:100%; border-radius:12px; border:1px solid #d7d7e2; padding:10px;"><?php echo htmlspecialchars($product['meta_tags'] ?? ''); ?></textarea>
+              <div id="desc-editor" class="rich-editor" contenteditable="true"><?php echo $product['description']; ?></div>
+              <textarea name="description" id="desc-textarea" hidden></textarea>
 
-          <h3>Susijusios prekės</h3>
-          <select name="related_products[]" multiple size="6" style="width:100%; padding:10px; border-radius:12px; border:1px solid #d7d7e2;">
-            <?php foreach ($allProducts as $p): ?>
-              <?php if ((int)$p['id'] === (int)$productId) { continue; } ?>
-              <option value="<?php echo (int)$p['id']; ?>" <?php echo in_array((int)$p['id'], $relatedIds, true) ? 'selected' : ''; ?>><?php echo htmlspecialchars($p['title']); ?></option>
-            <?php endforeach; ?>
-          </select>
-
-          <h3>Papildomi laukeliai</h3>
-          <div id="attributes" style="display:flex; flex-direction:column; gap:12px;">
-            <?php if ($attributes): foreach ($attributes as $i => $attr): ?>
-              <div style="display:grid; grid-template-columns:1fr 2fr; gap:8px;">
-                <input name="attr_label[]" placeholder="Pavadinimas" value="<?php echo htmlspecialchars($attr['label']); ?>">
-                <div class="mini-editor" contenteditable="true" data-target="attr-val-<?php echo $i; ?>"><?php echo $attr['value']; ?></div>
-                <input type="hidden" name="attr_value[]" id="attr-val-<?php echo $i; ?>" value="<?php echo htmlspecialchars($attr['value']); ?>">
+              <label>Juostelės tekstas</label>
+              <input name="ribbon_text" value="<?php echo htmlspecialchars($product['ribbon_text'] ?? ''); ?>">
+              
+              <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:10px;">
+                <label>Kaina<input type="number" step="0.01" name="price" value="<?php echo htmlspecialchars($product['price']); ?>" required></label>
+                <label>Kaina su nuolaida<input type="number" step="0.01" name="sale_price" value="<?php echo htmlspecialchars($product['sale_price'] ?? ''); ?>"></label>
+                <label>Kiekis<input type="number" name="quantity" min="0" value="<?php echo (int)$product['quantity']; ?>" required></label>
               </div>
-            <?php endforeach; endif; ?>
-            <div style="display:grid; grid-template-columns:1fr 2fr; gap:8px;">
-              <input name="attr_label[]" placeholder="Pavadinimas">
-              <div class="mini-editor" contenteditable="true" data-target="attr-val-new"></div>
-              <input type="hidden" name="attr_value[]" id="attr-val-new">
-            </div>
-          </div>
-          <button type="button" class="btn" style="margin-top:10px; background:#fff; color:#0b0b0b;" onclick="addAttrRow()">+ Pridėti laukelį</button>
 
-          <h3>Variacijos</h3>
-          <div id="variations" style="display:flex; flex-direction:column; gap:10px;">
-            <?php if ($variations): foreach ($variations as $var): ?>
-              <div style="display:grid; grid-template-columns:2fr 1fr; gap:8px;">
-                <input name="variation_name[]" value="<?php echo htmlspecialchars($var['name']); ?>">
-                <input name="variation_price[]" type="number" step="0.01" value="<?php echo htmlspecialchars($var['price_delta']); ?>">
+              <label>Kategorijos (Hierarchinis pasirinkimas)</label>
+              <div class="cat-grid">
+                <?php foreach ($catTree as $branch): ?>
+                  <div class="cat-group">
+                      <label class="cat-parent cat-item">
+                          <input type="checkbox" name="categories[]" value="<?php echo (int)$branch['self']['id']; ?>" <?php echo in_array($branch['self']['id'], $currentCatIds) ? 'checked' : ''; ?>>
+                          <?php echo htmlspecialchars($branch['self']['name']); ?>
+                      </label>
+                      
+                      <?php if(!empty($branch['children'])): ?>
+                        <div class="cat-children">
+                            <?php foreach ($branch['children'] as $child): ?>
+                                <label class="cat-item">
+                                    <input type="checkbox" name="categories[]" value="<?php echo (int)$child['id']; ?>" <?php echo in_array($child['id'], $currentCatIds) ? 'checked' : ''; ?>>
+                                    <?php echo htmlspecialchars($child['name']); ?>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                      <?php endif; ?>
+                  </div>
+                <?php endforeach; ?>
               </div>
-            <?php endforeach; endif; ?>
-            <div style="display:grid; grid-template-columns:2fr 1fr; gap:8px;">
-              <input name="variation_name[]" placeholder="Variacijos pavadinimas">
-              <input name="variation_price[]" type="number" step="0.01" placeholder="Δ kaina">
-            </div>
-          </div>
-          <button class="btn" type="submit" style="margin-top:20px;">Išsaugoti pakeitimus</button>
+
+              <label>Pridėti nuotraukų</label>
+              <input type="file" name="images[]" multiple accept="image/*">
+              
+              <label>SEO žymės</label>
+              <textarea name="meta_tags" style="min-height:80px; width:100%; border-radius:12px; border:1px solid #d7d7e2; padding:10px;"><?php echo htmlspecialchars($product['meta_tags'] ?? ''); ?></textarea>
+
+              <h3>Susijusios prekės</h3>
+              <select name="related_products[]" multiple size="6" style="width:100%; padding:10px; border-radius:12px; border:1px solid #d7d7e2;">
+                <?php foreach ($allProducts as $p): ?>
+                  <?php if ((int)$p['id'] === (int)$productId) { continue; } ?>
+                  <option value="<?php echo (int)$p['id']; ?>" <?php echo in_array((int)$p['id'], $relatedIds, true) ? 'selected' : ''; ?>><?php echo htmlspecialchars($p['title']); ?></option>
+                <?php endforeach; ?>
+              </select>
+
+              <h3>Papildomi laukeliai</h3>
+              <div id="attributes" style="display:flex; flex-direction:column; gap:12px;">
+                <?php if ($attributes): foreach ($attributes as $i => $attr): ?>
+                  <div style="display:grid; grid-template-columns:1fr 2fr; gap:8px;">
+                    <input name="attr_label[]" placeholder="Pavadinimas" value="<?php echo htmlspecialchars($attr['label']); ?>">
+                    <div class="mini-editor" contenteditable="true" data-target="attr-val-<?php echo $i; ?>"><?php echo $attr['value']; ?></div>
+                    <input type="hidden" name="attr_value[]" id="attr-val-<?php echo $i; ?>" value="<?php echo htmlspecialchars($attr['value']); ?>">
+                  </div>
+                <?php endforeach; endif; ?>
+                <div style="display:grid; grid-template-columns:1fr 2fr; gap:8px;">
+                  <input name="attr_label[]" placeholder="Pavadinimas">
+                  <div class="mini-editor" contenteditable="true" data-target="attr-val-new"></div>
+                  <input type="hidden" name="attr_value[]" id="attr-val-new">
+                </div>
+              </div>
+              <button type="button" class="btn" style="margin-top:10px; background:#fff; color:#0b0b0b;" onclick="addAttrRow()">+ Pridėti laukelį</button>
+
+              <h3>Variacijos</h3>
+              <div id="variations" style="display:flex; flex-direction:column; gap:10px;">
+                <?php if ($variations): foreach ($variations as $var): ?>
+                  <div style="display:grid; grid-template-columns:2fr 1fr; gap:8px;">
+                    <input name="variation_name[]" value="<?php echo htmlspecialchars($var['name']); ?>">
+                    <input name="variation_price[]" type="number" step="0.01" value="<?php echo htmlspecialchars($var['price_delta']); ?>">
+                  </div>
+                <?php endforeach; endif; ?>
+                <div style="display:grid; grid-template-columns:2fr 1fr; gap:8px;">
+                  <input name="variation_name[]" placeholder="Variacijos pavadinimas">
+                  <input name="variation_price[]" type="number" step="0.01" placeholder="Δ kaina">
+                </div>
+              </div>
+              <button class="btn" type="submit" style="margin-top:20px;">Išsaugoti pakeitimus</button>
+          </form>
         </div>
 
         <div>
@@ -373,7 +376,8 @@ foreach ($allCategories as $c) {
             <?php endforeach; ?>
           </div>
         </div>
-      </form>
+      </div>
+
     </div>
   </div>
   <?php renderFooter($pdo); ?>
