@@ -348,7 +348,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
                 <div class="ribbon"><?php echo htmlspecialchars($product['ribbon_text']); ?></div>
               <?php endif; ?>
               <?php if ($isGift): ?>
-                <div class="gift-badge">🎁 Nemokamas pristatymas</div>
+                <div class="gift-badge">🎁 Nemokamai</div>
               <?php endif; ?>
               <a href="/product.php?id=<?php echo (int)$product['id']; ?>">
                 <img src="<?php echo htmlspecialchars($cardImage); ?>" alt="<?php echo htmlspecialchars($product['title']); ?>" loading="lazy">
