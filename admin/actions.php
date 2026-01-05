@@ -1,18 +1,8 @@
 <?php
 // admin/actions.php
 
-// Užtikriname, kad kodas vykdomas tik esant POST užklausai
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    
-    // Būtina CSRF apsauga (jei funkcija egzistuoja functions.php faile)
-    if (function_exists('validateCsrfToken')) {
-        validateCsrfToken();
-    }
-    
-    $action = $_POST['action'] ?? '';
-
-    // --- PAGALBINĖ FUNKCIJA NUKREIPIMUI IR PRANEŠIMAMS ---
-    // Tai užtikrina, kad po veiksmo visada įvyks peradresavimas (išvengiama redirect loop)
+// Apibrėžiame pagalbinę funkciją prieš vykdant kodą, kad būtų prieinama visada
+if (!function_exists('redirectWithMsg')) {
     function redirectWithMsg($view, $msg, $type = 'success') {
         if ($type === 'success') {
             $_SESSION['flash_success'] = $msg;
@@ -22,6 +12,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header("Location: /admin.php?view=" . $view);
         exit;
     }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    
+    // Būtina CSRF apsauga
+    if (function_exists('validateCsrfToken')) {
+        validateCsrfToken();
+    }
+    
+    $action = $_POST['action'] ?? '';
 
     // --- NUOLAIDOS IR AKCIJOS ---
     if ($action === 'save_global_discount') {
@@ -109,7 +109,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // --- PREKĖS IR FEATURED ---
     
-    // Pridėta: toggle_featured (kad veiktų mygtukai iš products sąrašo)
     if ($action === 'toggle_featured') {
         $pid = (int)($_POST['product_id'] ?? 0);
         $setFeatured = (int)($_POST['set_featured'] ?? 0);
@@ -124,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Pridedame (jei neviršija limito)
                 $count = $pdo->query("SELECT COUNT(*) FROM featured_products")->fetchColumn();
                 if ($count < 3) {
-                    $pdo->prepare("INSERT INTO featured_products (product_id, sort_order) VALUES (?, 0)")->execute([$pid]);
+                    $pdo->prepare("INSERT IGNORE INTO featured_products (product_id, sort_order) VALUES (?, 0)")->execute([$pid]);
                     $pdo->prepare("UPDATE products SET is_featured = 1 WHERE id = ?")->execute([$pid]);
                     redirectWithMsg('products', 'Prekė pažymėta kaip Featured');
                 } else {
@@ -176,98 +175,119 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$title) redirectWithMsg('products', 'Trūksta prekės pavadinimo', 'error');
 
-        if ($id) {
-            // Update
-            $stmt = $pdo->prepare('UPDATE products SET category_id=?, title=?, subtitle=?, description=?, ribbon_text=?, price=?, sale_price=?, quantity=?, meta_tags=?, is_featured=? WHERE id=?');
-            $stmt->execute([$primaryCatId, $title, $subtitle ?: null, $description, $ribbon ?: null, $price, $salePrice, $qty, $metaTags ?: null, $isFeatured, $id]);
-            $productId = $id;
-            $msg = 'Prekė atnaujinta';
-        } else {
-            // Create
-            $stmt = $pdo->prepare('INSERT INTO products (category_id, title, subtitle, description, ribbon_text, image_url, price, sale_price, quantity, meta_tags, is_featured) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-            $stmt->execute([
-                $primaryCatId, $title, $subtitle ?: null, $description, $ribbon ?: null,
-                'https://placehold.co/600x400?text=Preke', 
-                $price, $salePrice, $qty, $metaTags ?: null, $isFeatured
-            ]);
-            $productId = (int)$pdo->lastInsertId();
-            $msg = 'Prekė sukurta';
-        }
-
-        // Handle Featured Logic Sync
-        if ($isFeatured) {
-            $pdo->prepare("INSERT IGNORE INTO featured_products (product_id, sort_order) VALUES (?, 0)")->execute([$productId]);
-        } else {
-            $pdo->prepare("DELETE FROM featured_products WHERE product_id = ?")->execute([$productId]);
-        }
-
-        // Categories
-        $pdo->prepare("DELETE FROM product_category_relations WHERE product_id = ?")->execute([$productId]);
-        if (!empty($cats)) {
-            $insCat = $pdo->prepare("INSERT INTO product_category_relations (product_id, category_id) VALUES (?, ?)");
-            foreach ($cats as $cid) {
-                $insCat->execute([$productId, (int)$cid]);
+        try {
+            if ($id) {
+                // Update
+                $stmt = $pdo->prepare('UPDATE products SET category_id=?, title=?, subtitle=?, description=?, ribbon_text=?, price=?, sale_price=?, quantity=?, meta_tags=?, is_featured=? WHERE id=?');
+                $stmt->execute([$primaryCatId, $title, $subtitle ?: null, $description, $ribbon ?: null, $price, $salePrice, $qty, $metaTags ?: null, $isFeatured, $id]);
+                $productId = $id;
+                $msg = 'Prekė atnaujinta';
+            } else {
+                // Create
+                $stmt = $pdo->prepare('INSERT INTO products (category_id, title, subtitle, description, ribbon_text, image_url, price, sale_price, quantity, meta_tags, is_featured) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                $stmt->execute([
+                    $primaryCatId, $title, $subtitle ?: null, $description, $ribbon ?: null,
+                    'https://placehold.co/600x400?text=Preke', 
+                    $price, $salePrice, $qty, $metaTags ?: null, $isFeatured
+                ]);
+                $productId = (int)$pdo->lastInsertId();
+                $msg = 'Prekė sukurta';
             }
-        }
 
-        // Images
-        if (!empty($_FILES['images']['name'][0])) {
-            storeUploads($pdo, $productId, $_FILES['images']);
-        }
+            // --- SYNC FEATURED (svarbu, kad index.php veiktų) ---
+            if ($isFeatured) {
+                // Įdedame į featured_products, jei dar nėra
+                $count = $pdo->query("SELECT COUNT(*) FROM featured_products")->fetchColumn();
+                // Jei limitas neviršytas arba produktas jau yra ten
+                $exists = $pdo->prepare("SELECT 1 FROM featured_products WHERE product_id = ?");
+                $exists->execute([$productId]);
+                if (!$exists->fetchColumn() && $count < 3) {
+                     $pdo->prepare("INSERT IGNORE INTO featured_products (product_id, sort_order) VALUES (?, 0)")->execute([$productId]);
+                } elseif (!$exists->fetchColumn()) {
+                     // Jei limitas viršytas, bet vartotojas pažymėjo varnelę - galime arba ignoruoti, arba trinti seniausią.
+                     // Šiuo atveju paliekame is_featured=1, bet į featured lentelę nededame (index.php ims iš featured lentelės).
+                     // Arba, kad būtų aiškiau, nuimame is_featured.
+                     // Pasirinkimas: leidžiame būti "is_featured" bazėje, bet nerodome index.php kol neatsilaisvins vieta.
+                }
+            } else {
+                $pdo->prepare("DELETE FROM featured_products WHERE product_id = ?")->execute([$productId]);
+            }
+
+            // Categories
+            $pdo->prepare("DELETE FROM product_category_relations WHERE product_id = ?")->execute([$productId]);
+            if (!empty($cats)) {
+                $insCat = $pdo->prepare("INSERT INTO product_category_relations (product_id, category_id) VALUES (?, ?)");
+                foreach ($cats as $cid) {
+                    $insCat->execute([$productId, (int)$cid]);
+                }
+            }
+
+            // Images
+            if (!empty($_FILES['images']['name'][0])) {
+                // functions.php turi būti užkrautas
+                if (function_exists('storeUploads')) {
+                    storeUploads($pdo, $productId, $_FILES['images']);
+                }
+            }
+            
+            // Primary Image change
+            if (isset($_POST['primary_image_id']) && function_exists('setPrimaryImage')) {
+                setPrimaryImage($pdo, $productId, (int)$_POST['primary_image_id']);
+            }
+
+            // Delete images
+            if (!empty($_POST['delete_images']) && function_exists('deleteProductImage')) {
+                foreach ($_POST['delete_images'] as $delImgId) {
+                    deleteProductImage($pdo, $productId, (int)$delImgId);
+                }
+            }
+
+            // Related Products
+            $pdo->prepare('DELETE FROM product_related WHERE product_id = ?')->execute([$productId]);
+            $related = array_filter(array_map('intval', $_POST['related_products'] ?? []));
+            if ($related) {
+                $insertRel = $pdo->prepare('INSERT IGNORE INTO product_related (product_id, related_product_id) VALUES (?, ?)');
+                foreach ($related as $rel) {
+                    if ($rel !== $productId) $insertRel->execute([$productId, $rel]);
+                }
+            }
+
+            // Attributes
+            $pdo->prepare('DELETE FROM product_attributes WHERE product_id = ?')->execute([$productId]);
+            $attrNames = $_POST['attr_label'] ?? [];
+            $attrValues = $_POST['attr_value'] ?? [];
+            if ($attrNames) {
+                $insertAttr = $pdo->prepare('INSERT INTO product_attributes (product_id, label, value) VALUES (?, ?, ?)');
+                foreach ($attrNames as $idx => $label) {
+                    $label = trim($label);
+                    $val = trim($attrValues[$idx] ?? ''); 
+                    if ($label && $val) {
+                        $insertAttr->execute([$productId, $label, $val]);
+                    }
+                }
+            }
+
+            // Variations
+            $pdo->prepare('DELETE FROM product_variations WHERE product_id = ?')->execute([$productId]);
+            $varNames = $_POST['variation_name'] ?? [];
+            $varPrices = $_POST['variation_price'] ?? [];
+            if ($varNames) {
+                $insertVar = $pdo->prepare('INSERT INTO product_variations (product_id, name, price_delta) VALUES (?, ?, ?)');
+                foreach ($varNames as $idx => $vName) {
+                    $vName = trim($vName);
+                    $delta = isset($varPrices[$idx]) && $varPrices[$idx] !== '' ? (float)$varPrices[$idx] : 0;
+                    if ($vName !== '') {
+                        $insertVar->execute([$productId, $vName, $delta]);
+                    }
+                }
+            }
+
+            redirectWithMsg('products', $msg);
         
-        // Primary Image change
-        if (isset($_POST['primary_image_id'])) {
-            setPrimaryImage($pdo, $productId, (int)$_POST['primary_image_id']);
+        } catch (Exception $e) {
+            // Pagalbinis klaidų gaudymas 500 klaidai
+            redirectWithMsg('products', 'Klaida saugant prekę: ' . $e->getMessage(), 'error');
         }
-
-        // Delete images
-        if (!empty($_POST['delete_images'])) {
-            foreach ($_POST['delete_images'] as $delImgId) {
-                deleteProductImage($pdo, $productId, (int)$delImgId);
-            }
-        }
-
-        // Related Products
-        $pdo->prepare('DELETE FROM product_related WHERE product_id = ?')->execute([$productId]);
-        $related = array_filter(array_map('intval', $_POST['related_products'] ?? []));
-        if ($related) {
-            $insertRel = $pdo->prepare('INSERT IGNORE INTO product_related (product_id, related_product_id) VALUES (?, ?)');
-            foreach ($related as $rel) {
-                if ($rel !== $productId) $insertRel->execute([$productId, $rel]);
-            }
-        }
-
-        // Attributes
-        $pdo->prepare('DELETE FROM product_attributes WHERE product_id = ?')->execute([$productId]);
-        $attrNames = $_POST['attr_label'] ?? [];
-        $attrValues = $_POST['attr_value'] ?? [];
-        if ($attrNames) {
-            $insertAttr = $pdo->prepare('INSERT INTO product_attributes (product_id, label, value) VALUES (?, ?, ?)');
-            foreach ($attrNames as $idx => $label) {
-                $label = trim($label);
-                $val = trim($attrValues[$idx] ?? ''); 
-                if ($label && $val) {
-                    $insertAttr->execute([$productId, $label, $val]);
-                }
-            }
-        }
-
-        // Variations
-        $pdo->prepare('DELETE FROM product_variations WHERE product_id = ?')->execute([$productId]);
-        $varNames = $_POST['variation_name'] ?? [];
-        $varPrices = $_POST['variation_price'] ?? [];
-        if ($varNames) {
-            $insertVar = $pdo->prepare('INSERT INTO product_variations (product_id, name, price_delta) VALUES (?, ?, ?)');
-            foreach ($varNames as $idx => $vName) {
-                $vName = trim($vName);
-                $delta = isset($varPrices[$idx]) && $varPrices[$idx] !== '' ? (float)$varPrices[$idx] : 0;
-                if ($vName !== '') {
-                    $insertVar->execute([$productId, $vName, $delta]);
-                }
-            }
-        }
-
-        redirectWithMsg('products', $msg);
     }
 
     if ($action === 'bulk_delete_products') {
@@ -635,7 +655,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($action === 'unblock_user' || $action === 'community_unblock') {
         $id = (int)($_POST['id'] ?? $_POST['user_id'] ?? 0);
-        $pdo->prepare('DELETE FROM community_blocks WHERE user_id = ?')->execute([$id]); // Pataisyta WHERE sąlyga pagal user_id, jei formos siunčia user_id
+        $pdo->prepare('DELETE FROM community_blocks WHERE user_id = ?')->execute([$id]);
         redirectWithMsg('community', 'Vartotojas atblokuotas');
     }
 
