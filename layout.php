@@ -48,15 +48,18 @@ strong, b { font-weight: 700 !important; color: var(--text-color); }
 
 a { color: var(--text-color); }
 .muted { color: #4a4a55; font-weight: var(--font-weight-medium); }
+
+/* Headerio Z-INDEX pataisymas: užtikrina, kad meniu visada viršuje */
 .header {
   background: rgba(255,255,255,0.98);
   backdrop-filter: saturate(1.2) blur(14px);
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: 1000; 
   box-shadow: none;
   border-bottom: 1px solid var(--header-border);
 }
+
 .announcement-bar {
   background: var(--accent);
   color: #0b0b0b;
@@ -65,7 +68,7 @@ a { color: var(--text-color); }
   font-weight: var(--font-weight-semibold);
   position: sticky;
   top: 0;
-  z-index: 22;
+  z-index: 1001;
   display: flex;
   justify-content: center;
   gap: 10px;
@@ -73,6 +76,7 @@ a { color: var(--text-color); }
 }
 .announcement-bar a { color: inherit; text-decoration: none; font-weight: var(--font-weight-semibold); }
 .announcement-bar__label { padding:6px 10px; background:rgba(255,255,255,0.6); border-radius:999px; font-size:12px; }
+
 .navbar {
   max-width: 1200px;
   margin: 0 auto;
@@ -109,6 +113,7 @@ a { color: var(--text-color); }
   text-decoration: none;
 }
 .brand:hover { background: rgba(130,158,214,0.28); }
+
 .nav-links {
   display: flex;
   gap: 14px;
@@ -128,7 +133,7 @@ a { color: var(--text-color); }
   box-shadow:0 18px 38px rgba(0,0,0,0.16);
   display:none;
   min-width:180px;
-  z-index:30;
+  z-index: 1002;
   flex-direction:column;
   gap:4px;
 }
@@ -136,6 +141,7 @@ a { color: var(--text-color); }
 .nav-item:hover .nav-submenu, .nav-item:focus-within .nav-submenu { display:flex; }
 .nav-submenu a { color:#0b0b0b; font-weight:600; padding:8px 10px; display:block; border-radius:10px; }
 .nav-submenu a:hover { background:#f3f3f8; }
+
 .nav-links a {
   color: #0b0b0b;
   text-decoration: none;
@@ -145,6 +151,7 @@ a { color: var(--text-color); }
   transition: background .15s ease, color .15s ease;
 }
 .nav-links a:hover { color: #0b0b0b; background: rgba(130,158,214,0.18); }
+
 .nav-links .user-area { position: relative; padding-bottom: 6px; }
 .nav-links .user-button {
   display:flex;
@@ -190,7 +197,7 @@ a { color: var(--text-color); }
   opacity:0;
   pointer-events:none;
   transition:opacity .15s ease;
-  z-index: 31;
+  z-index: 1003;
 }
 .checkbox-row {
   display:flex;
@@ -223,6 +230,7 @@ input[type=checkbox] {
 .user-area:focus-within .user-menu,
 .user-menu:hover,
 .user-menu.open { opacity:1; pointer-events:auto; }
+
 .cart-link { position: relative; }
 .cart-icon {
   display:inline-flex;
@@ -265,7 +273,7 @@ input[type=checkbox] {
   transform: translateX(0);
   overflow-y: auto;
   max-height: 70vh;
-  z-index: 100;
+  z-index: 1005; /* Krepšelis turi būti aukščiau meniu */
 }
 .cart-link:hover .cart-dropdown,
 .cart-link:focus-within .cart-dropdown,
@@ -334,7 +342,7 @@ input[type=checkbox] {
     box-sizing: border-box;
     flex-direction: column;
     align-items: stretch;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
     z-index: 1000;
   }
   .nav-links.open { display: flex; }
@@ -364,11 +372,8 @@ input[type=checkbox] {
     display: none;
     width: 100%;
     min-width: auto;
+    z-index: auto;
   }
-  /* Show submenus by default on mobile or rely on JS? 
-     For simplicity, let's just make them visible if parent hovered or always.
-     A simpler approach for this layout is to just show them or create a flat list.
-     Here we allow them to flow. */
   .nav-item:hover .nav-submenu { display: flex; }
 
   .user-area {
@@ -390,6 +395,7 @@ input[type=checkbox] {
     margin-top: 10px;
     width: 100%;
     box-sizing: border-box;
+    z-index: auto;
   }
 
   .cart-dropdown {
@@ -400,6 +406,7 @@ input[type=checkbox] {
     width: 96%;
     min-width: auto;
     max-height: 80vh;
+    z-index: 2000;
   }
 }
 </style>
@@ -418,12 +425,11 @@ function renderHeader(PDO $pdo, string $active = '', array $meta = []): void {
     try {
         ensureDirectMessages($pdo);
     } catch (Throwable $e) {
-        // fail silently in header to avoid breaking the layout
+        // fail silently
     }
     $navItems = getNavigationTree($pdo);
     $siteContent = getSiteContent($pdo);
     $unreadMessages = $user['id'] ? getUnreadDirectMessagesCount($pdo, (int)$user['id']) : 0;
-    $globalDiscount = getGlobalDiscount($pdo);
     $bannerEnabled = !empty($siteContent['banner_enabled']) && $siteContent['banner_enabled'] !== '0';
     $bannerText = trim($siteContent['banner_text'] ?? '');
     $bannerLink = trim($siteContent['banner_link'] ?? '');
@@ -448,7 +454,6 @@ function renderHeader(PDO $pdo, string $active = '', array $meta = []): void {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-
       <link rel="manifest" href="/manifest.json">
       <meta name="theme-color" content="#829ed6">
       <link rel="apple-touch-icon" href="/uploads/icon-192.png">
@@ -456,55 +461,39 @@ function renderHeader(PDO $pdo, string $active = '', array $meta = []): void {
       <title><?php echo htmlspecialchars($metaTitle); ?></title>
       <meta name="description" content="<?php echo htmlspecialchars(mb_substr(strip_tags($metaDesc), 0, 160)); ?>">
       <link rel="canonical" href="<?php echo htmlspecialchars($metaUrl); ?>">
-
       <meta property="og:type" content="website">
       <meta property="og:url" content="<?php echo htmlspecialchars($metaUrl); ?>">
       <meta property="og:title" content="<?php echo htmlspecialchars($metaTitle); ?>">
       <meta property="og:description" content="<?php echo htmlspecialchars(mb_substr(strip_tags($metaDesc), 0, 200)); ?>">
       <meta property="og:image" content="<?php echo htmlspecialchars($metaImage); ?>">
-
       <meta property="twitter:card" content="summary_large_image">
       <meta property="twitter:url" content="<?php echo htmlspecialchars($metaUrl); ?>">
       <meta property="twitter:title" content="<?php echo htmlspecialchars($metaTitle); ?>">
       <meta property="twitter:description" content="<?php echo htmlspecialchars(mb_substr(strip_tags($metaDesc), 0, 200)); ?>">
       <meta property="twitter:image" content="<?php echo htmlspecialchars($metaImage); ?>">
 
-        <link rel="manifest" href="/manifest.json">
-              <meta name="theme-color" content="#f7f7fb">
-              <link rel="apple-touch-icon" href="/uploads/icon-192.png"> <script>
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/service-worker.js')
-                    .then(reg => console.log('Service Worker registruotas:', reg.scope))
-                    .catch(err => console.log('Service Worker klaida:', err));
-                });
-              }
-              </script>
-        
-      <script>
-      !function(f,b,e,v,n,t,s)
-      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-      n.queue=[];t=b.createElement(e);t.async=!0;
-      t.src=v;s=b.getElementsByTagName(e)[0];
-      s.parentNode.insertBefore(t,s)}(window, document,'script',
-      'https://connect.facebook.net/en_US/fbevents.js');
-      fbq('init', 'JUSU_PIXEL_ID'); 
-      fbq('track', 'PageView');
-      </script>
-      <noscript><img height="1" width="1" style="display:none"
-      src="https://www.facebook.com/tr?id=JUSU_PIXEL_ID&ev=PageView&noscript=1"
-      /></noscript>
       <script>
         if ('serviceWorker' in navigator) {
           window.addEventListener('load', () => {
             navigator.serviceWorker.register('/service-worker.js')
-              .then(registration => console.log('SW registered:', registration))
+              .then(reg => console.log('SW registered:', reg.scope))
               .catch(err => console.log('SW registration failed:', err));
           });
         }
+        !function(f,b,e,v,n,t,s)
+        {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+        n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+        if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+        n.queue=[];t=b.createElement(e);t.async=!0;
+        t.src=v;s=b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t,s)}(window, document,'script',
+        'https://connect.facebook.net/en_US/fbevents.js');
+        fbq('init', 'JUSU_PIXEL_ID'); 
+        fbq('track', 'PageView');
       </script>
+      <noscript><img height="1" width="1" style="display:none"
+      src="https://www.facebook.com/tr?id=JUSU_PIXEL_ID&ev=PageView&noscript=1"
+      /></noscript>
 
       <?php echo headerStyles(); ?>
     </head>
@@ -669,74 +658,55 @@ function resolvePdo(?PDO $pdo = null): PDO {
 }
 
 function renderFooter(?PDO $pdo = null): void {
-    $pdo = resolvePdo($pdo);
-    $siteContent = getSiteContent($pdo);
-    $footer = [
-        'brand_title' => $siteContent['footer_brand_title'] ?? 'Cukrinukas.lt',
-        'brand_body' => $siteContent['footer_brand_body'] ?? 'Diabeto priemonės, mažo GI užkandžiai ir kasdienių sprendimų gidai vienoje vietoje.',
-        'contact_email' => $siteContent['footer_contact_email'] ?? 'info@cukrinukas.lt',
-        'contact_phone' => $siteContent['footer_contact_phone'] ?? '+370 600 00000',
-        'contact_hours' => $siteContent['footer_contact_hours'] ?? 'I–V 09:00–18:00',
-    ];
-    $footerLinks = getFooterLinks($pdo);
-    // Merge quick and help links into one "Info" list for cleaner look
-    $mergedLinks = array_merge($footerLinks['quick'] ?? [], $footerLinks['help'] ?? []);
-
     static $footerCssPrinted = false;
     if (!$footerCssPrinted) {
         $footerCssPrinted = true;
         echo <<<CSS
 <style>
-.footer { background:#121212; color:#fff; padding:60px 22px; margin-top:60px; font-size: 15px; }
-.footer-grid { max-width:1200px; margin:0 auto; display:grid; grid-template-columns: 1.5fr 1fr 1fr; gap:40px; }
-.footer h3 { color:#fff; margin:0 0 16px; font-size: 18px; }
-.footer p { margin:0; color:#888; line-height: 1.6; max-width: 320px; }
-.footer ul { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
-.footer a { color:#bbb; text-decoration:none; transition: color .2s; }
-.footer a:hover { color:#fff; }
-.footer .contact-row { display:flex; flex-direction: column; margin-bottom: 12px; }
-.footer .contact-label { color:#666; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; margin-bottom: 4px; }
-.footer .contact-value { color:#eee; }
+.footer { background: #121212; color: #fff; padding: 40px 22px; margin-top: 60px; font-size: 14px; }
+.footer-inner { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 30px; }
+.footer-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 30px; }
+.footer-nav { display: flex; gap: 24px; }
+.footer-nav a { color: #ccc; text-decoration: none; font-weight: 500; transition: color 0.2s; }
+.footer-nav a:hover { color: #fff; }
+.footer-social { display: flex; align-items: center; gap: 14px; }
+.footer-social span { color: #888; margin-right: 6px; font-weight: 500; }
+.footer-social a { color: #fff; opacity: 0.8; transition: opacity 0.2s; display: inline-flex; }
+.footer-social a:hover { opacity: 1; }
+.footer-social svg { width: 22px; height: 22px; fill: currentColor; }
+.footer-bottom { color: #666; font-size: 13px; text-align: left; }
 
-@media (max-width: 768px) {
-    .footer-grid { grid-template-columns: 1fr; gap: 30px; text-align: center; }
-    .footer p { margin: 0 auto; }
-    .footer ul { align-items: center; }
+@media (max-width: 800px) {
+  .footer-top { flex-direction: column; gap: 20px; text-align: center; }
+  .footer-nav { flex-wrap: wrap; justify-content: center; gap: 16px; }
+  .footer-bottom { text-align: center; }
 }
 </style>
 CSS;
     }
     ?>
     <footer class="footer">
-      <div class="footer-grid">
-        <div>
-          <h3><?php echo htmlspecialchars($footer['brand_title']); ?></h3>
-          <p><?php echo htmlspecialchars($footer['brand_body']); ?></p>
+      <div class="footer-inner">
+        <div class="footer-top">
+           <div class="footer-nav">
+              <a href="products.php">Pavadinimas 1</a>
+              <a href="products.php">Pavadinimas 2</a>
+              <a href="products.php">Pavadinimas 3</a>
+              <a href="products.php">Pavadinimas 4</a>
+              <a href="products.php">Pavadinimas 5</a>
+           </div>
+           <div class="footer-social">
+              <span>Mus galite rasti ir čia</span>
+              <a href="#" aria-label="Facebook" target="_blank" rel="noopener">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.51 1.49-3.89 3.78-3.89 1.09 0 2.23.19 2.23.19v2.47h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.9h-2.33v7a10 10 0 0 0 8.44-9.9c0-5.53-4.5-10.02-10-10.02Z"/></svg>
+              </a>
+              <a href="#" aria-label="Instagram" target="_blank" rel="noopener">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.65-.07-4.85s.01-3.58.07-4.85C2.38 3.92 3.9 2.38 7.15 2.23c1.27-.06 1.65-.07 4.85-.07m0-2.16c-3.26 0-3.67.01-4.95.07C3.76.23 1.05 1.77.47 5.05.41 6.33.4 6.74.4 10s.01 3.67.07 4.95c.58 3.28 3.29 4.82 6.58 4.88 1.28.06 1.69.07 4.95.07s3.67-.01 4.95-.07c3.29-.06 4.83-1.6 4.88-4.88.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95c-.56-3.28-3.28-4.82-6.58-4.88C15.67.01 15.26 0 12 0Z"/><path d="M12 5.84a6.16 6.16 0 1 0 0 12.32 6.16 6.16 0 0 0 0-12.32Zm0 10.16a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z"/><path d="M20.63 4.8a1.44 1.44 0 1 1-2.88 0 1.44 1.44 0 0 1 2.88 0Z"/></svg>
+              </a>
+           </div>
         </div>
-        
-        <div>
-          <h3>Informacija</h3>
-          <ul>
-            <?php foreach ($mergedLinks as $link): ?>
-              <li><a href="<?php echo htmlspecialchars($link['url']); ?>"><?php echo htmlspecialchars($link['label']); ?></a></li>
-            <?php endforeach; ?>
-          </ul>
-        </div>
-        
-        <div>
-          <h3>Kontaktai</h3>
-          <div class="contact-row">
-            <span class="contact-label">El. paštas</span>
-            <span class="contact-value"><a href="mailto:<?php echo htmlspecialchars($footer['contact_email']); ?>"><?php echo htmlspecialchars($footer['contact_email']); ?></a></span>
-          </div>
-          <div class="contact-row">
-            <span class="contact-label">Telefonas</span>
-            <span class="contact-value"><a href="tel:<?php echo htmlspecialchars($footer['contact_phone']); ?>"><?php echo htmlspecialchars($footer['contact_phone']); ?></a></span>
-          </div>
-          <div class="contact-row">
-            <span class="contact-label">Darbo laikas</span>
-            <span class="contact-value"><?php echo htmlspecialchars($footer['contact_hours']); ?></span>
-          </div>
+        <div class="footer-bottom">
+           © 2026 cukrinukas.lt. Visos teisės saugomos
         </div>
       </div>
     </footer>
