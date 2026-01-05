@@ -151,47 +151,92 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $view = 'community';
     }
 
-   // --- PREKĖS (ATNAUJINTA) ---
+    // --- PREKĖS IR FEATURED ---
 
-    // Vieninga funkcija sukūrimui ir redagavimui
+    // 1. Featured prekių valdymas
+    if ($action === 'featured_add') {
+        $title = trim($_POST['featured_title'] ?? '');
+        if ($title) {
+            // Randame prekės ID pagal pavadinimą
+            $stmt = $pdo->prepare("SELECT id FROM products WHERE title = ? LIMIT 1");
+            $stmt->execute([$title]);
+            $pid = $stmt->fetchColumn();
+            
+            if ($pid) {
+                // Tikriname limitą
+                $count = $pdo->query("SELECT COUNT(*) FROM featured_products")->fetchColumn();
+                if ($count < 3) {
+                    $pdo->prepare("INSERT INTO featured_products (product_id, sort_order) VALUES (?, 0)")->execute([$pid]);
+                    $_SESSION['flash_success'] = 'Prekė pridėta į pagrindinį puslapį.';
+                } else {
+                    $_SESSION['flash_error'] = 'Maksimalus rodomų prekių skaičius (3) pasiektas.';
+                }
+            } else {
+                $_SESSION['flash_error'] = 'Prekė nerasta.';
+            }
+        }
+        header('Location: ?view=products'); exit;
+    }
+
+    if ($action === 'featured_remove') {
+        $pid = (int)$_POST['product_id'];
+        $pdo->prepare("DELETE FROM featured_products WHERE product_id = ?")->execute([$pid]);
+        $_SESSION['flash_success'] = 'Prekė pašalinta iš pagrindinio puslapio.';
+        header('Location: ?view=products'); exit;
+    }
+
+    // 2. Prekės kūrimas / redagavimas (Vieninga funkcija)
     if ($action === 'save_product') {
         $id = isset($_POST['id']) && $_POST['id'] !== '' ? (int)$_POST['id'] : null;
         
         $title = trim($_POST['title'] ?? '');
         $subtitle = trim($_POST['subtitle'] ?? '');
-        $description = trim($_POST['description'] ?? ''); // Čia bus HTML iš Rich Text
+        $description = trim($_POST['description'] ?? '');
         $ribbon = trim($_POST['ribbon_text'] ?? '');
         $price = (float)($_POST['price'] ?? 0);
         $salePrice = isset($_POST['sale_price']) && $_POST['sale_price'] !== '' ? (float)$_POST['sale_price'] : null;
         $qty = (int)($_POST['quantity'] ?? 0);
-        $catId = (int)($_POST['category_id'] ?? 0);
         $metaTags = trim($_POST['meta_tags'] ?? '');
+        
+        // Kategorijos (masyvas iš checkboxų)
+        $cats = $_POST['categories'] ?? [];
+        // Pirma kategorija laikoma "pagrindine" suderinamumui
+        $primaryCatId = !empty($cats) ? (int)$cats[0] : null;
 
         if ($title) {
             if ($id) {
                 // Atnaujinimas
                 $stmt = $pdo->prepare('UPDATE products SET category_id=?, title=?, subtitle=?, description=?, ribbon_text=?, price=?, sale_price=?, quantity=?, meta_tags=? WHERE id=?');
-                $stmt->execute([$catId ?: null, $title, $subtitle ?: null, $description, $ribbon ?: null, $price, $salePrice, $qty, $metaTags ?: null, $id]);
+                $stmt->execute([$primaryCatId, $title, $subtitle ?: null, $description, $ribbon ?: null, $price, $salePrice, $qty, $metaTags ?: null, $id]);
                 $productId = $id;
-                $messages[] = 'Prekė atnaujinta';
+                $_SESSION['flash_success'] = 'Prekė atnaujinta';
             } else {
                 // Kūrimas
                 $stmt = $pdo->prepare('INSERT INTO products (category_id, title, subtitle, description, ribbon_text, image_url, price, sale_price, quantity, meta_tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                 $stmt->execute([
-                    $catId ?: null, $title, $subtitle ?: null, $description, $ribbon ?: null,
+                    $primaryCatId, $title, $subtitle ?: null, $description, $ribbon ?: null,
                     'https://placehold.co/600x400?text=Preke', // Default img
                     $price, $salePrice, $qty, $metaTags ?: null
                 ]);
                 $productId = (int)$pdo->lastInsertId();
-                $messages[] = 'Prekė sukurta';
+                $_SESSION['flash_success'] = 'Prekė sukurta';
             }
 
-            // 1. Nuotraukų įkėlimas (jei yra)
+            // KATEGORIJŲ RYŠIAI (Multi-category)
+            $pdo->prepare("DELETE FROM product_category_relations WHERE product_id = ?")->execute([$productId]);
+            if (!empty($cats)) {
+                $insCat = $pdo->prepare("INSERT INTO product_category_relations (product_id, category_id) VALUES (?, ?)");
+                foreach ($cats as $cid) {
+                    $insCat->execute([$productId, (int)$cid]);
+                }
+            }
+
+            // NUOTRAUKOS
             if (!empty($_FILES['images']['name'][0])) {
                 storeUploads($pdo, $productId, $_FILES['images']);
             }
 
-            // 2. Susijusios prekės
+            // SUSIJUSIOS PREKĖS
             $pdo->prepare('DELETE FROM product_related WHERE product_id = ?')->execute([$productId]);
             $related = array_filter(array_map('intval', $_POST['related_products'] ?? []));
             if ($related) {
@@ -201,7 +246,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // 3. Atributai (išvalome senus ir įrašome naujus)
+            // ATRIBUTAI (išvalome ir įrašome iš naujo)
             $pdo->prepare('DELETE FROM product_attributes WHERE product_id = ?')->execute([$productId]);
             $attrNames = $_POST['attr_label'] ?? [];
             $attrValues = $_POST['attr_value'] ?? [];
@@ -209,7 +254,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $insertAttr = $pdo->prepare('INSERT INTO product_attributes (product_id, label, value) VALUES (?, ?, ?)');
                 foreach ($attrNames as $idx => $label) {
                     $label = trim($label);
-                    // $val dabar gali būti HTML, tad netriname tagų
                     $val = trim($attrValues[$idx] ?? ''); 
                     if ($label && $val) {
                         $insertAttr->execute([$productId, $label, $val]);
@@ -217,7 +261,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // 4. Variacijos
+            // VARIACIJOS
             $pdo->prepare('DELETE FROM product_variations WHERE product_id = ?')->execute([$productId]);
             $varNames = $_POST['variation_name'] ?? [];
             $varPrices = $_POST['variation_price'] ?? [];
@@ -233,7 +277,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
         } else {
-            $errors[] = 'Trūksta prekės pavadinimo.';
+            $_SESSION['flash_error'] = 'Trūksta prekės pavadinimo.';
         }
         header('Location: ?view=products'); exit;
     }
@@ -243,10 +287,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ids = $_POST['selected_ids'] ?? [];
         if (!empty($ids) && is_array($ids)) {
             $placeholders = implode(',', array_fill(0, count($ids), '?'));
-            // Triname (kaskadinis trynimas DB turėtų pasirūpinti atributais/img, jei teisingai sukonfigūruota db.php)
-            // Bet dėl visa ko (jei nėra ON DELETE CASCADE):
+            // Ištriname viską, kas susiję su prekėmis
             $pdo->prepare("DELETE FROM product_attributes WHERE product_id IN ($placeholders)")->execute($ids);
             $pdo->prepare("DELETE FROM product_variations WHERE product_id IN ($placeholders)")->execute($ids);
+            $pdo->prepare("DELETE FROM product_category_relations WHERE product_id IN ($placeholders)")->execute($ids);
+            $pdo->prepare("DELETE FROM featured_products WHERE product_id IN ($placeholders)")->execute($ids);
             $pdo->prepare("DELETE FROM products WHERE id IN ($placeholders)")->execute($ids);
             
             $_SESSION['flash_success'] = 'Ištrinta prekių: ' . count($ids);
@@ -254,16 +299,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['flash_error'] = 'Nepasirinkote prekių.';
         }
         header('Location: ?view=products'); exit;
-    }
-    
-    // NAUJAS KODAS: Prekės ištrynimas
-    if ($action === 'delete_product') {
-        $id = (int)($_POST['id'] ?? 0);
-        if ($id) {
-            $pdo->prepare('DELETE FROM products WHERE id = ?')->execute([$id]);
-            $messages[] = 'Prekė sėkmingai ištrinta';
-        }
-        $view = 'products';
     }
     
     // --- VARTOTOJAI IR UŽSAKYMAI ---
