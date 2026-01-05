@@ -1,137 +1,179 @@
 <?php
 // admin/discounts.php
 
-$globalDiscount = getGlobalDiscount($pdo);
-$discountCodes = getAllDiscountCodes($pdo);
-$allCategoriesSimple = $pdo->query('SELECT id, name FROM categories ORDER BY name')->fetchAll();
+// 1. Gauname kategorijas
+$allCategories = $pdo->query('SELECT id, name FROM categories ORDER BY name ASC')->fetchAll();
+
+// 2. Gauname aktyvias nuolaidas
+// Pastaba: Jei jūsų sistema saugo nuolaidas tiesiog 'categories' lentelėje stulpeliuose,
+// čia atrenkame tik tas, kurios turi nuolaidą.
+// Jei naudojate atskirą lentelę 'category_discounts', užklausa būtų kitokia.
+// Darau prielaidą pagal jūsų seną kodą, kad tai 'categories' lentelės laukai arba helperis.
+// Čia naudosime tiesioginę užklausą į categories lentelę, kur discount_type nėra NULL.
+
+$activeDiscounts = $pdo->query("
+    SELECT * FROM categories 
+    WHERE discount_type IS NOT NULL AND discount_type != '' 
+    ORDER BY discount_value DESC
+")->fetchAll();
 ?>
 
-<div class="grid" style="margin-top:12px; grid-template-columns: repeat(auto-fit, minmax(320px,1fr));">
-  <div class="card">
-    <h3>Bendra nuolaida</h3>
-    <form method="post">
-      <?php echo csrfField(); ?>
-      <input type="hidden" name="action" value="save_global_discount">
-      <label>Tipas</label>
-      <select name="discount_type">
-        <option value="none" <?php echo $globalDiscount['type'] === 'none' ? 'selected' : ''; ?>>Išjungta</option>
-        <option value="percent" <?php echo $globalDiscount['type'] === 'percent' ? 'selected' : ''; ?>>Procentai (%)</option>
-        <option value="amount" <?php echo $globalDiscount['type'] === 'amount' ? 'selected' : ''; ?>>Suma (€)</option>
-        <option value="free_shipping" <?php echo $globalDiscount['type'] === 'free_shipping' ? 'selected' : ''; ?>>Nemokamas pristatymas</option>
-      </select>
-      <label>Reikšmė</label>
-      <input class="discount-value" data-toggle-select="discount_type" type="number" step="0.01" name="discount_value" value="<?php echo htmlspecialchars($globalDiscount['value']); ?>">
-      <button class="btn" type="submit">Išsaugoti</button>
-    </form>
-  </div>
-  <div class="card">
-    <h3>Naujas nuolaidos kodas</h3>
-    <form method="post" class="input-row" style="flex-direction:column;">
-      <?php echo csrfField(); ?>
-      <input type="hidden" name="action" value="save_discount_code">
-      <label>Kodas</label>
-      <input name="code" placeholder="BLACKFRIDAY" required>
-      <div class="input-row">
-        <div style="flex:1; min-width:140px;">
-          <label>Tipas</label>
-          <select name="type">
-            <option value="percent">Procentai (%)</option>
-            <option value="amount">Suma (€)</option>
-            <option value="free_shipping">Nemokamas pristatymas</option>
-          </select>
-        </div>
-        <div style="flex:1; min-width:140px;">
-          <label>Reikšmė</label>
-          <input class="discount-value" data-toggle-select="type" name="value" type="number" step="0.01" min="0" required>
-        </div>
-      </div>
-      <div class="input-row">
-        <div style="flex:1; min-width:140px;">
-          <label>Panaudojimų limitas (0 – neribota)</label>
-          <input name="usage_limit" type="number" min="0" value="0">
-        </div>
-        <div style="flex:1; min-width:140px; display:flex; flex-direction:column; gap:8px;">
-          <label class="checkbox-row"><input type="checkbox" id="code_active_new" name="active" checked> Aktyvus</label>
-        </div>
-      </div>
-      <button class="btn" type="submit">Sukurti kodą</button>
-    </form>
-  </div>
-  <div class="card">
-    <h3>Kategorijų nuolaidos</h3>
-    <form method="post" class="input-row" style="flex-direction:column;">
-      <?php echo csrfField(); ?>
-      <input type="hidden" name="action" value="save_category_discount">
-      <label>Kategorija</label>
-      <select name="category_id" required>
-        <option value="">Pasirinkti</option>
-        <?php foreach ($allCategoriesSimple as $cat): ?>
-          <option value="<?php echo (int)$cat['id']; ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
-        <?php endforeach; ?>
-      </select>
-      <div class="input-row">
-        <div style="flex:1;">
-          <label>Tipas</label>
-          <select name="category_type">
-            <option value="none">Išjungta</option>
-            <option value="percent">Procentai (%)</option>
-            <option value="amount">Suma (€)</option>
-            <option value="free_shipping">Nemokamas pristatymas</option>
-          </select>
-        </div>
-        <div style="flex:1;">
-          <label>Reikšmė</label>
-          <input class="discount-value" data-toggle-select="category_type" name="category_value" type="number" step="0.01" min="0" value="0">
-        </div>
-      </div>
-      <label class="checkbox-row"><input type="checkbox" name="category_active" checked> Aktyvuota</label>
-      <button class="btn" type="submit">Išsaugoti</button>
-    </form>
-  </div>
+<style>
+    /* Kortelės ir lentelės */
+    .discount-card {
+        background: #fff; border: 1px solid #e1e3ef; border-radius: 12px; padding: 20px;
+        display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+        transition: 0.2s;
+    }
+    .discount-card:hover { border-color: #4f46e5; box-shadow: 0 4px 12px rgba(79,70,229,0.05); }
+    
+    .disc-icon {
+        width: 48px; height: 48px; background: #fdf2f8; color: #db2777;
+        border-radius: 10px; display: flex; align-items: center; justify-content: center;
+        font-size: 20px; margin-right: 16px;
+    }
+    .disc-info h4 { margin: 0 0 4px 0; font-size: 16px; }
+    .disc-info p { margin: 0; font-size: 13px; color: #6b6b7a; }
+    
+    .badge-percent { background: #ecfdf5; color: #047857; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 12px; border:1px solid #d1fae5; }
+    .badge-amount { background: #eff6ff; color: #1d4ed8; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 12px; border:1px solid #dbeafe; }
+
+    /* Modal */
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); z-index: 1000;
+        display: none; align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-window {
+        background: #fff; width: 100%; max-width: 450px;
+        border-radius: 16px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+</style>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+    <div>
+        <h2>Nuolaidų valdymas</h2>
+        <p class="muted" style="margin:0;">Tvarkykite kategorijų nuolaidas ir akcijas.</p>
+    </div>
+    <button class="btn" onclick="openDiscModal()">+ Pridėti nuolaidą</button>
 </div>
 
-<div class="card" style="margin-top:16px;">
-  <h3>Nuolaidų kodai</h3>
-  <p class="table-note">Kiekviena eilutė redaguojama vietoje – vertės automatiškai pritaikomos.</p>
-  <table class="table-form">
-    <thead><tr><th>Kodas</th><th>Tipas</th><th>Reikšmė</th><th>Panaudojimų limitas</th><th>Panaudota</th><th>Aktyvus</th><th>Veiksmai</th></tr></thead>
-    <tbody>
-      <?php foreach ($discountCodes as $code): ?>
-        <?php $formId = 'codeform' . (int)$code['id']; ?>
-        <form id="<?php echo $formId; ?>" method="post"></form>
-        <tr>
-          <td>
-            <input type="hidden" form="<?php echo $formId; ?>" name="action" value="save_discount_code">
-            <input type="hidden" form="<?php echo $formId; ?>" name="id" value="<?php echo (int)$code['id']; ?>">
-            <input form="<?php echo $formId; ?>" name="code" value="<?php echo htmlspecialchars($code['code']); ?>">
-          </td>
-          <td>
-            <select form="<?php echo $formId; ?>" name="type">
-              <option value="percent" <?php echo $code['type'] === 'percent' ? 'selected' : ''; ?>>%</option>
-              <option value="amount" <?php echo $code['type'] === 'amount' ? 'selected' : ''; ?>>€</option>
-              <option value="free_shipping" <?php echo $code['type'] === 'free_shipping' ? 'selected' : ''; ?>>Nemokamas pristatymas</option>
-            </select>
-          </td>
-          <td><input form="<?php echo $formId; ?>" data-toggle-select="type" name="value" type="number" step="0.01" min="0" value="<?php echo htmlspecialchars($code['value']); ?>"></td>
-          <td><input form="<?php echo $formId; ?>" name="usage_limit" type="number" min="0" value="<?php echo (int)$code['usage_limit']; ?>"></td>
-          <td class="muted" style="min-width:80px;"><?php echo (int)$code['used_count']; ?></td>
-          <td style="text-align:center; min-width:140px;">
-            <label class="checkbox-row" style="justify-content:center;"><input form="<?php echo $formId; ?>" type="checkbox" name="active" <?php echo (int)$code['active'] ? 'checked' : ''; ?>> Aktyvus</label>
-          </td>
-          <td class="inline-actions">
-            <button class="btn" form="<?php echo $formId; ?>" type="submit" style="padding:8px 12px;">Išsaugoti</button>
-            <form method="post" style="margin:0;">
-              <?php echo csrfField(); ?>
-              <input type="hidden" name="action" value="delete_discount_code">
-              <input type="hidden" name="id" value="<?php echo (int)$code['id']; ?>">
-              <button class="btn" type="submit" style="background:#f1f1f5; color:#0b0b0b; border-color:#e0e0ea; padding:8px 12px;">Šalinti</button>
-            </form>
-          </td>
-        </tr>
-      <?php endforeach; ?>
-      <?php if (!$discountCodes): ?>
-        <tr><td colspan="7" class="muted">Kodu dar nėra.</td></tr>
-      <?php endif; ?>
-    </tbody>
-  </table>
+<div class="card">
+    <h3 style="margin-bottom:16px;">Aktyvios kategorijų akcijos</h3>
+    
+    <?php if (empty($activeDiscounts)): ?>
+        <div style="text-align:center; padding:30px; color:#94a3b8; border:1px dashed #e2e8f0; border-radius:12px;">
+            Šiuo metu aktyvių nuolaidų nėra.
+        </div>
+    <?php else: ?>
+        <?php foreach ($activeDiscounts as $disc): ?>
+            <div class="discount-card">
+                <div style="display:flex; align-items:center;">
+                    <div class="disc-icon">🏷️</div>
+                    <div class="disc-info">
+                        <h4><?php echo htmlspecialchars($disc['name']); ?></h4>
+                        <?php 
+                            if ($disc['discount_type'] === 'percent') {
+                                echo '<span class="badge-percent">-' . (float)$disc['discount_value'] . '% Nuolaida</span>';
+                            } else {
+                                echo '<span class="badge-amount">-' . number_format($disc['discount_value'], 2) . ' € Nuolaida</span>';
+                            }
+                        ?>
+                    </div>
+                </div>
+                
+                <div style="display:flex; gap:8px;">
+                    <button class="btn secondary" style="padding:8px 14px;" 
+                            onclick='openDiscModal(<?php echo json_encode($disc); ?>)'>Redaguoti</button>
+                    
+                    <form method="post" onsubmit="return confirm('Panaikinti nuolaidą šiai kategorijai?');" style="margin:0;">
+                        <?php echo csrfField(); ?>
+                        <input type="hidden" name="action" value="remove_category_discount">
+                        <input type="hidden" name="category_id" value="<?php echo $disc['id']; ?>">
+                        <button class="btn" style="padding:8px 14px; background:#fff1f1; color:#b91c1c; border-color:#fecaca;">&times;</button>
+                    </form>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
 </div>
+
+<div id="discModal" class="modal-overlay">
+    <div class="modal-window">
+        <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
+            <h3 style="margin:0;" id="modalTitle">Kategorijos nuolaida</h3>
+            <button onclick="closeDiscModal()" style="border:none; background:none; font-size:24px; cursor:pointer;">&times;</button>
+        </div>
+        
+        <form method="post">
+            <?php echo csrfField(); ?>
+            <input type="hidden" name="action" value="save_category_discount">
+            
+            <div style="margin-bottom:16px;">
+                <label style="font-weight:700; font-size:12px; color:#6b6b7a; text-transform:uppercase;">Kategorija</label>
+                <select name="category_id" id="d_category" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; margin-top:6px;">
+                    <?php foreach ($allCategories as $cat): ?>
+                        <option value="<?php echo $cat['id']; ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="muted" style="font-size:11px; margin-top:4px;">Pasirinkite kategoriją, kuriai taikysite nuolaidą.</p>
+            </div>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
+                <div>
+                    <label style="font-weight:700; font-size:12px; color:#6b6b7a; text-transform:uppercase;">Tipas</label>
+                    <select name="discount_type" id="d_type" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; margin-top:6px;">
+                        <option value="percent">Procentai (%)</option>
+                        <option value="amount">Fiksuota suma (€)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight:700; font-size:12px; color:#6b6b7a; text-transform:uppercase;">Reikšmė</label>
+                    <input type="number" step="0.01" name="discount_value" id="d_value" required placeholder="pvz. 20" 
+                           style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; margin-top:6px;">
+                </div>
+            </div>
+
+            <div style="text-align:right; margin-top:24px;">
+                <button type="button" class="btn secondary" onclick="closeDiscModal()">Atšaukti</button>
+                <button type="submit" class="btn">Išsaugoti nuolaidą</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const modal = document.getElementById('discModal');
+    const catSelect = document.getElementById('d_category');
+    
+    function openDiscModal(data = null) {
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('open'), 10);
+        
+        if (data) {
+            document.getElementById('modalTitle').innerText = 'Redaguoti nuolaidą';
+            catSelect.value = data.id;
+            // Jei redaguojame, neleidžiame keisti kategorijos, kad nesupainiotume (optional)
+            // catSelect.style.pointerEvents = 'none'; 
+            // catSelect.style.background = '#f9f9f9';
+            
+            document.getElementById('d_type').value = data.discount_type;
+            document.getElementById('d_value').value = data.discount_value;
+        } else {
+            document.getElementById('modalTitle').innerText = 'Nauja nuolaida';
+            catSelect.style.pointerEvents = 'auto';
+            catSelect.style.background = '#fff';
+            document.getElementById('d_value').value = '';
+        }
+    }
+
+    function closeDiscModal() {
+        modal.classList.remove('open');
+        setTimeout(() => modal.style.display = 'none', 200);
+    }
+    
+    modal.addEventListener('click', e => {
+        if(e.target === modal) closeDiscModal();
+    });
+</script>
