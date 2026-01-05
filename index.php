@@ -85,7 +85,6 @@ for ($i = 1; $i <= 3; $i++) {
 }
 
 $promoCards = [];
-// Čia nurodome puslapius: 1->Parduotuvė, 2->Turgelis, 3->Receptai
 $promoUrls = [1 => '/products.php', 2 => '/community_market.php', 3 => '/recipes.php'];
 
 for ($i = 1; $i <= 3; $i++) {
@@ -269,15 +268,15 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .promo-card h3 { margin:0 0 4px; font-size:16px; }
     .promo-card p { margin:0; color:var(--muted); font-size:14px; line-height:1.5; }
 
-    /* STORYBAND */
+    /* STORYBAND - PAKEISTA: BALTAS FONAS */
     .storyband-box { 
-        background: linear-gradient(135deg, #eff6ff, #dbeafe);
-        border:1px solid #dbeafe; border-radius:20px; padding:32px;
+        background: #fff; /* Baltas fonas */
+        border:1px solid var(--border); border-radius:20px; padding:32px;
         display:grid; grid-template-columns: 1fr 300px; gap:40px; align-items:center;
     }
     .metrics { display:flex; gap:12px; margin-top:20px; flex-wrap:wrap; }
     .metric { background:#fff; padding:10px 14px; border-radius:10px; border:1px solid #e0e7ff; min-width:100px; }
-    .metric strong { display:block; font-size:18px; color:var(--accent); }
+    .metric strong { display:block; font-size:18px; color:#0f172a; /* Juodas tekstas */ }
     .metric span { font-size:12px; color:var(--muted); }
     
     .story-card-inner { background:#fff; border-radius:14px; padding:20px; box-shadow:var(--shadow-md); border:1px solid #e0e7ff; }
@@ -306,6 +305,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
         border:1px solid #bae6fd; border-radius:20px; padding:24px;
     }
     .fs-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #e0f2fe; padding-bottom:16px; }
+    /* Pakeista spalva į juodą */
     .fs-title { display:flex; align-items:center; gap:10px; font-size:18px; font-weight:700; color:#0f172a; }
     .fs-icon { font-size:24px; color: #0f172a; }
     .fs-subtitle { font-size:14px; color:#0c4a6e; }
@@ -321,14 +321,27 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .fs-card h4 { margin:0 0 2px; font-size:13px; font-weight:600; line-height:1.3; }
     .fs-price { font-size:14px; font-weight:700; color:#0284c7; }
 
-    /* HIGHLIGHT SECTION */
+    /* HIGHLIGHT SECTION - PAKEISTA: BALTAS FONAS IR TVARKINGIAU */
     .split-panel { display:grid; grid-template-columns: 1fr 1fr; gap:24px; }
     .story-card { background:#fff; border:1px solid var(--border); border-radius:20px; padding:24px; }
     .story-card h3 { margin:0 0 10px; font-size:22px; color:#0f172a; }
     .story-card p { margin:0 0 16px; line-height:1.6; color:#374151; font-size:15px; }
     
-    .story-visual { background: linear-gradient(135deg, #eff6ff, #dbeafe); border:1px solid #dbeafe; border-radius:20px; padding:24px; display:flex; flex-direction:column; justify-content:center; gap:16px; }
-    .story-bubble { background:#fff; padding:14px; border-radius:12px; box-shadow:var(--shadow-sm); border:1px solid #e0f2fe; }
+    /* PAKEISTA: BALTAS FONAS IR IŠDĖSTYMAS */
+    .story-visual { 
+        background: #fff; /* Baltas fonas */
+        border: 1px solid var(--border); 
+        border-radius:20px; padding:32px; 
+        display:flex; flex-direction:column; justify-content:space-between; gap:24px; 
+        min-height: 280px;
+    }
+    /* PAKEISTA: Burbulų dizainas */
+    .story-bubble { 
+        background:#f8fafc; /* Šviesiai pilkas/mėlynas */
+        padding:16px; border-radius:14px; 
+        box-shadow:var(--shadow-sm); border:1px solid #e2e8f0; 
+        max-width: 85%;
+    }
 
     /* TESTIMONIALS */
     .testimonials-box { 
