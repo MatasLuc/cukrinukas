@@ -115,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
   <title>Parduotuvė | Cukrinukas</title>
   <?php echo headerStyles(); ?>
   <style>
-    /* PAKEISTA SPALVA: --accent dabar mėlyna (#2563eb), nebe violetinė */
+    /* SPALVA: --accent mėlyna (#2563eb) */
     :root { --bg: #f7f7fb; --card: #ffffff; --border: #e4e7ec; --text: #1f2937; --muted: #52606d; --accent: #2563eb; }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
@@ -123,7 +123,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
 
     .page { max-width: 1200px; margin: 0 auto; padding: 32px 20px 72px; display: grid; gap: 28px; }
 
-    /* PAKEISTA: Hero fonas šiek tiek mėlynesnis */
     .hero {
       padding: 26px; border-radius: 28px; background: linear-gradient(135deg, #eff6ff, #dbeafe);
       border: 1px solid #e5e7eb; box-shadow: 0 18px 48px rgba(0,0,0,0.08);
@@ -134,7 +133,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     .hero p { margin: 0; color: var(--muted); line-height: 1.6; }
     .hero-cta { margin-top: 14px; display:flex; gap:10px; }
     
-    /* PAKEISTA: btn-large naudoja mėlyną atspalvį (#1d4ed8) */
     .btn-large { padding: 11px 24px; border-radius: 12px; border: 1px solid #1d4ed8; background: #fff; color: #1d4ed8; font-weight: 600; transition: all .2s; }
     .btn-large:hover { background: #1d4ed8; color: #fff; }
 
@@ -191,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     .card img { width:100%; height:220px; object-fit:cover; display:block; }
     .card__body { padding:18px; display:flex; flex-direction:column; gap:10px; flex:1; }
     
-    /* PAKEISTA: Ribbon stilius - baltas fonas, mėlynas rėmelis ir tekstas */
+    /* Ribbon stilius */
     .ribbon { 
         position: absolute; top: 12px; left: 12px; 
         background: #fff; 
@@ -199,6 +197,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
         border: 1px solid var(--accent);
         padding: 4px 10px; border-radius: 8px; 
         font-size: 12px; font-weight: 700; 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        z-index: 5;
+    }
+
+    /* PAKEISTA: Gift badge stilius identiškas ribbon, tik dešinėje */
+    .gift-badge {
+        position: absolute; top: 12px; right: 12px;
+        background: #fff;
+        color: var(--accent);
+        border: 1px solid var(--accent);
+        padding: 4px 10px; border-radius: 8px;
+        font-size: 12px; font-weight: 700;
         box-shadow: 0 2px 4px rgba(0,0,0,0.08);
         z-index: 5;
     }
@@ -338,7 +348,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
                 <div class="ribbon"><?php echo htmlspecialchars($product['ribbon_text']); ?></div>
               <?php endif; ?>
               <?php if ($isGift): ?>
-                <div style="position:absolute; top:12px; right:12px; background:#fff; color:#1d4ed8; padding:4px 8px; border-radius:20px; font-size:12px; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.1); border:1px solid #eef2ff;">🎁 Nemokamai</div>
+                <div class="gift-badge">🎁 Nemokamai</div>
               <?php endif; ?>
               <a href="/product.php?id=<?php echo (int)$product['id']; ?>">
                 <img src="<?php echo htmlspecialchars($cardImage); ?>" alt="<?php echo htmlspecialchars($product['title']); ?>" loading="lazy">
