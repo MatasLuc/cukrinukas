@@ -4,9 +4,8 @@
 // 1. DUOMENŲ PARUOŠIMAS
 // ---------------------------------------------------
 
-// Užtikriname, kad egzistuoja ryšių lentelė
+// Užtikriname, kad egzistuoja reikalingos lentelės
 $pdo->exec("CREATE TABLE IF NOT EXISTS product_category_relations (product_id INT NOT NULL, category_id INT NOT NULL, PRIMARY KEY (product_id, category_id))");
-// Užtikriname, kad egzistuoja featured_products lentelė
 $pdo->exec("CREATE TABLE IF NOT EXISTS featured_products (id INT AUTO_INCREMENT PRIMARY KEY, product_id INT NOT NULL, sort_order INT DEFAULT 0)");
 
 // Surenkame visas prekes
@@ -53,8 +52,7 @@ foreach ($allCats as $c) {
     if (!empty($c['parent_id']) && isset($catTree[$c['parent_id']])) { $catTree[$c['parent_id']]['children'][]=$c; }
 }
 
-// Featured prekės
-// Jei funkcija getFeaturedProductIds neegzistuoja, naudojame tiesioginę užklausą
+// Featured prekės (iš featured_products lentelės)
 $fProds = [];
 try {
     $fIdsStmt = $pdo->query("SELECT product_id FROM featured_products ORDER BY sort_order ASC LIMIT 3");
@@ -65,9 +63,12 @@ try {
         $s = $pdo->prepare("SELECT id, title FROM products WHERE id IN ($in)");
         $s->execute($fIds);
         $rows = $s->fetchAll(PDO::FETCH_ASSOC);
+        
         // Išlaikome rikiavimo tvarką
         $m = array_column($rows, null, 'id');
-        foreach($fIds as $i) if(isset($m[$i])) $fProds[] = $m[$i];
+        foreach($fIds as $i) {
+            if(isset($m[$i])) $fProds[] = $m[$i];
+        }
     }
 } catch (Exception $e) { /* Tyli klaida jei lentelės nėra */ }
 ?>
@@ -168,6 +169,7 @@ try {
 
 <div class="card" style="margin-bottom:20px; border:1px dashed #4f46e5; background:#f5f6ff;">
     <h4 style="margin-top:0; font-size:14px; text-transform:uppercase; color:#4338ca;">Pagrindinio puslapio prekės (Max 3)</h4>
+    
     <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
         <?php foreach ($fProds as $fp): ?>
             <div style="background:#fff; border:1px solid #c7d2fe; padding:6px 12px; border-radius:20px; font-size:13px; display:flex; align-items:center; gap:8px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
@@ -185,14 +187,14 @@ try {
             <form method="post" style="display:flex; gap:6px;">
                 <?php echo csrfField(); ?>
                 <input type="hidden" name="action" value="featured_add">
-                <input name="featured_title" list="prodList" placeholder="Prekės pavadinimas..." class="form-control" style="width:250px; padding:6px 10px; font-size:13px; background:#fff;">
+                <input name="featured_title" list="prodList" placeholder="Prekės pavadinimas..." class="form-control" style="width:250px; padding:6px 10px; font-size:13px; background:#fff;" required autocomplete="off">
                 <datalist id="prodList">
                     <?php foreach($products as $p) echo "<option value='".htmlspecialchars($p['title'])."'>"; ?>
                 </datalist>
                 <button class="btn secondary" style="padding:6px 12px; font-size:13px;">Pridėti</button>
             </form>
         <?php else: ?>
-            <span class="muted" style="font-size:12px;">Pasiektas limitas. Ištrinkite prekę, kad pridėtumėte naują.</span>
+            <span class="muted" style="font-size:12px;">Pasiektas limitas (3). Ištrinkite prekę, kad pridėtumėte naują.</span>
         <?php endif; ?>
     </div>
 </div>
@@ -266,8 +268,8 @@ try {
 
 <div id="productModal" class="modal-overlay">
     <form method="post" enctype="multipart/form-data" class="modal-window" onsubmit="return syncEditors()">
-        <?php echo csrfField(); ?>
-        <input type="hidden" name="action" id="formAction" value="save_product">
+        
+        <?php echo csrfField(); ?> <input type="hidden" name="action" id="formAction" value="save_product">
         <input type="hidden" name="id" id="productId" value="">
 
         <div class="modal-header">
@@ -434,10 +436,14 @@ try {
     }
     function execEdit(cmd, val = null) { document.execCommand(cmd, false, val); }
     function execLink() { const url = prompt('Įveskite nuorodą:'); if (url) document.execCommand('createLink', false, url); }
-    createToolbar('mainDescToolbar');
+    
+    // Inicijuoti pagrindinį toolbarą tik užsikrovus DOM
+    document.addEventListener('DOMContentLoaded', () => {
+        createToolbar('mainDescToolbar');
+    });
 
-    // --- ATTRIBUTES & VARIATIONS ---
-    // Funkcijos perkeltos į window scope, kad būtų pasiekiamos
+    // --- DINAMINIAI LAUKAI (GLOBALŪS) ---
+    
     window.addRichAttrRow = function(label = '', valueHtml = '') {
         const container = document.getElementById('attributesContainer');
         const uniqueId = 'attr_editor_' + Date.now() + Math.floor(Math.random() * 1000);
@@ -503,17 +509,12 @@ try {
             document.getElementById('p_quantity').value = data.quantity;
             document.getElementById('p_meta_tags').value = data.meta_tags || '';
             
-            // Categories (checkboxes)
+            // Categories
             if (data.category_ids) {
-                // data.category_ids gali būti masyvas skaičių
                 data.category_ids.forEach(cid => {
                     const cb = document.querySelector(`.cat-check[value="${cid}"]`);
                     if(cb) cb.checked = true;
                 });
-            } else if (data.category_id) {
-                // Fallback jei nėra category_ids
-                const cb = document.querySelector(`.cat-check[value="${data.category_id}"]`);
-                if(cb) cb.checked = true;
             }
 
             // Related Products
@@ -552,7 +553,7 @@ try {
         setTimeout(() => modal.style.display = 'none', 200);
     };
 
-    // --- SUBMIT ---
+    // --- SUBMIT SYNC ---
     window.syncEditors = function() {
         document.getElementById('p_description').value = document.getElementById('mainDescEditor').innerHTML;
         document.querySelectorAll('#attributesContainer .attr-row').forEach(row => {
@@ -569,7 +570,6 @@ try {
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         document.getElementById('tab-' + id).classList.add('active');
         const btns = document.querySelectorAll('.tab-btn');
-        // Simple mapping
         if(id==='basic') btns[0].classList.add('active');
         if(id==='specs') btns[1].classList.add('active');
         if(id==='prices') btns[2].classList.add('active');
@@ -594,7 +594,7 @@ try {
         }
     };
 
-    // --- BULK ---
+    // --- BULK ACTIONS ---
     window.toggleAll = function(source) {
         document.querySelectorAll('.prod-check').forEach(c => c.checked = source.checked);
         updateBulkUI();
