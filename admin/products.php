@@ -13,8 +13,7 @@ if (isset($_SESSION['flash_error'])) {
 
 // 2. DUOMENŲ SURINKIMAS
 
-// Featured prekės (iš featured_products lentelės - naudojama index.php)
-// Čia sujungiame su products lentele, kad gautume pavadinimus
+// Featured prekės (iš featured_products lentelės)
 $fProds = $pdo->query('
     SELECT p.*, fp.id as fp_id, fp.position
     FROM featured_products fp
@@ -23,8 +22,6 @@ $fProds = $pdo->query('
 ')->fetchAll(PDO::FETCH_ASSOC);
 
 // Visos prekės
-// Pridedame 'is_featured_flag', kad žinotumėme, ar pažymėti checkbox redaguojant
-// (Tikriname, ar prekės ID egzistuoja featured_products lentelėje)
 $stmt = $pdo->query('
     SELECT p.*, c.name AS category_name,
            (SELECT path FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image,
@@ -35,7 +32,7 @@ $stmt = $pdo->query('
 ');
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Papildomi duomenys redagavimui (atributai, variacijos ir t.t.)
+// Papildomi duomenys redagavimui
 foreach ($products as &$p) {
     // Atributai
     $attrsStmt = $pdo->prepare("SELECT label, value FROM product_attributes WHERE product_id = ?");
@@ -99,6 +96,12 @@ foreach ($allCats as $c) {
     .star-btn { cursor: pointer; color: #ccc; font-size: 16px; border: none; background: none; }
     .star-btn.active { color: #f59e0b; }
     .del-btn { cursor: pointer; color: #ef4444; border: none; background: none; font-weight: bold; }
+
+    /* Variacijų eilutės */
+    .static-var-row { background: #f9fafb; padding: 12px; border: 1px solid #eee; border-radius: 6px; margin-bottom: 10px; }
+    .static-var-row.active-row { background: #fff; border-color: #c7d2fe; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .var-inputs { display: none; margin-top: 10px; grid-template-columns: 1fr 150px; gap: 10px; }
+    .active-row .var-inputs { display: grid; }
 
     /* Kiti stiliai */
     .cat-box { border: 1px solid #d1d5db; border-radius: 6px; padding: 10px; max-height: 200px; overflow-y: auto; background: #fff; }
@@ -310,11 +313,27 @@ foreach ($allCats as $c) {
                     <div class="input-group"><label>Kiekis (vnt.) *</label><input type="number" name="quantity" id="p_quantity" class="form-control" value="0" required></div>
                 </div>
                 <hr style="margin:20px 0; border:0; border-top:1px dashed #eee;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                
+                <div style="margin-bottom:15px;">
                     <label>Variacijos (pvz. Dydis, Spalva)</label>
-                    <button type="button" class="btn secondary" style="font-size:12px;" onclick="window.addVarRow()">+ Variacija</button>
+                    <p class="muted" style="font-size:12px; margin:0 0 10px 0;">Pažymėkite varnele, kad įjungtumėte variaciją.</p>
                 </div>
-                <div id="variationsContainer"></div>
+
+                <div id="staticVariations">
+                    <?php for($i=0; $i<3; $i++): ?>
+                    <div class="static-var-row" id="var_row_<?php echo $i; ?>">
+                        <label style="font-weight:600; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                            <input type="checkbox" name="variations[<?php echo $i; ?>][active]" value="1" id="var_check_<?php echo $i; ?>" onchange="toggleVarRow(<?php echo $i; ?>)">
+                            Variacija <?php echo $i+1; ?>
+                        </label>
+                        <div class="var-inputs">
+                            <input name="variations[<?php echo $i; ?>][name]" id="var_name_<?php echo $i; ?>" class="form-control" placeholder="Pavadinimas (pvz. XL, Raudona)">
+                            <input name="variations[<?php echo $i; ?>][price]" id="var_price_<?php echo $i; ?>" type="number" step="0.01" class="form-control" placeholder="Kainos skirtumas (+/- €)">
+                        </div>
+                    </div>
+                    <?php endfor; ?>
+                </div>
+
             </div>
 
             <div id="tab-media" class="tab-content">
@@ -371,23 +390,15 @@ foreach ($allCats as $c) {
         c.innerHTML = h;
     }
 
-    // Variacijos - FIXED
-    window.addVarRow = function(name='', price='') {
-        const c = document.getElementById('variationsContainer');
-        if(!c) { console.error('variationsContainer not found'); return; }
-        
-        const d = document.createElement('div');
-        d.style.cssText = "display:grid; grid-template-columns: 1fr 100px 40px; gap:10px; margin-bottom:8px;";
-        
-        // Saugiai apdorojame tekstą, kad nebūtų klaidų su kabutėmis
-        const safeName = (name || '').replace(/"/g, '&quot;');
-        
-        d.innerHTML = `
-            <input name="variation_name[]" class="form-control" placeholder="Pavadinimas (pvz. Raudona, XL)" value="${safeName}">
-            <input name="variation_price[]" type="number" step="0.01" class="form-control" placeholder="+/- €" value="${price}">
-            <button type="button" onclick="this.parentElement.remove()" style="color:red; border:none; cursor:pointer; background:none;">&times;</button>
-        `;
-        c.appendChild(d);
+    // Toggle static variation row
+    window.toggleVarRow = function(index) {
+        const checkbox = document.getElementById('var_check_' + index);
+        const row = document.getElementById('var_row_' + index);
+        if(checkbox.checked) {
+            row.classList.add('active-row');
+        } else {
+            row.classList.remove('active-row');
+        }
     }
 
     // Specifikacijos (Rich attr) - FIXED
@@ -416,10 +427,17 @@ foreach ($allCats as $c) {
         document.getElementById('productId').value = '';
         const descEd = document.getElementById('mainDescEditor'); if(descEd) descEd.innerHTML = '';
         const attrC = document.getElementById('attributesContainer'); if(attrC) attrC.innerHTML = '';
-        const varC = document.getElementById('variationsContainer'); if(varC) varC.innerHTML = '';
         const imgC = document.getElementById('existingImgContainer'); if(imgC) imgC.innerHTML = '';
         const prevC = document.getElementById('modalImgPreview'); if(prevC) prevC.innerHTML = '';
         
+        // Reset Variations
+        for(let i=0; i<3; i++) {
+            document.getElementById('var_check_'+i).checked = false;
+            document.getElementById('var_name_'+i).value = '';
+            document.getElementById('var_price_'+i).value = '';
+            window.toggleVarRow(i);
+        }
+
         document.querySelectorAll('.cat-check').forEach(c => c.checked = false);
         window.switchTab('basic');
 
@@ -438,7 +456,6 @@ foreach ($allCats as $c) {
             document.getElementById('p_ribbon').value = data.ribbon_text||'';
             document.getElementById('p_meta_tags').value = data.meta_tags||'';
             
-            // Featured - tikriname pagal is_featured_flag (kuris ateina iš DB užklausos)
             if(data.is_featured_flag > 0) {
                 const featBox = document.getElementById('p_featured');
                 if(featBox) featBox.checked = true;
@@ -453,8 +470,17 @@ foreach ($allCats as $c) {
             // Attributes
             if(data.attributes) data.attributes.forEach(a => window.addRichAttrRow(a.label, a.value));
             
-            // Variacijos
-            if(data.variations) data.variations.forEach(v => window.addVarRow(v.name, v.price_delta));
+            // Variacijos - Fill Static Rows
+            if(data.variations) {
+                data.variations.forEach((v, idx) => {
+                    if(idx < 3) {
+                        document.getElementById('var_check_'+idx).checked = true;
+                        document.getElementById('var_name_'+idx).value = v.name;
+                        document.getElementById('var_price_'+idx).value = v.price_delta;
+                        window.toggleVarRow(idx);
+                    }
+                });
+            }
 
             // Images with Primary Select
             if(data.all_images) {
