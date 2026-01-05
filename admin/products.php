@@ -14,8 +14,9 @@ if (isset($_SESSION['flash_error'])) {
 // 2. DUOMENŲ SURINKIMAS
 
 // Featured prekės (iš featured_products lentelės - naudojama index.php)
+// Čia sujungiame su products lentele, kad gautume pavadinimus
 $fProds = $pdo->query('
-    SELECT p.*, fp.id as fp_id 
+    SELECT p.*, fp.id as fp_id, fp.position
     FROM featured_products fp
     JOIN products p ON fp.product_id = p.id 
     ORDER BY fp.position ASC
@@ -23,6 +24,7 @@ $fProds = $pdo->query('
 
 // Visos prekės
 // Pridedame 'is_featured_flag', kad žinotumėme, ar pažymėti checkbox redaguojant
+// (Tikriname, ar prekės ID egzistuoja featured_products lentelėje)
 $stmt = $pdo->query('
     SELECT p.*, c.name AS category_name,
            (SELECT path FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image,
@@ -296,7 +298,7 @@ foreach ($allCats as $c) {
             <div id="tab-specs" class="tab-content">
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                     <label>Techninės savybės</label>
-                    <button type="button" class="btn secondary" style="font-size:12px;" onclick="addRichAttrRow()">+ Eilutė</button>
+                    <button type="button" class="btn secondary" style="font-size:12px;" onclick="window.addRichAttrRow()">+ Eilutė</button>
                 </div>
                 <div id="attributesContainer"></div>
             </div>
@@ -353,7 +355,7 @@ foreach ($allCats as $c) {
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        createToolbar('mainDescToolbar');
+        if(window.createToolbar) window.createToolbar('mainDescToolbar');
     });
 
     // Helper: Rich Text Toolbar
@@ -369,14 +371,16 @@ foreach ($allCats as $c) {
         c.innerHTML = h;
     }
 
-    // Variacijos
+    // Variacijos - FIXED
     window.addVarRow = function(name='', price='') {
         const c = document.getElementById('variationsContainer');
-        if(!c) return;
+        if(!c) { console.error('variationsContainer not found'); return; }
+        
         const d = document.createElement('div');
         d.style.cssText = "display:grid; grid-template-columns: 1fr 100px 40px; gap:10px; margin-bottom:8px;";
-        // Escape quotes in name to prevent JS errors
-        const safeName = name.replace(/"/g, '&quot;');
+        
+        // Saugiai apdorojame tekstą, kad nebūtų klaidų su kabutėmis
+        const safeName = (name || '').replace(/"/g, '&quot;');
         
         d.innerHTML = `
             <input name="variation_name[]" class="form-control" placeholder="Pavadinimas (pvz. Raudona, XL)" value="${safeName}">
@@ -386,14 +390,14 @@ foreach ($allCats as $c) {
         c.appendChild(d);
     }
 
-    // Specifikacijos (Rich attr)
+    // Specifikacijos (Rich attr) - FIXED
     window.addRichAttrRow = function(label='', val='') {
         const c = document.getElementById('attributesContainer');
         if(!c) return;
         const uid = 'ae_'+Date.now()+Math.random();
         const d = document.createElement('div');
         d.className = 'attr-row';
-        const safeLabel = label.replace(/"/g, '&quot;');
+        const safeLabel = (label || '').replace(/"/g, '&quot;');
         
         d.innerHTML = `
             <input name="attr_label[]" class="form-control" placeholder="Savybė" value="${safeLabel}">
@@ -401,7 +405,7 @@ foreach ($allCats as $c) {
             <button type="button" onclick="this.parentElement.remove()" style="color:red; border:none; cursor:pointer; background:none;">&times;</button>
         `;
         c.appendChild(d);
-        createToolbar('tb_'+uid);
+        if(window.createToolbar) window.createToolbar('tb_'+uid);
     }
 
     // Modal control
@@ -417,11 +421,11 @@ foreach ($allCats as $c) {
         const prevC = document.getElementById('modalImgPreview'); if(prevC) prevC.innerHTML = '';
         
         document.querySelectorAll('.cat-check').forEach(c => c.checked = false);
-        switchTab('basic');
+        window.switchTab('basic');
 
         if(mode==='create') {
             document.getElementById('modalTitle').innerText = 'Nauja prekė';
-            addRichAttrRow();
+            window.addRichAttrRow();
         } else {
             document.getElementById('modalTitle').innerText = 'Redaguoti prekę';
             document.getElementById('productId').value = data.id;
@@ -434,8 +438,11 @@ foreach ($allCats as $c) {
             document.getElementById('p_ribbon').value = data.ribbon_text||'';
             document.getElementById('p_meta_tags').value = data.meta_tags||'';
             
-            // Featured pagal is_featured_flag (ar yra featured_products lentelėje)
-            if(data.is_featured_flag > 0) document.getElementById('p_featured').checked = true;
+            // Featured - tikriname pagal is_featured_flag (kuris ateina iš DB užklausos)
+            if(data.is_featured_flag > 0) {
+                const featBox = document.getElementById('p_featured');
+                if(featBox) featBox.checked = true;
+            }
 
             // Categories
             if(data.category_ids) data.category_ids.forEach(cid => {
@@ -444,10 +451,10 @@ foreach ($allCats as $c) {
             });
 
             // Attributes
-            if(data.attributes) data.attributes.forEach(a => addRichAttrRow(a.label, a.value));
+            if(data.attributes) data.attributes.forEach(a => window.addRichAttrRow(a.label, a.value));
             
-            // Variacijos - užkrauname esamas
-            if(data.variations) data.variations.forEach(v => addVarRow(v.name, v.price_delta));
+            // Variacijos
+            if(data.variations) data.variations.forEach(v => window.addVarRow(v.name, v.price_delta));
 
             // Images with Primary Select
             if(data.all_images) {
