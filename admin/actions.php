@@ -822,4 +822,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $view = 'content';
     }
+    // --- MENIU VALDYMAS ---
+    if ($action === 'save_menu_item') {
+        $id = $_POST['id'] ?? '';
+        $label = trim($_POST['label']);
+        $url = trim($_POST['url']);
+        $parentId = !empty($_POST['parent_id']) ? (int)$_POST['parent_id'] : null;
+        
+        // Apsauga: negalima tapti savo paties vaiku
+        if ($id && $parentId == $id) {
+            $parentId = null; 
+        }
+    
+        if ($label && $url) {
+            if ($id) {
+                // Atnaujiname
+                $stmt = $pdo->prepare('UPDATE navigation_items SET label = ?, url = ?, parent_id = ? WHERE id = ?');
+                $stmt->execute([$label, $url, $parentId, $id]);
+                $_SESSION['flash_success'] = 'Meniu punktas atnaujintas.';
+            } else {
+                // Kuriame naują. Randame didžiausią sort_order tam parent_id
+                $maxSort = 0;
+                if ($parentId) {
+                    $maxSort = (int)$pdo->prepare('SELECT MAX(sort_order) FROM navigation_items WHERE parent_id = ?')->execute([$parentId]);
+                } else {
+                    $maxSort = (int)$pdo->query('SELECT MAX(sort_order) FROM navigation_items WHERE parent_id IS NULL')->fetchColumn();
+                }
+                
+                $stmt = $pdo->prepare('INSERT INTO navigation_items (label, url, parent_id, sort_order) VALUES (?, ?, ?, ?)');
+                $stmt->execute([$label, $url, $parentId, $maxSort + 1]);
+                $_SESSION['flash_success'] = 'Meniu punktas sukurtas.';
+            }
+        }
+        header('Location: ?view=menus'); exit;
+    }
+    
+    if ($action === 'delete_menu_item') {
+        $id = (int)$_POST['id'];
+        // Ištriname (DB turėtų turėti ON DELETE CASCADE vaikams, bet dėl viso pikto)
+        $pdo->prepare('DELETE FROM navigation_items WHERE id = ? OR parent_id = ?')->execute([$id, $id]);
+        $_SESSION['flash_success'] = 'Meniu punktas ištrintas.';
+        header('Location: ?view=menus'); exit;
+    }
+    
+    if ($action === 'move_menu_item') {
+        $id = (int)$_POST['id'];
+        $direction = $_POST['direction']; // 'up' or 'down'
+        
+        // Gauname esamą elementą
+        $stmt = $pdo->prepare('SELECT id, parent_id, sort_order FROM navigation_items WHERE id = ?');
+        $stmt->execute([$id]);
+        $current = $stmt->fetch();
+        
+        if ($current) {
+            $parentId = $current['parent_id'];
+            $currentSort = $current['sort_order'];
+            
+            // Randame kaimyną
+            $neighbor = null;
+            if ($direction === 'up') {
+                // Ieškome artimiausio mažesnio sort_order su tuo pačiu parent_id
+                $q = 'SELECT id, sort_order FROM navigation_items WHERE ';
+                $q .= ($parentId ? 'parent_id = ?' : 'parent_id IS NULL');
+                $q .= ' AND sort_order < ? ORDER BY sort_order DESC LIMIT 1';
+                
+                $stmt = $pdo->prepare($q);
+                $args = $parentId ? [$parentId, $currentSort] : [$currentSort];
+                $stmt->execute($args);
+                $neighbor = $stmt->fetch();
+            } elseif ($direction === 'down') {
+                // Ieškome artimiausio didesnio sort_order
+                $q = 'SELECT id, sort_order FROM navigation_items WHERE ';
+                $q .= ($parentId ? 'parent_id = ?' : 'parent_id IS NULL');
+                $q .= ' AND sort_order > ? ORDER BY sort_order ASC LIMIT 1';
+                
+                $stmt = $pdo->prepare($q);
+                $args = $parentId ? [$parentId, $currentSort] : [$currentSort];
+                $stmt->execute($args);
+                $neighbor = $stmt->fetch();
+            }
+            
+            // Sukeičiame vietomis
+            if ($neighbor) {
+                $pdo->beginTransaction();
+                $pdo->prepare('UPDATE navigation_items SET sort_order = ? WHERE id = ?')->execute([$neighbor['sort_order'], $current['id']]);
+                $pdo->prepare('UPDATE navigation_items SET sort_order = ? WHERE id = ?')->execute([$current['sort_order'], $neighbor['id']]);
+                $pdo->commit();
+                $_SESSION['flash_success'] = 'Pozicija pakeista.';
+            }
+        }
+        header('Location: ?view=menus'); exit;
+    }
 }
