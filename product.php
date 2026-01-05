@@ -250,7 +250,7 @@ $meta = [
 
         <div class="info-grid">
           <?php if ($isFreeShippingGift): ?>
-            <div class="info-card" style="display:flex; align-items:center; gap:8px; background:#829ed6; border-color:#829ed6; color:#000;">
+            <div class="info-card" style="display:flex; align-items:center; gap:8px; background:#829ed6; border-color:#829ed6; color:#fff;">
               <span>🎁Pirkite šią prekę ir gausite nemokamą viso užsakymo pristatymą dovanų.</span>
             </div>
           <?php endif; ?>
