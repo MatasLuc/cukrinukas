@@ -191,7 +191,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
 
   <?php echo headerStyles($headerShadowIntensity ?? null); ?>
 
-  <meta name="description" content="Cukrinukas.lt rasite gliukometrus, sensorius, juosteles, mažo GI užkandžius ir patarimus gyvenimui su diabetu.">
+  <meta name="description" content="Cukrinukas.lt rasite gliukometrus, sensoriai, juosteles, mažo GI užkandžius ir patarimus gyvenimui su diabetu.">
   <meta name="keywords" content="diabetas, gliukometrai, sensoriai, cukrinis diabetas, mityba, cukrinukas">
 
   <link rel="icon" type="image/svg+xml" href="<?php echo $faviconSvg; ?>">
@@ -279,7 +279,8 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
       padding: 90px 22px 84px; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 32px; align-items: center;
     }
-    .hero__copy h1 { margin: 0 0 12px; font-size: clamp(36px, 5vw, 48px); letter-spacing: -0.02em; }
+    /* PAKEISTA: H1 spalva balta, eyebrow pašalintas HTML dalyje */
+    .hero__copy h1 { margin: 0 0 12px; font-size: clamp(36px, 5vw, 48px); letter-spacing: -0.02em; color: #fff; }
     .hero__copy p { margin: 0 0 20px; color: #e0f2fe; line-height: 1.7; max-width: 600px; font-size: 18px; }
     .hero__actions { display:flex; gap:10px; flex-wrap:wrap; margin-top: 12px; }
 
@@ -309,10 +310,10 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
         font-weight: 700; flex-shrink: 0;
     }
 
-    /* STORYBAND (Mėlynas Gradientas) */
+    /* STORYBAND */
     .storyband { margin: 0 0 60px; }
     .storyband__layout { 
-        background: linear-gradient(135deg, #eff6ff, #dbeafe); /* Mėlynas */
+        background: linear-gradient(135deg, #eff6ff, #dbeafe); 
         border-radius: 22px; padding: 24px; box-shadow: var(--shadow-soft); 
         display:grid; grid-template-columns: 1.3fr 1fr; gap: 24px; 
         border:1px solid #dbeafe; position:relative; overflow:hidden; 
@@ -327,36 +328,34 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
         background: #fff; color:#0f172a; border-radius:16px; padding:24px; 
         box-shadow:0 10px 30px rgba(0,0,0,0.05); border:1px solid var(--border); 
     }
-    .storyband .card .btn { 
-        background: var(--accent); border-color: var(--accent); width: 100%; margin-top: 10px;
-    }
-    .storyband .card .btn:hover { background: var(--accent-hover); }
+    /* PAKEISTA: Paslėptas mygtukas kortelėje, nes yra kitas */
+    /* .storyband .card .btn ... */ 
 
-    /* STORE SECTION */
+    /* STORE SECTION - PAKEISTA: Mažesni tarpai, kompaktiškesnės kortelės */
     .store-section { margin-bottom: 60px; }
-    .store-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 20px; }
+    .store-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 16px; }
     
     .product-card { 
-        background: #fff; border-radius: 20px; overflow:hidden; 
+        background: #fff; border-radius: 16px; overflow:hidden; 
         border: 1px solid var(--border); box-shadow: var(--shadow-soft); 
         display:flex; flex-direction:column; transition: transform .2s, border-color .2s;
     }
     .product-card:hover { transform: translateY(-4px); border-color: var(--accent); }
     
-    .product-card img { width:100%; height:200px; object-fit:contain; padding: 20px; background: #fff; }
-    .product-card__body { padding: 18px; display:flex; flex-direction:column; gap:10px; flex: 1; border-top: 1px solid #f3f4f6; }
+    .product-card img { width:100%; height:200px; object-fit:contain; padding: 16px; background: #fff; }
+    .product-card__body { padding: 14px; display:flex; flex-direction:column; gap:8px; flex: 1; border-top: 1px solid #f3f4f6; }
     
     .badge { display:inline-flex; padding:4px 10px; border-radius:6px; background:var(--accent); color:#fff; font-size:11px; font-weight:700; text-transform: uppercase; width: fit-content; }
     
-    .product-card__title { margin:0; font-size:17px; font-weight: 600; line-height: 1.4; }
+    .product-card__title { margin:0; font-size:16px; font-weight: 600; line-height: 1.4; }
     .product-card__title a { color: #111827; }
-    .product-card__meta { margin:0; color:var(--muted); font-size:14px; line-height:1.5; }
+    .product-card__meta { margin:0; color:var(--muted); font-size:13px; line-height:1.5; }
     
-    .product-card__actions { display:flex; align-items:center; justify-content:space-between; margin-top:auto; padding-top: 12px; }
+    .product-card__actions { display:flex; align-items:center; justify-content:space-between; margin-top:auto; padding-top: 10px; }
     
-    /* PRODUKTŲ MYGTUKAI (Kaip products.php) */
+    /* PRODUKTŲ MYGTUKAI */
     .action-btn {
-        width: 40px; height: 40px; border-radius: 12px; cursor: pointer;
+        width: 36px; height: 36px; border-radius: 10px; cursor: pointer;
         display: flex; align-items: center; justify-content: center; transition: all .2s;
         background: #fff; border: 1px solid var(--border); color: #1f2937;
     }
@@ -383,17 +382,44 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .story-row__bubble { background:#fff; padding:16px; border-radius:14px; box-shadow:0 10px 20px rgba(0,0,0,0.05); margin-bottom:14px; border:1px solid #eef2ff; }
     .story-row__floating { background:#fff; padding:14px 16px; border-radius:12px; box-shadow:0 10px 20px rgba(0,0,0,0.05); text-align:right; border:1px solid #eef2ff; margin-left: auto; width: fit-content; }
 
-    /* TESTIMONIALS (Mėlyna) */
+    /* FREE SHIPPING PAKEITIMAS - Gražesnis dizainas */
+    .free-shipping { margin-bottom: 60px; }
+    .free-shipping__box {
+        background: #f0f9ff; border: 1px solid #bae6fd;
+        border-radius: 20px; padding: 24px;
+        display: flex; flex-direction: column; gap: 20px;
+    }
+    .free-shipping__header { display:flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .free-shipping__header h2 { margin:0; font-size: 22px; color: #0369a1; }
+    .free-shipping__grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px;
+    }
+    .free-card {
+        background: #fff; border-radius: 14px; padding: 14px;
+        border: 1px solid #e0f2fe; transition: transform .2s;
+        display: flex; align-items: center; gap: 12px;
+    }
+    .free-card:hover { transform: translateY(-2px); border-color: #7dd3fc; }
+    .free-card img { width: 60px; height: 60px; object-fit: contain; border-radius: 8px; background: #fff; border:1px solid #f0f0f0; }
+    .free-card__meta h3 { font-size: 14px; margin: 0 0 4px; line-height: 1.3; }
+    .free-card__price { color: #0284c7; font-weight: 700; font-size: 15px; }
+
+    /* TESTIMONIALS - PAKEISTA: Viena eilė */
     .testimonials { 
         margin:0 0 60px; 
         background: linear-gradient(135deg, #eff6ff, #dbeafe); 
-        border-radius:22px; padding:26px 24px 30px; 
+        border-radius:22px; padding:32px; 
         border:1px solid #dbeafe; 
     }
-    .testimonial { background:#fff; border-radius:16px; padding:18px; border:1px solid #e4e7ec; box-shadow:0 4px 12px rgba(0,0,0,0.03); }
+    .testimonial-grid { 
+        display: grid; 
+        grid-template-columns: repeat(3, 1fr); 
+        gap: 20px; 
+    }
+    .testimonial { background:#fff; border-radius:16px; padding:20px; border:1px solid #e4e7ec; box-shadow:0 4px 12px rgba(0,0,0,0.03); }
     .testimonial__name { margin:0 0 4px; font-size:16px; font-weight: 700; color:#0f172a; }
     .testimonial__role { margin:0 0 10px; color:var(--muted); font-size:13px; }
-    .testimonial__text { margin:0; line-height:1.6; color:#374151; font-size: 15px; }
+    .testimonial__text { margin:0; line-height:1.6; color:#374151; font-size: 14px; }
 
     /* NEWS BLOCK */
     .news-block { margin:0 0 60px; }
@@ -409,29 +435,31 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .news-card__meta { margin:0; color:var(--muted); font-size:12px; }
     .news-card__excerpt { margin:0; color:#4b5563; font-size: 14px; line-height:1.5; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 
-    /* SUPPORT BAND (Mėlynas Gradientas) */
+    /* SUPPORT BAND - PAKEISTA: Ramesnė spalva (tamsesnė mėlyna) */
     .support-band { 
         margin:0 0 60px; 
-        background: linear-gradient(135deg, #1d4ed8, #3b82f6); /* Ryški mėlyna */
+        background: linear-gradient(135deg, #1e40af, #172554); /* Solid, dark professional blue */
         color:#fff; border-radius:22px; padding:32px; 
         display:grid; grid-template-columns:1.1fr 1fr; gap:24px; 
-        box-shadow: 0 20px 40px rgba(37, 99, 235, 0.2); 
+        box-shadow: 0 10px 30px rgba(30, 64, 175, 0.2); 
     }
     .support-band h2 { margin:4px 0 10px; color:#fff; }
-    .support-band__text { margin:0 0 16px; color:#eff6ff; line-height:1.6; }
+    .support-band__text { margin:0 0 16px; color:#dbeafe; line-height:1.6; }
     .support-band__chips { display:flex; flex-wrap:wrap; gap:8px; }
     .support-band__card { 
         background: #fff; color:#0f172a; border-radius:16px; 
-        padding:20px; box-shadow:0 18px 32px rgba(0,0,0,0.1); 
+        padding:20px; box-shadow:0 18px 32px rgba(0,0,0,0.15); 
     }
     .support-band__card .btn { 
-        background: linear-gradient(135deg, #2563eb, #1d4ed8); border:none; width: 100%;
+        background: #1e40af; border-color: #1e40af; color:#fff; width: 100%;
     }
+    .support-band__card .btn:hover { background: #1e3a8a; }
 
     /* MEDIA QUERIES */
     @media (max-width: 900px) {
       .storyband__layout, .support-band { grid-template-columns: 1fr; }
       .news-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .testimonial-grid { grid-template-columns: 1fr; } /* Mobiliajame vistiek dedame vieną po kito */
     }
     @media (max-width: 640px) {
       .hero__copy h1 { font-size: 32px; }
@@ -459,7 +487,6 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
       </div>
       <div class="hero__content">
         <div class="hero__copy">
-          <div class="eyebrow" style="color: #bfdbfe;">Kas yra Cukrinukas?</div>
           <h1><?php echo htmlspecialchars($heroTitle); ?></h1>
           <p><?php echo htmlspecialchars($heroBody); ?></p>
           <div class="hero__actions">
@@ -518,8 +545,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
           <p style="margin:0 0 8px; color:var(--accent); font-weight:600; font-size:13px;"><?php echo htmlspecialchars($storyband['card_eyebrow']); ?></p>
           <h3 style="margin:0 0 10px; color:#0f172a;"><?php echo htmlspecialchars($storyband['card_title']); ?></h3>
           <p style="margin:0 0 16px; color:#4b5563; font-size:14px;"><?php echo htmlspecialchars($storyband['card_body']); ?></p>
-          <a class="btn" href="<?php echo htmlspecialchars($storyband['cta_url']); ?>"><?php echo htmlspecialchars($storyband['cta_label']); ?></a>
-        </div>
+          </div>
       </div>
     </section>
 
@@ -605,28 +631,29 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
 
     <?php if ($freeShippingOffers): ?>
       <section class="section-shell free-shipping">
-        <div class="free-shipping__banner" style="background: linear-gradient(135deg, #ecfeff, #eff6ff); border:1px solid #bae6fd;">
-          <div>
-            <div class="eyebrow" style="color:#0284c7;">Dviguba nauda</div>
-            <h2 style="margin:4px 0 6px; font-size:20px; color:#0c4a6e;">Nemokamas pristatymas perkant šias prekes</h2>
-          </div>
-          <span class="pill" style="background:#fff; color:#0284c7; border-color:#e0f2fe;">Pasiūlymas</span>
-        </div>
-        <div class="free-shipping__grid">
-          <?php foreach ($freeShippingOffers as $offer): ?>
-            <?php $priceDisplay = buildPriceDisplay($offer, $globalDiscount, $categoryDiscounts); ?>
-            <article class="free-card" style="box-shadow: var(--shadow-soft);">
-              <a href="/product.php?id=<?php echo (int)$offer['product_id']; ?>">
-                <img src="<?php echo htmlspecialchars($offer['primary_image'] ?: $offer['image_url']); ?>" alt="<?php echo htmlspecialchars($offer['title']); ?>">
-              </a>
-              <div class="free-card__meta">
-                <h3 class="free-card__title" style="margin:0; font-size:14px; font-weight:600;"><a href="/product.php?id=<?php echo (int)$offer['product_id']; ?>"><?php echo htmlspecialchars($offer['title']); ?></a></h3>
-                <div class="free-card__price">
-                  <strong><?php echo number_format($priceDisplay['current'], 2); ?> €</strong>
+        <div class="free-shipping__box">
+            <div class="free-shipping__header">
+                <div>
+                    <div class="eyebrow" style="color:#0284c7;">Pasiūlymas</div>
+                    <h2 style="margin:0;">Nemokamas pristatymas</h2>
                 </div>
-              </div>
-            </article>
-          <?php endforeach; ?>
+                <div style="font-size:14px; color:#0c4a6e;">Perkant šias prekes pristatymas į paštomatus – 0 €</div>
+            </div>
+            
+            <div class="free-shipping__grid">
+              <?php foreach ($freeShippingOffers as $offer): ?>
+                <?php $priceDisplay = buildPriceDisplay($offer, $globalDiscount, $categoryDiscounts); ?>
+                <a href="/product.php?id=<?php echo (int)$offer['product_id']; ?>" class="free-card">
+                    <img src="<?php echo htmlspecialchars($offer['primary_image'] ?: $offer['image_url']); ?>" alt="<?php echo htmlspecialchars($offer['title']); ?>">
+                    <div class="free-card__meta">
+                        <h3><?php echo htmlspecialchars($offer['title']); ?></h3>
+                        <div class="free-card__price">
+                          <?php echo number_format($priceDisplay['current'], 2); ?> €
+                        </div>
+                    </div>
+                </a>
+              <?php endforeach; ?>
+            </div>
         </div>
       </section>
     <?php endif; ?>
