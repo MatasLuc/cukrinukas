@@ -4,73 +4,36 @@
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     validateCsrfToken();
     $action = $_POST['action'] ?? '';
-
-    // --- NUOLAIDOS ---
+    
+// --- NUOLAIDOS IR AKCIJOS ---
+    // 1. Bendra nuolaida
     if ($action === 'save_global_discount') {
-        $type = $_POST['discount_type'] ?? 'none';
-        $value = (float)($_POST['discount_value'] ?? 0);
+        // HTML formoje naudojame name="type" ir name="value", todėl imame $_POST['type']
+        $type = $_POST['type'] ?? 'none';
+        $value = (float)($_POST['value'] ?? 0);
+        
+        // Funkcija saveGlobalDiscount(PDO, type, value, isFreeShipping)
         saveGlobalDiscount($pdo, $type, $value, $type === 'free_shipping');
-        $messages[] = 'Bendra nuolaida išsaugota';
-        $view = 'discounts';
+        
+        $_SESSION['flash_success'] = 'Bendra nuolaida išsaugota';
+        header('Location: ?view=discounts'); exit;
     }
 
+    // 2. Nuolaidų kodai
     if ($action === 'save_discount_code') {
-        $id = isset($_POST['id']) ? (int)$_POST['id'] : null;
+        $id = isset($_POST['id']) && $_POST['id'] !== '' ? (int)$_POST['id'] : null;
         $code = trim($_POST['code'] ?? '');
         $type = $_POST['type'] ?? 'percent';
         $value = (float)($_POST['value'] ?? 0);
         $usageLimit = (int)($_POST['usage_limit'] ?? 0);
         $active = isset($_POST['active']);
+
         if ($code === '') {
-            $errors[] = 'Įveskite nuolaidos kodą.';
+             $_SESSION['flash_error'] = 'Įveskite nuolaidos kodą.';
         } else {
             $freeShipping = ($type === 'free_shipping');
-            saveDiscountCodeEntry($pdo, $id ?: null, strtoupper($code), $type, $value, $usageLimit, $active, $freeShipping);
-            $messages[] = $id ? 'Nuolaidos kodas atnaujintas' : 'Nuolaidos kodas sukurtas';
-        }
-        $view = 'discounts';
-    }
-
-    if ($action === 'save_category_discount') {
-        $categoryId = (int)($_POST['category_id'] ?? 0);
-        $type = $_POST['category_type'] ?? 'none';
-        $value = (float)($_POST['category_value'] ?? 0);
-        $freeShipping = ($type === 'free_shipping');
-        $active = isset($_POST['category_active']);
-        if ($categoryId > 0) {
-            saveCategoryDiscount($pdo, $categoryId, $type, $value, $freeShipping, $active);
-            $messages[] = 'Kategorijos nuolaida išsaugota';
-        } else {
-            $errors[] = 'Pasirinkite kategoriją.';
-        }
-        $view = 'discounts';
-    }
-
-    // --- NUOLAIDŲ VALDYMAS ---
-    
-    if ($action === 'save_category_discount') {
-        $catId = (int)$_POST['category_id'];
-        $type = $_POST['discount_type']; // 'percent' arba 'amount'
-        $value = (float)$_POST['discount_value'];
-        
-        if ($catId && $value > 0) {
-            // Atnaujiname kategorijos lentelę
-            $stmt = $pdo->prepare("UPDATE categories SET discount_type = ?, discount_value = ? WHERE id = ?");
-            $stmt->execute([$type, $value, $catId]);
-            
-            $_SESSION['flash_success'] = 'Nuolaida kategorijai pritaikyta.';
-        }
-        header('Location: ?view=discounts'); exit;
-    }
-    
-    if ($action === 'remove_category_discount') {
-        $catId = (int)$_POST['category_id'];
-        if ($catId) {
-            // Išvalome laukus
-            $stmt = $pdo->prepare("UPDATE categories SET discount_type = NULL, discount_value = 0 WHERE id = ?");
-            $stmt->execute([$catId]);
-            
-            $_SESSION['flash_success'] = 'Nuolaida pašalinta.';
+            saveDiscountCodeEntry($pdo, $id, strtoupper($code), $type, $value, $usageLimit, $active, $freeShipping);
+            $_SESSION['flash_success'] = $id ? 'Kodas atnaujintas' : 'Kodas sukurtas';
         }
         header('Location: ?view=discounts'); exit;
     }
@@ -79,9 +42,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = (int)($_POST['id'] ?? 0);
         if ($id) {
             deleteDiscountCode($pdo, $id);
-            $messages[] = 'Nuolaidos kodas pašalintas';
+            $_SESSION['flash_success'] = 'Kodas pašalintas';
         }
-        $view = 'discounts';
+        header('Location: ?view=discounts'); exit;
+    }
+
+    // 3. Kategorijų nuolaidos
+    if ($action === 'save_category_discount') {
+        $catId = (int)$_POST['category_id'];
+        $type = $_POST['discount_type']; // Imame 'discount_type', nes taip pavadinta HTML formoje
+        $value = (float)$_POST['discount_value'];
+        $freeShipping = ($type === 'free_shipping');
+        
+        if ($catId) {
+            // Funkcija: saveCategoryDiscount($pdo, $categoryId, $type, $value, $freeShipping, $active)
+            saveCategoryDiscount($pdo, $catId, $type, $value, $freeShipping, true);
+            $_SESSION['flash_success'] = 'Kategorijos akcija išsaugota.';
+        } else {
+            $_SESSION['flash_error'] = 'Pasirinkite kategoriją.';
+        }
+        header('Location: ?view=discounts'); exit;
+    }
+
+    if ($action === 'remove_category_discount') {
+        $catId = (int)$_POST['category_id'];
+        if ($catId) {
+            deleteCategoryDiscount($pdo, $catId);
+            $_SESSION['flash_success'] = 'Nuolaida pašalinta.';
+        }
+        header('Location: ?view=discounts'); exit;
     }
 
     // --- KATEGORIJOS ---
