@@ -191,7 +191,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
     .card img { width:100%; height:220px; object-fit:cover; display:block; }
     .card__body { padding:18px; display:flex; flex-direction:column; gap:10px; flex:1; }
     
-    .ribbon { position:absolute; top:12px; left:12px; background: var(--accent); color:#fff; padding:4px 10px; border-radius:8px; font-size:12px; font-weight:700; }
+    /* PAKEISTA: Ribbon stilius - baltas fonas, mėlynas rėmelis ir tekstas */
+    .ribbon { 
+        position: absolute; top: 12px; left: 12px; 
+        background: #fff; 
+        color: var(--accent); 
+        border: 1px solid var(--accent);
+        padding: 4px 10px; border-radius: 8px; 
+        font-size: 12px; font-weight: 700; 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        z-index: 5;
+    }
     
     .price-row { 
         display:flex; 
