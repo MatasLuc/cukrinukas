@@ -59,60 +59,126 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Naujas skelbimas | Cukrinukas</title>
   <?php echo headerStyles(); ?>
+<style>
+/* Bendras stilius */
+:root { --bg: #f7f7fb; --card: #ffffff; --border: #e4e7ec; --text: #1f2937; --muted: #52606d; --accent: #2563eb; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+a { color:inherit; text-decoration:none; }
+
+.page { max-width: 1200px; margin: 0 auto; padding: 32px 20px 72px; display: grid; gap: 28px; }
+
+/* Hero */
+.hero {
+  padding: 26px; border-radius: 28px; background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border: 1px solid #e5e7eb; box-shadow: 0 18px 48px rgba(0,0,0,0.08);
+}
+.hero h1 { margin: 0 0 8px; font-size: clamp(24px, 4vw, 32px); color: #0f172a; }
+.hero p { margin: 0; color: var(--muted); }
+
+/* Formos stilius */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 32px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); max-width: 800px; margin: 0 auto; width: 100%; }
+
+label { display: block; margin-bottom: 16px; }
+label span { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; color: var(--text); }
+
+input, textarea, select {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: #fff;
+    font-size: 15px;
+    color: var(--text);
+    transition: border-color .2s, box-shadow .2s;
+    font-family: inherit;
+}
+input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 24px; border-radius: 12px; background: #0b0b0b; color: #fff; border: 1px solid #0b0b0b; font-weight: 600; cursor: pointer; transition: opacity 0.2s; font-size: 15px; }
+.btn:hover { opacity: 0.9; }
+.btn-secondary { background: #fff; color: #0b0b0b; border-color: var(--border); }
+
+.alert-error { background:#fef2f2; border:1px solid #fecaca; color: #991b1b; padding:12px; border-radius:12px; margin-bottom:20px; }
+
+/* Grupavimas */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+</style>
 </head>
 <body>
   <?php renderHeader($pdo, 'community'); ?>
-<main style="max-width:900px;margin:40px auto;padding:0 18px 60px;">
-  <section style="background:#fff;border:1px solid #e0e6f6;border-radius:18px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,0.06);">
-    <h1 style="margin-top:0;">Naujas skelbimas</h1>
-    <p class="muted" style="margin-top:0;">Įkelkite daiktą, kurį norite pasiūlyti bendruomenei.</p>
-    <?php foreach ($errors as $err): ?>
-      <div style="background:#fff1f1;border:1px solid #f3b7b7;padding:10px;border-radius:10px;">&times; <?php echo htmlspecialchars($err); ?></div>
-    <?php endforeach; ?>
-    <form method="post" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:14px;margin-top:14px;">
-      <?php echo csrfField(); ?>
-      <label style="display:flex;flex-direction:column;gap:6px;">
-        <span>Pavadinimas</span>
-        <input name="title" value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>" required>
-      </label>
-      <label style="display:flex;flex-direction:column;gap:6px;">
-        <span>Aprašymas</span>
-        <textarea name="description" style="min-height:160px;" required><?php echo htmlspecialchars($_POST['description'] ?? ''); ?></textarea>
-      </label>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <label style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:180px;">
-          <span>Kaina (€)</span>
-          <input name="price" type="number" step="0.01" min="0" value="<?php echo htmlspecialchars($_POST['price'] ?? '0'); ?>">
-        </label>
-        <label style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:200px;">
-          <span>Kategorija</span>
-          <select name="category_id">
-            <option value="">Pasirinkti</option>
-            <?php foreach ($categories as $cat): ?>
-              <option value="<?php echo (int)$cat['id']; ?>" <?php echo (isset($_POST['category_id']) && (int)$_POST['category_id'] === (int)$cat['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($cat['name']); ?></option>
-            <?php endforeach; ?>
-          </select>
-        </label>
-        <label style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:220px;">
-          <span>El. paštas</span>
-          <input name="seller_email" value="<?php echo htmlspecialchars($_POST['seller_email'] ?? $user['email'] ?? ''); ?>" placeholder="info@...">
-        </label>
-        <label style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:180px;">
-          <span>Tel. nr.</span>
-          <input name="seller_phone" value="<?php echo htmlspecialchars($_POST['seller_phone'] ?? ''); ?>" placeholder="+370...">
-        </label>
-      </div>
-      <label style="display:flex;flex-direction:column;gap:6px;">
-        <span>Nuotrauka</span>
-        <input type="file" name="image" accept="image/*">
-      </label>
-  <div style="display:flex;gap:10px;align-items:center;">
-    <button class="btn" style="background:#0b0b0b;color:#fff;border-color:#0b0b0b;">Pridėti</button>
-    <a class="btn btn-secondary" href="/community_market.php">Grįžti</a>
+  
+  <div class="page">
+    <section class="hero">
+        <div style="max-width: 800px; margin: 0 auto;">
+            <h1>Naujas skelbimas</h1>
+            <p>Įkelkite daiktą, kurį norite pasiūlyti bendruomenei.</p>
+        </div>
+    </section>
+
+    <div class="card">
+        <?php foreach ($errors as $err): ?>
+          <div class="alert-error">&times; <?php echo htmlspecialchars($err); ?></div>
+        <?php endforeach; ?>
+        
+        <form method="post" enctype="multipart/form-data">
+          <?php echo csrfField(); ?>
+          
+          <label>
+            <span>Pavadinimas</span>
+            <input name="title" value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>" required placeholder="Pvz.: Parduodu gliukomatį">
+          </label>
+          
+          <label>
+            <span>Aprašymas</span>
+            <textarea name="description" style="min-height:160px;" required placeholder="Išsamiai aprašykite prekę, jos būklę..."><?php echo htmlspecialchars($_POST['description'] ?? ''); ?></textarea>
+          </label>
+          
+          <div class="form-row">
+              <label>
+                <span>Kaina (€)</span>
+                <input name="price" type="number" step="0.01" min="0" value="<?php echo htmlspecialchars($_POST['price'] ?? '0'); ?>">
+              </label>
+              <label>
+                <span>Kategorija</span>
+                <select name="category_id">
+                  <option value="">Pasirinkti</option>
+                  <?php foreach ($categories as $cat): ?>
+                    <option value="<?php echo (int)$cat['id']; ?>" <?php echo (isset($_POST['category_id']) && (int)$_POST['category_id'] === (int)$cat['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($cat['name']); ?></option>
+                  <?php endforeach; ?>
+                </select>
+              </label>
+          </div>
+          
+          <div class="form-row">
+              <label>
+                <span>El. paštas</span>
+                <input name="seller_email" value="<?php echo htmlspecialchars($_POST['seller_email'] ?? $user['email'] ?? ''); ?>" placeholder="info@...">
+              </label>
+              <label>
+                <span>Tel. nr.</span>
+                <input name="seller_phone" value="<?php echo htmlspecialchars($_POST['seller_phone'] ?? ''); ?>" placeholder="+370...">
+              </label>
+          </div>
+          
+          <label>
+            <span>Nuotrauka</span>
+            <input type="file" name="image" accept="image/*" style="padding: 10px;">
+          </label>
+          
+          <div style="display:flex; gap:12px; margin-top: 24px;">
+            <button class="btn" type="submit">Pridėti skelbimą</button>
+            <a class="btn btn-secondary" href="/community_market.php">Atšaukti</a>
+          </div>
+        </form>
+    </div>
   </div>
-  </form>
-  </section>
-</main>
+
   <?php renderFooter($pdo); ?>
 </body>
 </html>
