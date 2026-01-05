@@ -1,19 +1,28 @@
 <?php
 // admin/products.php
 
-// 1. DUOMENŲ BAZĖS ATNAUJINIMAS (Vieną kartą)
+// Rodyti sesijos pranešimus, jei jie nebuvo parodyti (pvz., po redirect)
+if (isset($_SESSION['flash_success'])) {
+    echo '<div class="alert success" style="margin-bottom:10px;">&check; '.htmlspecialchars($_SESSION['flash_success']).'</div>';
+    unset($_SESSION['flash_success']);
+}
+if (isset($_SESSION['flash_error'])) {
+    echo '<div class="alert error" style="margin-bottom:10px;">&times; '.htmlspecialchars($_SESSION['flash_error']).'</div>';
+    unset($_SESSION['flash_error']);
+}
+
+// 1. DUOMENŲ BAZĖS ATNAUJINIMAS
 try {
-    // Patikriname, ar yra is_featured stulpelis
-    $pdo->query("SELECT is_featured FROM products LIMIT 1");
+    // Patikriname, ar yra is_featured stulpelis. Jei nėra - sukuriame.
+    $check = $pdo->query("SHOW COLUMNS FROM products LIKE 'is_featured'");
+    if ($check->rowCount() == 0) {
+        $pdo->exec("ALTER TABLE products ADD COLUMN is_featured TINYINT(1) DEFAULT 0");
+    }
 } catch (Exception $e) {
-    // Jei nėra, sukuriame
-    $pdo->exec("ALTER TABLE products ADD COLUMN is_featured TINYINT(1) DEFAULT 0");
+    // Ignoruojame klaidą jei stulpelis jau yra ar kita db problema
 }
 
 // 2. DUOMENŲ SURINKIMAS
-// ---------------------------------------------------
-
-// Surenkame visas prekes
 $stmt = $pdo->query('
     SELECT p.*, c.name AS category_name,
            (SELECT path FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image
@@ -23,7 +32,7 @@ $stmt = $pdo->query('
 ');
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Papildomai surenkame duomenis (atributus, variacijas, kategorijas, VISAS nuotraukas)
+// Papildomi duomenys redagavimui
 foreach ($products as &$p) {
     // Atributai
     $attrsStmt = $pdo->prepare("SELECT label, value FROM product_attributes WHERE product_id = ?");
@@ -40,12 +49,7 @@ foreach ($products as &$p) {
     $catsStmt->execute([$p['id']]);
     $p['category_ids'] = $catsStmt->fetchAll(PDO::FETCH_COLUMN);
     
-    // Susijusios prekės
-    $relStmt = $pdo->prepare("SELECT related_product_id FROM product_related WHERE product_id = ?");
-    $relStmt->execute([$p['id']]);
-    $p['related_ids'] = $relStmt->fetchAll(PDO::FETCH_COLUMN);
-
-    // Visos nuotraukos (redagavimui)
+    // Visos nuotraukos
     $imgsStmt = $pdo->prepare("SELECT id, path, is_primary FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, id ASC");
     $imgsStmt->execute([$p['id']]);
     $p['all_images'] = $imgsStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -62,8 +66,8 @@ foreach ($allCats as $c) {
     if (!empty($c['parent_id']) && isset($catTree[$c['parent_id']])) { $catTree[$c['parent_id']]['children'][]=$c; }
 }
 
-// Featured prekės (iš tos pačios products lentelės)
-$fProds = array_filter($products, function($p) { return $p['is_featured'] == 1; });
+// Featured prekės
+$fProds = array_filter($products, function($p) { return isset($p['is_featured']) && $p['is_featured'] == 1; });
 ?>
 
 <style>
@@ -139,7 +143,7 @@ $fProds = array_filter($products, function($p) { return $p['is_featured'] == 1; 
         <?php foreach ($fProds as $fp): ?>
             <div style="background:#fff; border:1px solid #c7d2fe; padding:6px 12px; border-radius:20px; font-size:13px; display:flex; align-items:center; gap:8px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
                 <span style="font-weight:600; color:#3730a3;"><?php echo htmlspecialchars($fp['title']); ?></span>
-                <form method="post" style="margin:0;">
+                <form method="post" action="/admin.php?view=products" style="margin:0;">
                     <?php echo csrfField(); ?>
                     <input type="hidden" name="action" value="toggle_featured">
                     <input type="hidden" name="product_id" value="<?php echo $fp['id']; ?>">
@@ -149,7 +153,7 @@ $fProds = array_filter($products, function($p) { return $p['is_featured'] == 1; 
             </div>
         <?php endforeach; ?>
         
-        <form method="post" style="display:flex; gap:6px;">
+        <form method="post" action="/admin.php?view=products" style="display:flex; gap:6px;">
             <?php echo csrfField(); ?>
             <input type="hidden" name="action" value="add_featured_by_name">
             <input name="featured_title" list="prodList" placeholder="Įveskite prekės pavadinimą..." class="form-control" style="width:250px; padding:6px 10px; font-size:13px; background:#fff;" required autocomplete="off">
@@ -161,7 +165,7 @@ $fProds = array_filter($products, function($p) { return $p['is_featured'] == 1; 
     </div>
 </div>
 
-<form id="productsListForm" method="post">
+<form id="productsListForm" method="post" action="/admin.php?view=products">
     <?php echo csrfField(); ?>
     <input type="hidden" name="action" value="bulk_delete_products">
     
@@ -193,7 +197,7 @@ $fProds = array_filter($products, function($p) { return $p['is_featured'] == 1; 
                         </td>
                         <td>
                             <div style="font-weight:600; font-size:14px; color:#111;"><?php echo htmlspecialchars($p['title']); ?></div>
-                            <?php if($p['is_featured']): ?><span style="font-size:10px; color:#4f46e5; font-weight:700;">[Titulinio]</span><?php endif; ?>
+                            <?php if(isset($p['is_featured']) && $p['is_featured']): ?><span style="font-size:10px; color:#4f46e5; font-weight:700;">[Titulinio]</span><?php endif; ?>
                             <?php if($p['sale_price']): ?><span style="font-size:10px; color:#ef4444; font-weight:700;">[Akcija]</span><?php endif; ?>
                         </td>
                         <td style="font-size:13px; color:#666;"><?php echo htmlspecialchars($p['category_name'] ?? '-'); ?></td>
@@ -223,7 +227,7 @@ $fProds = array_filter($products, function($p) { return $p['is_featured'] == 1; 
 </form>
 
 <div id="productModal" class="modal-overlay">
-    <form method="post" enctype="multipart/form-data" class="modal-window" onsubmit="return syncEditors()">
+    <form method="post" enctype="multipart/form-data" class="modal-window" onsubmit="return syncEditors()" action="/admin.php?view=products">
         <?php echo csrfField(); ?>
         <input type="hidden" name="action" id="formAction" value="save_product">
         <input type="hidden" name="id" id="productId" value="">
