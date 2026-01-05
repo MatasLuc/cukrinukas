@@ -60,47 +60,68 @@ $isAdmin = !empty($_SESSION['is_admin']);
   <title>Receptai | Cukrinukas</title>
   <?php echo headerStyles(); ?>
   <style>
-    /* Naudojama ta pati paletė kaip ir news.php */
+    /* Pakeista --accent į mėlyną */
     :root {
       --bg: #f7f7fb;
       --card: #ffffff;
       --border: #e4e7ec;
       --text: #0f172a;
       --muted: #475467;
-      --accent: #7c3aed;
+      --accent: #2563eb;
     }
     * { box-sizing: border-box; }
     body { margin:0; background: var(--bg); color: var(--text); }
+    a { text-decoration: none; color: inherit; }
     .page { max-width: 1200px; margin: 0 auto; padding: 32px 20px 72px; display:grid; gap:28px; }
     
-    /* Hero sekcija (identiška news.php) */
-    .hero { background: linear-gradient(135deg, #eef2ff, #e0f2fe); border-radius: 28px; padding: 26px 26px 30px; border:1px solid #e5e7eb; box-shadow:0 18px 48px rgba(0,0,0,0.08); display:grid; grid-template-columns: 1.4fr 0.6fr; gap:22px; align-items:center; }
-    .hero__pill { display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid #e4e7ec; padding:10px 14px; border-radius:999px; font-weight:700; box-shadow:0 12px 30px rgba(0,0,0,0.08); }
+    /* Hero kaip products.php, mėlynas gradientas */
+    .hero { background: linear-gradient(135deg, #eff6ff, #dbeafe); border-radius: 28px; padding: 26px 26px 30px; border:1px solid #e5e7eb; box-shadow:0 18px 48px rgba(0,0,0,0.08); display:grid; grid-template-columns: 1.4fr 0.6fr; gap:22px; align-items:center; }
+    .hero__pill { display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid #e4e7ec; padding:10px 14px; border-radius:999px; font-weight:700; box-shadow:0 6px 20px rgba(0,0,0,0.05); }
     .hero h1 { margin:10px 0 8px; font-size: clamp(26px, 4vw, 36px); letter-spacing:-0.02em; }
     .hero p { margin:0; color: var(--muted); line-height:1.6; }
     .hero__actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
     
-    /* Mygtukai (identiški news.php) */
-    .cta { display:inline-flex; align-items:center; gap:10px; padding:12px 16px; border-radius:12px; border:none; background: linear-gradient(135deg, #4338ca, #7c3aed); color:#fff; font-weight:700; cursor:pointer; box-shadow:0 14px 36px rgba(124,58,237,0.25); text-decoration:none; transition: transform .18s ease, box-shadow .18s ease; }
-    .cta.secondary { background:#fff; color:#4338ca; border:1px solid #c7d2fe; box-shadow:none; }
-    .cta:hover { transform: translateY(-1px); box-shadow:0 18px 52px rgba(124,58,237,0.3); }
+    /* --- MYGTUKAI (Stilius iš products.php) --- */
+    .btn-large { 
+        padding: 11px 24px; 
+        border-radius: 12px; 
+        border: 1px solid #1d4ed8; 
+        background: #fff; 
+        color: #1d4ed8; 
+        font-weight: 600; 
+        transition: all .2s; 
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .btn-large:hover { background: #1d4ed8; color: #fff; transform: translateY(-1px); }
+
+    /* --- KATEGORIJOS (Stilius iš products.php 'chip') --- */
+    .chips { display:flex; flex-wrap:wrap; gap:12px; align-items: flex-start; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 99px;
+      background: #fff; border: 1px solid var(--border);
+      font-weight: 600; color: var(--muted); cursor: pointer; transition: all .2s;
+      white-space: nowrap; user-select: none; position: relative; z-index: 20;
+    }
+    .chip:hover, .chip.active {
+      border-color: var(--accent); color: var(--accent); background: #f0f9ff;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+    }
     
     .page__head { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
     .page__title { margin:0; font-size:28px; letter-spacing:-0.01em; }
     
-    /* Kategorijų stilius (identiškas news.php) */
-    .pill { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:12px; background:#eef2ff; color:#4338ca; font-weight:700; font-size:13px; transition: all 0.2s ease; text-decoration:none; }
-    .pill:hover { opacity: 0.9; transform: translateY(-1px); }
-    
     .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:18px; }
     .card { background: var(--card); border-radius:20px; overflow:hidden; border:1px solid var(--border); box-shadow:0 14px 32px rgba(0,0,0,0.08); display:grid; grid-template-rows:auto 1fr; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
-    .card:hover { transform: translateY(-3px); box-shadow:0 18px 46px rgba(0,0,0,0.12); border-color: rgba(124,58,237,0.35); }
+    .card:hover { transform: translateY(-3px); box-shadow:0 18px 46px rgba(0,0,0,0.12); border-color: rgba(37, 99, 235, 0.35); }
     .card img { width: 100%; height: 190px; object-fit: cover; display: block; }
     .card__body { padding: 16px 18px 20px; display: grid; gap: 10px; }
     .card__title { margin: 0; font-size: 20px; letter-spacing:-0.01em; }
     .card__meta { font-size: 13px; color: var(--muted); }
     
-    /* Santraukos ribojimas (CSS būdu) */
     .card__excerpt { 
         margin: 0; 
         color: #111827; 
@@ -111,41 +132,49 @@ $isAdmin = !empty($_SESSION['is_admin']);
         overflow: hidden;
         text-overflow: ellipsis;
     }
-    /* --- Naujas stilius Hero mygtukams (kaip products.php) --- */
-    .hero .cta {
-      background: #ffffff;
-      color: #4338ca; /* Indigo */
-      border: 1px solid #4338ca;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-      padding: 11px 24px;
-      font-weight: 600;
-      /* Užtikriname, kad 'secondary' ir paprasti atrodytų vienodai */
+
+    /* --- VEIKSMO MYGTUKAI KORTELĖSE (Stilius iš products.php) --- */
+    /* Mygtukas "Gaminti" */
+    .btn-text-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 16px;
+        height: 42px;
+        border-radius: 12px;
+        background: #fff;
+        border: 1px solid var(--border);
+        color: #1f2937;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all .2s;
     }
-    
-    /* Hover efektas */
-    .hero .cta:hover {
-      background: #ffffff;
-      color: #312e81; /* Tamsesnė indigo */
-      border-color: #312e81;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(67, 56, 202, 0.12);
+    .btn-text-action:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        transform: translateY(-2px);
     }
 
-    /* Panaikiname seną 'secondary' stilių Hero sekcijoje */
-    .hero .cta.secondary {
-      background: #ffffff;
-      color: #4338ca;
-      border-color: #4338ca;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    /* Širdelė */
+    .action-btn {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all .2s;
+        background: #fff;
+        border: 1px solid var(--border);
+        color: #1f2937;
+        font-size: 18px;
     }
-    .hero .cta.secondary:hover {
-      color: #312e81;
-      border-color: #312e81;
-      box-shadow: 0 6px 16px rgba(67, 56, 202, 0.12);
+    .action-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        transform: translateY(-2px);
     }
-      
-    .heart-btn { width:38px; height:38px; border-radius:12px; border:1px solid var(--border); background:#f8fafc; display:inline-flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; transition: transform .16s ease, border-color .18s ease; }
-    .heart-btn:hover { border-color: rgba(124,58,237,0.55); transform: translateY(-2px); }
   </style>
 </head>
 <body>
@@ -157,11 +186,12 @@ $isAdmin = !empty($_SESSION['is_admin']);
         <div class="hero__pill"><?php echo htmlspecialchars($siteContent['recipes_hero_pill'] ?? '🥗 Sveika mityba'); ?></div>
         <h1><?php echo htmlspecialchars($siteContent['recipes_hero_title'] ?? 'Receptai, kurie įkvepia'); ?></h1>
         <p><?php echo htmlspecialchars($siteContent['recipes_hero_body'] ?? 'Subalansuoti patiekalai diabeto kontrolei ir gerai savijautai.'); ?></p>
+        
         <div class="hero__actions">
-          <a class="cta" href="#list">Žiūrėti receptus</a>
+          <a class="btn-large" href="#list">Žiūrėti receptus</a>
           <?php if ($isAdmin): ?>
-            <a class="cta secondary" href="/recipe_create.php">+ Naujas receptas</a>
-            <a class="cta secondary" href="/admin.php?view=content">Valdyti</a>
+            <a class="btn-large" href="/recipe_create.php">+ Naujas receptas</a>
+            <a class="btn-large" href="/admin.php?view=content">Valdyti</a>
           <?php endif; ?>
         </div>
       </div>
@@ -174,12 +204,12 @@ $isAdmin = !empty($_SESSION['is_admin']);
     </div>
 
     <?php if (!empty($activeCategories)): ?>
-    <div class="categories-nav" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom: -10px;">
-        <a href="/recipes.php" class="pill" style="background: <?php echo $selectedCatId === null ? '#4338ca' : '#eef2ff'; ?>; color: <?php echo $selectedCatId === null ? '#fff' : '#4338ca'; ?>;">
+    <div class="chips">
+        <a href="/recipes.php" class="chip <?php echo $selectedCatId === null ? 'active' : ''; ?>">
             Visi receptai
         </a>
         <?php foreach ($activeCategories as $cat): ?>
-            <a href="/recipes.php?cat=<?php echo $cat['id']; ?>" class="pill" style="background: <?php echo $selectedCatId === $cat['id'] ? '#4338ca' : '#eef2ff'; ?>; color: <?php echo $selectedCatId === $cat['id'] ? '#fff' : '#4338ca'; ?>;">
+            <a href="/recipes.php?cat=<?php echo $cat['id']; ?>" class="chip <?php echo $selectedCatId === $cat['id'] ? 'active' : ''; ?>">
                 <?php echo htmlspecialchars($cat['name']); ?>
             </a>
         <?php endforeach; ?>
@@ -219,15 +249,15 @@ $isAdmin = !empty($_SESSION['is_admin']);
                 
                 <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; margin-top:auto;">
                     <div style="display:flex; gap:8px; align-items:center;">
-                        <a class="cta" style="padding:9px 12px; font-size:14px;" href="/recipe_view.php?id=<?php echo (int)$r['id'];?>">Gaminti</a>
+                        <a class="btn-text-action" href="/recipe_view.php?id=<?php echo (int)$r['id'];?>">Gaminti</a>
                         <?php if ($isLoggedIn): ?>
                             <form method="post" style="margin:0;">
-                            <?php echo csrfField(); ?>
-                            <input type="hidden" name="recipe_id" value="<?php echo (int)$r['id']; ?>">
-                            <button class="heart-btn" type="submit" aria-label="Išsaugoti">♥</button>
+                                <?php echo csrfField(); ?>
+                                <input type="hidden" name="recipe_id" value="<?php echo (int)$r['id']; ?>">
+                                <button class="action-btn" type="submit" aria-label="Išsaugoti">♥</button>
                             </form>
                         <?php else: ?>
-                            <a class="heart-btn" href="/login.php" style="text-decoration:none; color:inherit; display:flex; align-items:center; justify-content:center;">♥</a>
+                            <a class="action-btn" href="/login.php" style="text-decoration:none;">♥</a>
                         <?php endif; ?>
                     </div>
                     <?php if ($isAdmin): ?>
