@@ -151,7 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $view = 'community';
     }
 
-    // --- PREKĖS IR FEATURED ---
+   // --- PREKĖS IR FEATURED ---
 
     // 1. Featured prekių valdymas
     if ($action === 'featured_add') {
@@ -172,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['flash_error'] = 'Maksimalus rodomų prekių skaičius (3) pasiektas.';
                 }
             } else {
-                $_SESSION['flash_error'] = 'Prekė nerasta.';
+                $_SESSION['flash_error'] = 'Prekė nerasta. Patikrinkite pavadinimą.';
             }
         }
         header('Location: ?view=products'); exit;
@@ -200,7 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Kategorijos (masyvas iš checkboxų)
         $cats = $_POST['categories'] ?? [];
-        // Pirma kategorija laikoma "pagrindine" suderinamumui
+        // Pirma kategorija laikoma "pagrindine" suderinamumui (privaloma)
         $primaryCatId = !empty($cats) ? (int)$cats[0] : null;
 
         if ($title) {
@@ -223,6 +223,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // KATEGORIJŲ RYŠIAI (Multi-category)
+            // Išvalome senus ryšius ir įrašome naujus
             $pdo->prepare("DELETE FROM product_category_relations WHERE product_id = ?")->execute([$productId]);
             if (!empty($cats)) {
                 $insCat = $pdo->prepare("INSERT INTO product_category_relations (product_id, category_id) VALUES (?, ?)");
@@ -269,7 +270,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $insertVar = $pdo->prepare('INSERT INTO product_variations (product_id, name, price_delta) VALUES (?, ?, ?)');
                 foreach ($varNames as $idx => $vName) {
                     $vName = trim($vName);
-                    $delta = isset($varPrices[$idx]) ? (float)$varPrices[$idx] : 0;
+                    $delta = isset($varPrices[$idx]) && $varPrices[$idx] !== '' ? (float)$varPrices[$idx] : 0;
                     if ($vName !== '') {
                         $insertVar->execute([$productId, $vName, $delta]);
                     }
