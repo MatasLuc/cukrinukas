@@ -105,7 +105,7 @@ $meta = [
       --border: #e4e7ec;
       --text: #0f172a;
       --muted: #475467;
-      /* Pagrindinė spalva */
+      /* PAKEISTA: Pagrindinė spalva */
       --accent: #829ed6;
       --accent-hover: #6a8bc9;
     }
@@ -131,7 +131,7 @@ $meta = [
     h1 { margin:0; font-size:32px; letter-spacing:-0.02em; }
     .subtitle { margin:0; color:var(--accent); }
     
-    /* Aprašymo stilius (kad veiktų sąrašai ir tarpai) */
+    /* Aprašymo stilius (sąrašai ir tarpai) */
     .description { margin:0; color: var(--muted); line-height:1.65; }
     .description ul, .description ol { margin: 10px 0; padding-left: 20px; }
     .description li { margin-bottom: 5px; }
@@ -139,28 +139,27 @@ $meta = [
     .price-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
     .old { color:#9ca3af; text-decoration:line-through; }
     .current { font-size:28px; font-weight:800; letter-spacing:-0.02em; }
+    
     .form-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:4px; }
-    .quantity { width:90px; padding:11px; border-radius:12px; border:1px solid var(--border); background:#f8fafc; }
     
-    /* Mygtukas */
-    .btn { 
-        display:inline-flex; align-items:center; justify-content:center; 
-        padding:12px 16px; border-radius:12px; border:none; 
-        background: var(--accent); color:#fff; 
-        font-weight:700; cursor:pointer; transition: background 0.2s ease;
-        box-shadow:0 4px 12px rgba(130, 158, 214, 0.3);
-    }
-    .btn:hover { background: var(--accent-hover); }
+    /* PAKEISTA: Kiekio įvesties aukštis pritaikytas prie mygtukų */
+    .quantity { width:80px; height: 42px; padding:0 12px; border-radius:12px; border:1px solid var(--border); background:#f8fafc; font-size: 16px; }
     
-    /* Širdelės mygtukas */
-    .heart-btn { 
-        width:44px; height:44px; border-radius:12px; 
-        border:1px solid var(--border); background:#fff; 
-        display:inline-flex; align-items:center; justify-content:center; 
-        font-size:18px; cursor:pointer; color: var(--text);
-        transition: all 0.2s ease;
+    /* PAKEISTA: Mygtukų stilius identiškas products.php (balti, su ikona) */
+    .action-btn {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all .2s;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--text);
     }
-    .heart-btn:hover {
+    .action-btn:hover {
         border-color: var(--accent);
         color: var(--accent);
         transform: translateY(-2px);
@@ -171,7 +170,7 @@ $meta = [
     .section { background:var(--card); border:1px solid var(--border); border-radius:18px; padding:16px 18px; box-shadow:0 12px 28px rgba(0,0,0,0.08); display:grid; gap:12px; }
     
     .attr-card { background:#fff; border:1px solid var(--border); border-radius:12px; padding:12px; box-shadow:0 8px 18px rgba(0,0,0,0.06); }
-    /* PAKEISTA: Pridėtas stilius, kad ypatybių tekstas atrodytų tvarkingai */
+    /* PAKEISTA: Ypatybių teksto stilius */
     .attr-value ul, .attr-value ol { margin: 6px 0 6px 20px; padding: 0; }
     .attr-value li { margin-bottom: 2px; }
     .attr-value p { margin: 0 0 4px 0; }
@@ -234,15 +233,21 @@ $meta = [
           </span>
           <strong id="price-current" class="current"><?php echo number_format($priceDisplay['current'], 2); ?> €</strong>
         </div>
+        
         <form method="post" class="form-row">
           <?php echo csrfField(); ?>
           <input class="quantity" type="number" name="quantity" min="1" value="1">
           <input type="hidden" name="variation_id" id="variation-id" value="0">
-          <button class="btn" type="submit">Į krepšelį</button>
-          <button class="heart-btn" name="action" value="wishlist" type="submit" aria-label="Į norų sąrašą">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+          
+          <button class="action-btn" type="submit" aria-label="Į krepšelį">
+             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          </button>
+          
+          <button class="action-btn" name="action" value="wishlist" type="submit" aria-label="Į norų sąrašą">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
           </button>
         </form>
+
         <div class="info-grid">
           <?php if ($isFreeShippingGift): ?>
             <div class="info-card" style="display:flex; align-items:center; gap:8px; background:#f0fdf4; border-color:#bbf7d0; color:#166534;">
@@ -357,7 +362,8 @@ $meta = [
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.querySelector('form.form-row');
         if (form) {
-            const addToCartBtn = form.querySelector('button[type="submit"]:not(.heart-btn)');
+            // PAKEISTA: Pritaikytas selektorius ikonai
+            const addToCartBtn = form.querySelector('button[type="submit"]:not([name="action"])');
             if (addToCartBtn) {
                 addToCartBtn.addEventListener('click', function() {
                     const qtyInput = form.querySelector('input[name="quantity"]');
