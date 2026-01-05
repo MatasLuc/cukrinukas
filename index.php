@@ -322,31 +322,28 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .fs-card h4 { margin:0 0 2px; font-size:13px; font-weight:600; line-height:1.3; }
     .fs-price { font-size:14px; font-weight:700; color:#0284c7; }
 
-    /* HIGHLIGHT SECTION - GRĄŽINTA Į SPLIT-PANEL */
-    .split-panel { display:grid; grid-template-columns: 1fr 1fr; gap:24px; }
-    
-    .story-card { 
-        background:#fff; 
-        border:1px solid var(--border); 
-        border-radius:20px; 
-        padding:32px; 
-        display:flex; flex-direction:column; justify-content:center; 
+    /* HIGHLIGHT & SUPPORT BAND (IDENTIŠKI) */
+    .support-box, .highlight-box { 
+        background:#fff; border:1px solid var(--border); border-radius:20px; padding:32px;
+        display:grid; grid-template-columns: 1.2fr 1fr; gap:40px; box-shadow:var(--shadow-sm);
     }
-    .story-card h3 { margin:0 0 10px; font-size:24px; color:#0f172a; }
-    .story-card p { margin:0 0 20px; line-height:1.6; color:#475467; font-size:16px; }
+    .support-content h2, .highlight-content h2 { margin:0 0 12px; font-size:24px; color:#0f172a; }
+    .support-content p, .highlight-content p { color:#475467; line-height:1.6; margin-bottom:20px; }
     
-    /* PAKEISTA: BALTAS FONAS KAIP PRAŠĖTE */
-    .story-visual { 
+    .support-card, .highlight-card { 
+        background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:20px; 
+    }
+    
+    .support-card .btn, .highlight-card .btn { 
+        width:100%; 
         background: #fff; 
-        border:1px solid var(--border); border-radius:20px; padding:32px; 
-        display:flex; flex-direction:column; justify-content:space-between; gap:24px; 
-        min-height: 280px; 
+        color: #1f2937; 
+        border: 1px solid var(--border);
+        font-weight: 600;
+        border-radius: 999px;
     }
-    /* Burbulas - švelniai pilkas */
-    .story-bubble { 
-        background:#f8fafc; padding:18px; border-radius:16px; 
-        box-shadow:var(--shadow-sm); border:1px solid #e2e8f0; 
-        max-width: 90%;
+    .support-card .btn:hover, .highlight-card .btn:hover { 
+        border-color: var(--accent); color: var(--accent); background: #f0f9ff; 
     }
     
     .chips { display:flex; gap:8px; flex-wrap:wrap; }
@@ -372,28 +369,9 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .news-date { font-size:12px; color:var(--muted); margin-bottom:8px; display:block; }
     .news-excerpt { font-size:13px; color:#4b5563; line-height:1.5; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
 
-    /* SUPPORT BAND */
-    .support-box { 
-        background:#fff; border:1px solid var(--border); border-radius:20px; padding:32px;
-        display:grid; grid-template-columns: 1.2fr 1fr; gap:40px; box-shadow:var(--shadow-sm);
-    }
-    .support-content h2 { margin:0 0 12px; font-size:24px; color:#0f172a; }
-    .support-content p { color:#475467; line-height:1.6; margin-bottom:20px; }
-    .support-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:20px; }
-    
-    .support-card .btn { 
-        width:100%; 
-        background: #fff; 
-        color: #1f2937; 
-        border: 1px solid var(--border);
-        font-weight: 600;
-        border-radius: 999px; /* Pill shape */
-    }
-    .support-card .btn:hover { border-color: var(--accent); color: var(--accent); background: #f0f9ff; }
-
     /* MEDIA QUERIES */
     @media (max-width: 900px) {
-        .storyband-box, .split-panel, .support-box { grid-template-columns: 1fr; gap:24px; }
+        .storyband-box, .highlight-box, .support-box { grid-template-columns: 1fr; gap:24px; }
         .testimonial-grid, .news-grid, .store-grid { grid-template-columns: 1fr 1fr; }
         .fs-grid { grid-template-columns: 1fr; }
     }
@@ -533,22 +511,21 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     </section>
 
     <section class="section-shell highlight-section">
-      <div class="split-panel">
-        <div class="story-card">
-          <h3><?php echo htmlspecialchars($storyRow['title']); ?></h3>
-          <p><?php echo htmlspecialchars($storyRow['body']); ?></p>
-          <div class="chips">
-            <?php foreach ($storyRow['pills'] as $pill): ?>
-              <span class="pill"><?php echo htmlspecialchars($pill); ?></span>
-            <?php endforeach; ?>
-          </div>
+      <div class="highlight-box">
+        <div class="highlight-content">
+            <h2><?php echo htmlspecialchars($storyRow['title']); ?></h2>
+            <p><?php echo htmlspecialchars($storyRow['body']); ?></p>
+            <div class="chips">
+              <?php foreach ($storyRow['pills'] as $pill): ?>
+                <span class="pill"><?php echo htmlspecialchars($pill); ?></span>
+              <?php endforeach; ?>
+            </div>
         </div>
-        <div class="story-visual">
-          <div class="story-bubble">
-            <strong style="display:block; margin-bottom:4px; font-size:14px; color:#0f172a;"><?php echo htmlspecialchars($storyRow['bubble_title']); ?></strong>
-            <p style="margin:0; font-size:13px; color:#4b5563;"><?php echo htmlspecialchars($storyRow['bubble_body']); ?></p>
-          </div>
-          <a class="btn" style="width:100%; background:#fff; color:var(--accent); border-color:#fff; justify-content:center;" href="/products.php">Peržiūrėti prekes</a>
+        <div class="highlight-card">
+            <p class="muted" style="margin:0 0 4px; font-size:12px; font-weight:700; color:var(--accent); text-transform:uppercase;"><?php echo htmlspecialchars($storyRow['bubble_meta']); ?></p>
+            <strong style="display:block; margin:0 0 10px; color:#0f172a; font-size:18px;"><?php echo htmlspecialchars($storyRow['bubble_title']); ?></strong>
+            <p style="margin:0 0 16px; font-size:14px; color:#4b5563; line-height:1.5;"><?php echo htmlspecialchars($storyRow['bubble_body']); ?></p>
+            <a class="btn" href="/products.php">Peržiūrėti prekes</a>
         </div>
       </div>
     </section>
