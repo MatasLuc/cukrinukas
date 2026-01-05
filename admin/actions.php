@@ -46,13 +46,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $view = 'discounts';
     }
 
-    if ($action === 'delete_category_discount') {
-        $catId = (int)($_POST['category_id'] ?? 0);
-        if ($catId) {
-            deleteCategoryDiscount($pdo, $catId);
-            $messages[] = 'Kategorijos nuolaida pašalinta';
+    // --- NUOLAIDŲ VALDYMAS ---
+    
+    if ($action === 'save_category_discount') {
+        $catId = (int)$_POST['category_id'];
+        $type = $_POST['discount_type']; // 'percent' arba 'amount'
+        $value = (float)$_POST['discount_value'];
+        
+        if ($catId && $value > 0) {
+            // Atnaujiname kategorijos lentelę
+            $stmt = $pdo->prepare("UPDATE categories SET discount_type = ?, discount_value = ? WHERE id = ?");
+            $stmt->execute([$type, $value, $catId]);
+            
+            $_SESSION['flash_success'] = 'Nuolaida kategorijai pritaikyta.';
         }
-        $view = 'discounts';
+        header('Location: ?view=discounts'); exit;
+    }
+    
+    if ($action === 'remove_category_discount') {
+        $catId = (int)$_POST['category_id'];
+        if ($catId) {
+            // Išvalome laukus
+            $stmt = $pdo->prepare("UPDATE categories SET discount_type = NULL, discount_value = 0 WHERE id = ?");
+            $stmt->execute([$catId]);
+            
+            $_SESSION['flash_success'] = 'Nuolaida pašalinta.';
+        }
+        header('Location: ?view=discounts'); exit;
     }
 
     if ($action === 'delete_discount_code') {
