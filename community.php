@@ -30,8 +30,9 @@ renderHeader($pdo, 'community');
   padding: 0 18px;
 }
 .hero-card {
+  /* PAKEISTA: Dešinysis gradientas pakeistas į mėlyną */
   background: radial-gradient(circle at 20% 20%, rgba(130,158,214,0.16), transparent 45%),
-              radial-gradient(circle at 80% 0%, rgba(255,173,96,0.18), transparent 38%),
+              radial-gradient(circle at 80% 0%, rgba(37, 99, 235, 0.15), transparent 38%),
               linear-gradient(135deg, #fff, #f6f7ff);
   border: 1px solid #e6e6ef;
   border-radius: 24px;
@@ -69,8 +70,9 @@ renderHeader($pdo, 'community');
   gap: 18px;
 }
 .link-card {
+  /* PAKEISTA: Dešinysis gradientas pakeistas į mėlyną */
   background: radial-gradient(circle at 20% 20%, rgba(130,158,214,0.16), transparent 45%),
-              radial-gradient(circle at 80% 0%, rgba(255,173,96,0.18), transparent 38%),
+              radial-gradient(circle at 80% 0%, rgba(37, 99, 235, 0.15), transparent 38%),
               linear-gradient(135deg, #fff, #f6f7ff);
   color: #0b0b0b;
   border-radius: 18px;
@@ -82,8 +84,9 @@ renderHeader($pdo, 'community');
   gap: 10px;
 }
 .link-card.secondary {
+  /* PAKEISTA: Dešinysis gradientas pakeistas į mėlyną */
   background: radial-gradient(circle at 20% 20%, rgba(130,158,214,0.16), transparent 45%),
-              radial-gradient(circle at 80% 0%, rgba(255,173,96,0.18), transparent 38%),
+              radial-gradient(circle at 80% 0%, rgba(37, 99, 235, 0.15), transparent 38%),
               linear-gradient(135deg, #fff, #f6f7ff);
 }
 .link-card a {
