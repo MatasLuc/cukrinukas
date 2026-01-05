@@ -56,111 +56,145 @@ $memberCount = (int)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();
   <title>Bendruomenės diskusijos | Cukrinukas</title>
   <?php echo headerStyles(); ?>
 <style>
-.page-wrap { max-width: 1100px; margin: 36px auto 70px; padding: 0 18px; display:flex; flex-direction:column; gap:18px; }
-.hero-box { background: linear-gradient(135deg,#0b0b0b,#1f2341); color:#fff; border-radius:22px; padding:26px; box-shadow:0 22px 48px rgba(10,12,32,0.32); }
-.hero-box h1 { color:#fff; }
-.hero-box p { color: rgba(255,255,255,0.82); }
-.actions { display:flex; gap:12px; flex-wrap:wrap; }
-.card { background:#fff; border:1px solid #e6e6ef; border-radius:16px; padding:16px; box-shadow:0 14px 32px rgba(0,0,0,0.06); }
-.thread-list { display:flex; flex-direction:column; gap:12px; }
-.thread-item { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; background:#f7f7fb; border:1px solid #e2e4f3; border-radius:14px; padding:14px; transition: transform .08s ease, box-shadow .12s ease; text-decoration:none; color:inherit; }
-.thread-item:hover { transform: translateY(-2px); box-shadow:0 14px 28px rgba(0,0,0,0.07); text-decoration:none; }
-.meta { display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:13px; color:#434352; }
-.chip { padding:6px 10px; border-radius:999px; background:#fff; border:1px solid #d7dbf3; font-weight:700; font-size:12px; }
-.badge-soft { padding:6px 10px; border-radius:999px; background:rgba(130,158,214,0.16); color:#1d2238; font-weight:700; border:1px solid rgba(130,158,214,0.28); }
-.alert { border-radius:12px; padding:12px; }
-.alert-success { background:#edf9f0; border:1px solid #b8e2c4; }
-.alert-error { background:#fff1f1; border:1px solid #f3b7b7; }
-.filter-row { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-start; }
-.filter-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; background:#f6f7fb; border:1px solid #e0e4f4; border-radius:999px; padding:6px 10px; flex:1; row-gap:6px; }
-.filter-pill { padding:8px 12px; border-radius:14px; border:1px solid transparent; background:#fff; box-shadow:0 6px 16px rgba(0,0,0,0.04); font-weight:700; font-size:13px; color:#232334; text-decoration:none; transition: all .12s ease; white-space:nowrap; }
-.filter-pill:hover { transform:translateY(-1px); box-shadow:0 10px 20px rgba(0,0,0,0.08); text-decoration:none; }
-.filter-pill.active { background:linear-gradient(135deg,#1f2341,#0b0b0b); color:#fff; border-color:rgba(255,255,255,0.26); box-shadow:0 14px 26px rgba(15,16,35,0.28); }
-.filter-label { font-size:13px; font-weight:700; color:#5b5b6c; margin-right:4px; }
-.filter-meta { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+/* Bendras stilius (kaip products.php) */
+:root { --bg: #f7f7fb; --card: #ffffff; --border: #e4e7ec; --text: #1f2937; --muted: #52606d; --accent: #2563eb; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+a { color:inherit; text-decoration:none; }
+
+.page { max-width: 1200px; margin: 0 auto; padding: 32px 20px 72px; display: grid; gap: 28px; }
+
+/* Hero sekcija (kaip products.php) */
+.hero {
+  padding: 26px; border-radius: 28px; background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border: 1px solid #e5e7eb; box-shadow: 0 18px 48px rgba(0,0,0,0.08);
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 22px;
+}
+.hero__pill { display:inline-flex; align-items:center; gap:8px; background:#fff; padding:10px 14px; border-radius:999px; font-weight:700; font-size: 15px; color: #0f172a; box-shadow:0 6px 20px rgba(0,0,0,0.05); }
+.hero h1 { margin: 10px 0 8px; font-size: clamp(26px, 5vw, 36px); color: #0f172a; }
+.hero p { margin: 0; color: var(--muted); line-height: 1.6; max-width: 600px; }
+
+/* Mygtukai */
+.btn-large { padding: 11px 24px; border-radius: 12px; border: 1px solid #1d4ed8; background: #fff; color: #1d4ed8; font-weight: 600; transition: all .2s; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.btn-large:hover { background: #1d4ed8; color: #fff; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 12px; background: #0b0b0b; color: #fff; border: 1px solid #0b0b0b; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; }
+.btn:hover { opacity: 0.9; }
+.btn.secondary { background: #fff; color: #0b0b0b; border-color: var(--border); }
+
+/* Kortelės ir sąrašai */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+.thread-list { display:flex; flex-direction:column; gap:12px; margin-top: 16px; }
+.thread-item { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; background:#f9fafb; border:1px solid var(--border); border-radius:14px; padding:16px; transition: transform .2s, border-color .2s; text-decoration:none; color:inherit; }
+.thread-item:hover { transform: translateY(-2px); border-color: var(--accent); background: #fff; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1); }
+
+.meta { display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:13px; color: var(--muted); margin-top: 6px; }
+.badge-soft { padding:4px 10px; border-radius:999px; background:#eff6ff; color:#1e40af; font-weight:600; border:1px solid #dbeafe; font-size: 12px; }
+
+/* Filtrai (Chips) */
+.filter-row { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-top: 16px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 99px;
+  background: #fff; border: 1px solid var(--border);
+  font-weight: 600; color: var(--muted); cursor: pointer; transition: all .2s;
+  white-space: nowrap; user-select: none; text-decoration: none; font-size: 13px;
+}
+.chip:hover, .chip.active {
+  border-color: var(--accent); color: var(--accent); background: #f0f9ff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+}
+.chip-count { font-size: 11px; opacity: 0.7; margin-left: 4px; }
+
+.alert { border-radius:12px; padding:12px; margin-bottom: 12px; }
+.alert-success { background:#ecfdf5; border:1px solid #a7f3d0; color: #065f46; }
+.alert-error { background:#fef2f2; border:1px solid #fecaca; color: #991b1b; }
 </style>
 </head>
 <body>
   <?php renderHeader($pdo, 'community'); ?>
-<main class="page-wrap">
-  <section class="hero-box">
-    <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start;">
-      <div style="max-width:650px;">
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <span style="padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.16);font-weight:700;">Diskusijos</span>
-          <span style="padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,0.25);">Pokalbiai be reklamų</span>
-        </div>
-        <h1 style="margin:10px 0 6px 0;">Dalinkitės klausimais ir patirtimi</h1>
-        <p style="margin:0;">Pasikalbėkite su bendruomene, gaukite atsakymų ir padėkite kitiems. Mandagumas ir pagarba yra būtini.</p>
-      </div>
-      <div class="actions">
+  
+<div class="page">
+  <section class="hero">
+    <div style="flex:1; min-width: 300px;">
+        <div class="hero__pill">💬 Diskusijos</div>
+        <h1>Dalinkitės klausimais ir patirtimi</h1>
+        <p>Pasikalbėkite su bendruomene, gaukite atsakymų ir padėkite kitiems. Mandagumas ir pagarba yra būtini.</p>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
         <?php if ($user['id'] && !$blocked): ?>
-          <a class="btn" href="/community_thread_new.php" style="background:#fff;color:#0b0b0b;border-color:rgba(255,255,255,0.45);">Kurti temą</a>
+          <a class="btn-large" href="/community_thread_new.php">Kurti temą</a>
         <?php else: ?>
-          <a class="btn" href="/login.php" style="background:#fff;color:#0b0b0b;border-color:rgba(255,255,255,0.45);">Prisijunkite kurti</a>
+          <a class="btn-large" href="/login.php">Prisijunkite kurti</a>
         <?php endif; ?>
-        <a class="btn btn-secondary" href="/community_market.php" style="border-color:rgba(255,255,255,0.4);color:#fff;">Į turgų</a>
-      </div>
+        <a class="btn-large" href="/community_market.php" style="border-color:var(--border); color:var(--text);">Į turgų</a>
     </div>
   </section>
 
-  <?php foreach ($messages as $msg): ?>
-    <div class="alert alert-success">&check; <?php echo htmlspecialchars($msg); ?></div>
-  <?php endforeach; ?>
-  <?php foreach ($errors as $err): ?>
-    <div class="alert alert-error">&times; <?php echo htmlspecialchars($err); ?></div>
-  <?php endforeach; ?>
-  <?php if ($blocked): ?>
-    <div class="alert alert-error">Jūsų prieiga prie bendruomenės apribota iki <?php echo htmlspecialchars($blocked['banned_until'] ?? 'neribotai'); ?>.</div>
+  <?php if (!empty($messages) || !empty($errors) || $blocked): ?>
+    <div>
+        <?php foreach ($messages as $msg): ?>
+            <div class="alert alert-success">&check; <?php echo htmlspecialchars($msg); ?></div>
+        <?php endforeach; ?>
+        <?php foreach ($errors as $err): ?>
+            <div class="alert alert-error">&times; <?php echo htmlspecialchars($err); ?></div>
+        <?php endforeach; ?>
+        <?php if ($blocked): ?>
+            <div class="alert alert-error">Jūsų prieiga prie bendruomenės apribota iki <?php echo htmlspecialchars($blocked['banned_until'] ?? 'neribotai'); ?>.</div>
+        <?php endif; ?>
+    </div>
   <?php endif; ?>
 
   <section class="card">
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
       <div>
-        <h2 style="margin:0;">Naujausios temos</h2>
-        <p class="muted" style="margin:4px 0 0 0;">Atraskite, apie ką kalba bendruomenė šiandien.</p>
+        <h2 style="margin:0; font-size: 20px;">Naujausios temos</h2>
+        <p style="margin:4px 0 0 0; color:var(--muted); font-size:14px;">Atraskite, apie ką kalba bendruomenė šiandien.</p>
       </div>
-      <div class="filter-meta">
-        <span class="chip">Temų: <?php echo count($threads); ?></span>
-        <span class="chip">Narių: <?php echo (int)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn(); ?></span>
-      </div>
-      <div class="filter-row">
-        <div class="filter-bar">
-          <span class="filter-label">Kategorija:</span>
-          <a class="filter-pill <?php echo $categoryId === 0 ? 'active' : ''; ?>" href="/community_discussions.php">Visos</a>
-          <?php foreach ($threadCategories as $cat): ?>
-            <a class="filter-pill <?php echo $categoryId === (int)$cat['id'] ? 'active' : ''; ?>" href="/community_discussions.php?category=<?php echo (int)$cat['id']; ?>">#<?php echo htmlspecialchars($cat['name']); ?></a>
-          <?php endforeach; ?>
-        </div>
+      
+      <div style="display:flex; gap:8px;">
+        <span class="chip" style="cursor:default; hover:none;">Temos: <?php echo count($threads); ?></span>
+        <span class="chip" style="cursor:default;">Nariai: <?php echo $memberCount; ?></span>
       </div>
     </div>
-    <div class="thread-list" style="margin-top:12px;">
+
+    <div class="filter-row">
+      <a class="chip <?php echo $categoryId === 0 ? 'active' : ''; ?>" href="/community_discussions.php">Visos</a>
+      <?php foreach ($threadCategories as $cat): ?>
+        <a class="chip <?php echo $categoryId === (int)$cat['id'] ? 'active' : ''; ?>" href="/community_discussions.php?category=<?php echo (int)$cat['id']; ?>">
+            #<?php echo htmlspecialchars($cat['name']); ?>
+        </a>
+      <?php endforeach; ?>
+    </div>
+
+    <div class="thread-list">
       <?php foreach ($threads as $thread): ?>
         <a class="thread-item" href="/community_thread.php?id=<?php echo (int)$thread['id']; ?>">
           <div>
-            <div style="font-weight:700;font-size:16px;">
+            <div style="font-weight:700;font-size:16px; color:#1f2937;">
               <?php echo htmlspecialchars($thread['title']); ?>
             </div>
             <div class="meta">
               <span class="badge-soft"><?php echo htmlspecialchars($thread['name']); ?></span>
-              <span>Pradėta: <?php echo htmlspecialchars(date('Y-m-d', strtotime($thread['created_at']))); ?></span>
+              <span><?php echo htmlspecialchars(date('Y-m-d', strtotime($thread['created_at']))); ?></span>
               <?php if ($thread['category_name']): ?>
-                <span class="chip" style="padding:4px 8px;">#<?php echo htmlspecialchars($thread['category_name']); ?></span>
+                <span style="color:var(--accent); font-weight:600;">#<?php echo htmlspecialchars($thread['category_name']); ?></span>
               <?php endif; ?>
             </div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-            <span class="chip">Komentarai: <?php echo $commentCounts[$thread['id']] ?? 0; ?></span>
+            <span class="chip" style="font-size:12px; padding:4px 10px;">💬 <?php echo $commentCounts[$thread['id']] ?? 0; ?></span>
           </div>
         </a>
       <?php endforeach; ?>
       <?php if (!$threads): ?>
-        <div class="muted">Diskusijų dar nėra – būkite pirmieji!</div>
+        <div style="text-align:center; padding: 40px; color: var(--muted);">Diskusijų dar nėra – būkite pirmieji!</div>
       <?php endif; ?>
     </div>
   </section>
-</main>
+</div>
 
-  <?php renderFooter($pdo); ?>
+<?php renderFooter($pdo); ?>
 </body>
 </html>
