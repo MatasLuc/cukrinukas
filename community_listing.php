@@ -8,8 +8,9 @@ ensureUsersTable($pdo);
 ensureCommunityTables($pdo);
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+// Pataisyta užklausa, kad gautume ir user_id bei kitus laukus
 $stmt = $pdo->prepare('
-    SELECT l.*, u.name as seller_name, u.email as seller_email, c.name as category_name 
+    SELECT l.*, u.name as seller_name, u.email as seller_real_email, c.name as category_name 
     FROM community_listings l 
     JOIN users u ON u.id = l.user_id 
     LEFT JOIN community_listing_categories c ON c.id = l.category_id
@@ -95,6 +96,8 @@ a { color:inherit; text-decoration:none; }
 .btn.secondary { background: #fff; color: #0b0b0b; border-color: var(--border); }
 .btn.danger { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
 .btn.danger:hover { background: #fecaca; }
+.btn-message { background: linear-gradient(135deg, #2563eb, #1d4ed8); border:none; width:100%; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); }
+.btn-message:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3); opacity: 1; }
 
 /* Išdėstymas */
 .content-grid { display: grid; grid-template-columns: 1fr 340px; gap: 24px; }
@@ -103,16 +106,21 @@ a { color:inherit; text-decoration:none; }
 .card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
 
 .listing-image { width: 100%; height: auto; max-height: 500px; object-fit: contain; border-radius: 16px; background: #f1f5f9; border: 1px solid var(--border); }
-.no-image { width: 100%; height: 200px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: var(--muted); border-radius: 16px; font-weight: 600; }
 
-.info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
+.info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f3f4f6; font-size: 14px; align-items: center; }
 .info-row:last-child { border-bottom: none; }
 .info-label { color: var(--muted); font-weight: 500; }
-.info-value { color: var(--text); font-weight: 600; }
+.info-value { color: var(--text); font-weight: 600; text-align: right; }
+.info-value a { color: var(--accent); text-decoration: underline; }
 
 .description { line-height: 1.6; color: #374151; white-space: pre-wrap; font-size: 15px; }
 
 .alert { border-radius:12px; padding:12px; margin-bottom: 20px; background:#ecfdf5; border:1px solid #a7f3d0; color: #065f46; }
+
+/* Messages Box */
+.msg-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 16px; padding: 20px; margin-bottom: 24px; text-align: center; }
+.msg-title { font-weight: 700; color: #0369a1; margin-bottom: 8px; font-size: 16px; display:flex; align-items:center; justify-content:center; gap:8px; }
+.msg-text { font-size: 13px; color: #0c4a6e; margin: 0 0 16px 0; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -157,14 +165,6 @@ a { color:inherit; text-decoration:none; }
                 <?php endif; ?>
              </div>
            <?php endif; ?>
-           
-           <?php if ($currentUser && !$isOwner && $listing['status'] !== 'sold'): ?>
-               <a href="mailto:<?php echo htmlspecialchars($listing['seller_email']); ?>" class="btn">
-                  📧 Susisiekti
-               </a>
-           <?php elseif (!$currentUser): ?>
-               <a href="/login.php" class="btn secondary">Prisijunkite norėdami susisiekti</a>
-           <?php endif; ?>
         </div>
       </div>
     </section>
@@ -187,23 +187,63 @@ a { color:inherit; text-decoration:none; }
        
        <div style="display:flex; flex-direction:column; gap:24px;">
           <div class="card">
-             <h3 style="margin-top:0; font-size:18px;">Informacija</h3>
+             
+             <?php if (!$isOwner && $listing['status'] !== 'sold'): ?>
+                 <div class="msg-box">
+                    <div class="msg-title">💬 Cukrinukas Messages</div>
+                    <p class="msg-text">
+                        Greičiausias ir saugiausias būdas susitarti dėl prekės. 
+                        Bendraukite tiesiogiai per sistemą.
+                    </p>
+                    <?php if ($currentUser): ?>
+                        <a href="/messages.php?recipient_id=<?php echo $listing['user_id']; ?>" class="btn btn-message">
+                           Parašyti žinutę pardavėjui
+                        </a>
+                    <?php else: ?>
+                        <a href="/login.php" class="btn btn-message">
+                           Prisijunkite norėdami rašyti
+                        </a>
+                    <?php endif; ?>
+                 </div>
+             <?php endif; ?>
+
+             <h3 style="margin-top:0; font-size:18px; margin-bottom:16px;">Skelbimo informacija</h3>
              
              <div class="info-row">
                 <span class="info-label">Pardavėjas</span>
                 <span class="info-value"><?php echo htmlspecialchars($listing['seller_name']); ?></span>
              </div>
+             
              <div class="info-row">
                 <span class="info-label">Įkelta</span>
                 <span class="info-value"><?php echo date('Y-m-d', strtotime($listing['created_at'])); ?></span>
              </div>
+             
              <div class="info-row">
                 <span class="info-label">Būklė</span>
                 <span class="info-value"><?php echo $listing['status'] === 'sold' ? 'Parduota' : 'Aktyvus'; ?></span>
              </div>
+
+             <?php if (!empty($listing['seller_email'])): ?>
+                 <div class="info-row">
+                    <span class="info-label">El. paštas</span>
+                    <span class="info-value">
+                        <a href="mailto:<?php echo htmlspecialchars($listing['seller_email']); ?>"><?php echo htmlspecialchars($listing['seller_email']); ?></a>
+                    </span>
+                 </div>
+             <?php endif; ?>
+
+             <?php if (!empty($listing['seller_phone'])): ?>
+                 <div class="info-row">
+                    <span class="info-label">Tel. nr.</span>
+                    <span class="info-value">
+                        <a href="tel:<?php echo htmlspecialchars($listing['seller_phone']); ?>"><?php echo htmlspecialchars($listing['seller_phone']); ?></a>
+                    </span>
+                 </div>
+             <?php endif; ?>
              
-             <div style="margin-top:20px; font-size:13px; color:var(--muted); line-height:1.5;">
-                <p>⚠️ Būkite atsargūs pervesdami pinigus. Cukrinukas.lt neatsako už sandorius tarp narių.</p>
+             <div style="margin-top:20px; font-size:12px; color:var(--muted); line-height:1.5; background:#f9fafb; padding:10px; border-radius:12px;">
+                <p style="margin:0;">⚠️ Būkite atsargūs pervesdami pinigus. Cukrinukas.lt neatsako už sandorius tarp narių.</p>
              </div>
           </div>
        </div>
