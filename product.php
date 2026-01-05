@@ -105,8 +105,9 @@ $meta = [
       --border: #e4e7ec;
       --text: #0f172a;
       --muted: #475467;
-      --accent: #7c3aed;
-      --accent-2: #22c55e;
+      /* PAKEISTA: Pagrindinė spalva pagal prašymą */
+      --accent: #829ed6;
+      --accent-hover: #6a8bc9;
     }
     * { box-sizing: border-box; }
     body { margin:0; background: var(--bg); color: var(--text); font-family:'Inter', system-ui, -apple-system, sans-serif; }
@@ -117,23 +118,55 @@ $meta = [
     .gallery { background:var(--card); border:1px solid var(--border); border-radius:20px; padding:16px; box-shadow:0 14px 34px rgba(0,0,0,0.08); display:grid; gap:12px; }
     .main-image { position:relative; border-radius:16px; overflow:hidden; background:#fff; cursor:zoom-in; }
     .main-image img { width:100%; display:block; height:420px; object-fit:cover; }
-    .ribbon { position:absolute; top:12px; left:12px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#fff; padding:8px 12px; border-radius:12px; font-weight:700; box-shadow:0 10px 22px rgba(0,0,0,0.12); }
+    
+    /* PAKEISTA: Ribbon spalva */
+    .ribbon { position:absolute; top:12px; left:12px; background: var(--accent); color:#fff; padding:8px 12px; border-radius:12px; font-weight:700; box-shadow:0 10px 22px rgba(0,0,0,0.12); }
+    
     .thumbs { display:flex; gap:10px; flex-wrap:wrap; }
     .thumbs img { width:86px; height:70px; object-fit:cover; border-radius:10px; border:2px solid var(--border); background:#fff; cursor:pointer; transition:transform 0.15s ease, border-color 0.15s ease; }
     .thumbs img:hover { transform:translateY(-2px); }
+    
     .details { background:var(--card); border:1px solid var(--border); border-radius:20px; padding:18px 20px; box-shadow:0 14px 34px rgba(0,0,0,0.08); display:grid; gap:12px; }
-    .badge { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:12px; background:#eef2ff; color:#4338ca; font-weight:700; }
+    .badge { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:12px; background:#eef2ff; color:var(--accent); font-weight:700; }
     .badge.gift { background:#ecfdf3; color:#166534; border:1px solid #bbf7d0; }
     h1 { margin:0; font-size:32px; letter-spacing:-0.02em; }
-    .subtitle { margin:0; color:#6b21a8; }
+    .subtitle { margin:0; color:var(--accent); }
+    
+    /* PAKEISTA: Sutvarkytas aprašymo stilius, kad veiktų sąrašai ir tarpai */
     .description { margin:0; color: var(--muted); line-height:1.65; }
+    .description ul, .description ol { margin: 10px 0; padding-left: 20px; }
+    .description li { margin-bottom: 5px; }
+    
     .price-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
     .old { color:#9ca3af; text-decoration:line-through; }
     .current { font-size:28px; font-weight:800; letter-spacing:-0.02em; }
     .form-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:4px; }
     .quantity { width:90px; padding:11px; border-radius:12px; border:1px solid var(--border); background:#f8fafc; }
-    .btn { display:inline-flex; align-items:center; justify-content:center; padding:12px 16px; border-radius:12px; border:none; background: linear-gradient(135deg, #4338ca, #7c3aed); color:#fff; font-weight:700; cursor:pointer; box-shadow:0 14px 36px rgba(124,58,237,0.2); }
-    .heart-btn { width:44px; height:44px; border-radius:12px; border:1px solid var(--border); background:#f8fafc; display:inline-flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; box-shadow:0 10px 24px rgba(0,0,0,0.08); }
+    
+    /* PAKEISTA: Mygtukas pritaikytas naujai spalvai */
+    .btn { 
+        display:inline-flex; align-items:center; justify-content:center; 
+        padding:12px 16px; border-radius:12px; border:none; 
+        background: var(--accent); color:#fff; 
+        font-weight:700; cursor:pointer; transition: background 0.2s ease;
+        box-shadow:0 4px 12px rgba(130, 158, 214, 0.3);
+    }
+    .btn:hover { background: var(--accent-hover); }
+    
+    /* PAKEISTA: Širdelės mygtukas identiškas products.php (baltas su rėmeliu) */
+    .heart-btn { 
+        width:44px; height:44px; border-radius:12px; 
+        border:1px solid var(--border); background:#fff; 
+        display:inline-flex; align-items:center; justify-content:center; 
+        font-size:18px; cursor:pointer; color: var(--text);
+        transition: all 0.2s ease;
+    }
+    .heart-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        transform: translateY(-2px);
+    }
+
     .info-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:12px; }
     .info-card { background:#f8fafc; border:1px solid var(--border); border-radius:14px; padding:12px 14px; color: var(--muted); font-weight:600; }
     .section { background:var(--card); border:1px solid var(--border); border-radius:18px; padding:16px 18px; box-shadow:0 12px 28px rgba(0,0,0,0.08); display:grid; gap:12px; }
@@ -143,8 +176,11 @@ $meta = [
     .related-card { background:#fff; border:1px solid var(--border); border-radius:14px; padding:12px; box-shadow:0 12px 26px rgba(0,0,0,0.08); color:var(--text); display:grid; gap:8px; }
     .related-card img { width:100%; height:150px; object-fit:cover; border-radius:12px; }
     .related-price { font-weight:800; }
+    
+    /* PAKEISTA: Variacijų stilius su nauja spalva */
     .variation-chip { border:1px solid var(--border); padding:10px 12px; border-radius:12px; background:#f8fafc; color:var(--text); font-weight:700; cursor:pointer; display:inline-flex; gap:8px; align-items:center; transition:border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease; }
-    .variation-chip.active { border-color:#7c3aed; box-shadow:0 8px 18px rgba(124,58,237,0.2); background:#eef2ff; }
+    .variation-chip.active { border-color:var(--accent); box-shadow:0 8px 18px rgba(130, 158, 214, 0.2); background:#eef2ff; color: var(--accent); }
+    
     .lightbox { position:fixed; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; padding:20px; z-index:999; opacity:0; pointer-events:none; transition:opacity 0.2s ease; }
     .lightbox.show { opacity:1; pointer-events:all; }
     .lightbox img { max-width:90vw; max-height:90vh; border-radius:12px; box-shadow:0 16px 40px rgba(0,0,0,0.35); background:#fff; }
@@ -174,7 +210,7 @@ $meta = [
         <?php if ($images): ?>
           <div class="thumbs">
             <?php foreach ($images as $img): ?>
-              <img src="<?php echo htmlspecialchars($img['path']); ?>" alt="Miniatiūra" style="border-color: <?php echo $img['is_primary'] ? '#7c3aed' : 'var(--border)'; ?>;">
+              <img src="<?php echo htmlspecialchars($img['path']); ?>" alt="Miniatiūra" style="border-color: <?php echo $img['is_primary'] ? 'var(--accent)' : 'var(--border)'; ?>;">
             <?php endforeach; ?>
           </div>
         <?php endif; ?>
@@ -199,7 +235,9 @@ $meta = [
           <input class="quantity" type="number" name="quantity" min="1" value="1">
           <input type="hidden" name="variation_id" id="variation-id" value="0">
           <button class="btn" type="submit">Į krepšelį</button>
-          <button class="heart-btn" name="action" value="wishlist" type="submit" aria-label="Į norų sąrašą">♥</button>
+          <button class="heart-btn" name="action" value="wishlist" type="submit" aria-label="Į norų sąrašą">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+          </button>
         </form>
         <div class="info-grid">
           <?php if ($isFreeShippingGift): ?>
@@ -207,7 +245,6 @@ $meta = [
               <span>🎁Pirkite šią prekę ir gausite nemokamą viso užsakymo pristatymą dovanų.</span>
             </div>
           <?php endif; ?>
-          <div class="info-card">🚚 Pristatymas 1–3 darbo dienos</div>
           <div class="info-card">🔄 14 dienų grąžinimo garantija</div>
           <div class="info-card">💬 Turite klausimų? Drąsiai rašykite labas@cukrinukas.lt</div>
         </div>
@@ -234,7 +271,9 @@ $meta = [
     <?php if (!empty($product['description'])): ?>
       <section class="section">
         <h3 style="margin:0;">Aprašymas</h3>
-        <p class="description" style="margin:0;"><?php echo nl2br(htmlspecialchars($product['description'])); ?></p>
+        <div class="description">
+            <?php echo $product['description']; ?>
+        </div>
       </section>
     <?php endif; ?>
 
@@ -351,7 +390,7 @@ $meta = [
           mainImage.src = thumb.src;
         }
         thumbs.forEach(t => t.style.borderColor = 'var(--border)');
-        thumb.style.borderColor = '#7c3aed';
+        thumb.style.borderColor = 'var(--accent)';
       });
     });
 
