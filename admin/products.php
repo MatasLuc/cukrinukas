@@ -1,60 +1,47 @@
 <?php
 // admin/products.php
 
-// 1. DB Migracijos ir saugikliai (paliekame originalią logiką)
-try { 
-    $pdo->query("SELECT parent_id FROM categories LIMIT 1"); 
-} catch (Exception $e) { 
-    $pdo->exec("ALTER TABLE categories ADD COLUMN parent_id INT NULL DEFAULT NULL AFTER id"); 
-}
-$pdo->exec("CREATE TABLE IF NOT EXISTS product_category_relations (product_id INT NOT NULL, category_id INT NOT NULL, PRIMARY KEY (product_id, category_id))");
+// 1. DUOMENŲ PARUOŠIMAS
+// ---------------------------------------------------
 
-// 2. Pagalbinė funkcija nuotraukoms (Server-side)
-function handleNewProductUploads(PDO $pdo, int $productId, array $files): void {
-    if (empty($files['name'][0]) || !function_exists('saveUploadedFile')) return;
-    $allowedMimeMap = ['image/jpeg'=>'jpg','image/png'=>'png','image/gif'=>'gif','image/webp'=>'webp'];
-    $count = count($files['name']); 
-    
-    // Tikriname, ar prekė jau turi pagrindinę nuotrauką
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM product_images WHERE product_id = ? AND is_primary = 1");
-    $stmt->execute([$productId]);
-    $hasPrimary = $stmt->fetchColumn() > 0 ? 1 : 0;
-
-    for ($i=0; $i<$count; $i++) {
-        if ($files['error'][$i] !== UPLOAD_ERR_OK) continue;
-        
-        $f = [
-            'name'=>$files['name'][$i],
-            'type'=>$files['type'][$i]??'',
-            'tmp_name'=>$files['tmp_name'][$i],
-            'error'=>$files['error'][$i],
-            'size'=>$files['size'][$i]??0
-        ];
-        
-        $rel = saveUploadedFile($f, $allowedMimeMap, 'img_');
-        
-        if ($rel) {
-            $isP = ($hasPrimary === 0) ? 1 : 0;
-            $pdo->prepare('INSERT INTO product_images (product_id,path,is_primary) VALUES (?,?,?)')->execute([$productId,$rel,$isP]);
-            
-            if ($isP) { 
-                $pdo->prepare('UPDATE products SET image_url=? WHERE id=?')->execute([$rel,$productId]); 
-                $hasPrimary = 1; 
-            }
-        }
-    }
-}
-
-// 3. Duomenų paruošimas atvaizdavimui
-$products = $pdo->query('
+// Surenkame visas prekes su visa reikalinga info (kad nereikėtų AJAX užklausų redagavimui)
+$stmt = $pdo->query('
     SELECT p.*, c.name AS category_name,
            (SELECT path FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image
     FROM products p 
     LEFT JOIN categories c ON c.id = p.category_id 
     ORDER BY p.created_at DESC
-')->fetchAll();
+');
+$products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Kategorijų medis
+// Papildomai surenkame atributus, variacijas ir nuotraukas kiekvienai prekei, kad galėtume įdėti į JSON
+foreach ($products as &$p) {
+    // Atributai
+    $p['attributes'] = $pdo->prepare("SELECT label, value FROM product_attributes WHERE product_id = ?")->execute([$p['id']]) 
+        ? $pdo->prepare("SELECT label, value FROM product_attributes WHERE product_id = ?")->fetchAll() 
+        : [];
+    // Kadangi fetchAll grąžina tuščią masyvą jei select nepavyksta, darome paprasčiau:
+    $attrsStmt = $pdo->prepare("SELECT label, value FROM product_attributes WHERE product_id = ?");
+    $attrsStmt->execute([$p['id']]);
+    $p['attributes'] = $attrsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Variacijos
+    $varsStmt = $pdo->prepare("SELECT name, price_delta FROM product_variations WHERE product_id = ?");
+    $varsStmt->execute([$p['id']]);
+    $p['variations'] = $varsStmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Kategorijų ryšiai (jei prekė priklauso kelioms - čia pavyzdys su viena pagrindine, bet paruošiam masyvą)
+    // Jei naudojate multiple categories (product_category_relations), čia reiktų papildomos užklausos.
+    // Pagal jūsų kodą kol kas viena category_id.
+    
+    // Susijusios prekės
+    $relStmt = $pdo->prepare("SELECT related_product_id FROM product_related WHERE product_id = ?");
+    $relStmt->execute([$p['id']]);
+    $p['related_ids'] = $relStmt->fetchAll(PDO::FETCH_COLUMN);
+}
+unset($p); // Nutraukiame nuorodą
+
+// Kategorijų medis select'ui
 $allCats = $pdo->query('SELECT * FROM categories ORDER BY parent_id ASC, name ASC')->fetchAll();
 $catTree = [];
 foreach ($allCats as $c) {
@@ -64,363 +51,527 @@ foreach ($allCats as $c) {
     if (!empty($c['parent_id']) && isset($catTree[$c['parent_id']])) { $catTree[$c['parent_id']]['children'][]=$c; }
 }
 
-// "Featured" prekės
+// Featured prekės (tik atvaizdavimui viršuje)
 $fIds = getFeaturedProductIds($pdo);
 $fProds = [];
 if ($fIds) {
     $in = implode(',', array_fill(0, count($fIds), '?'));
-    $s = $pdo->prepare("SELECT id, title, price FROM products WHERE id IN ($in)");
+    $s = $pdo->prepare("SELECT id, title FROM products WHERE id IN ($in)");
     $s->execute($fIds);
-    $rows = $s->fetchAll(); $m=[]; foreach($rows as $r)$m[$r['id']]=$r;
+    $rows = $s->fetchAll(); 
+    $m=[]; foreach($rows as $r)$m[$r['id']]=$r;
     foreach($fIds as $i) if(isset($m[$i])) $fProds[]=$m[$i];
 }
 ?>
 
 <style>
-    /* Tabų stilius */
-    .product-tabs { display: flex; gap: 2px; border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; }
-    .tab-trigger {
-        padding: 10px 20px; background: transparent; border: none; border-bottom: 2px solid transparent;
-        font-weight: 600; color: #6b7280; cursor: pointer; transition: 0.2s; font-size: 14px; margin-bottom: -2px;
+    /* Modal ir Tabs */
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5); backdrop-filter: blur(3px); z-index: 1000;
+        display: none; align-items: center; justify-content: center;
     }
-    .tab-trigger:hover { color: #4f46e5; background: #f9fafb; }
-    .tab-trigger.active { color: #4f46e5; border-bottom-color: #4f46e5; background: #fff; }
+    .modal-overlay.open { display: flex; animation: fadeIn 0.2s; }
+    .modal-window {
+        background: #fff; width: 95%; max-width: 1000px; height: 90vh;
+        border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        display: flex; flex-direction: column; overflow: hidden;
+    }
+    .modal-header { padding: 15px 24px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fcfcfc; }
+    .modal-body { padding: 0; overflow-y: auto; flex: 1; display: flex; flex-direction: column; }
+    .modal-footer { padding: 15px 24px; border-top: 1px solid #eee; background: #f9f9ff; text-align: right; }
     
-    .tab-pane { display: none; animation: fadeIn 0.3s ease; }
-    .tab-pane.active { display: block; }
-
+    .product-tabs { display: flex; background: #fff; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 10; padding: 0 24px; }
+    .tab-btn {
+        padding: 16px 20px; background: transparent; border: none; border-bottom: 2px solid transparent;
+        font-weight: 600; color: #6b7280; cursor: pointer; transition: 0.2s; font-size: 14px;
+    }
+    .tab-btn:hover { color: #4f46e5; background: #f9fafb; }
+    .tab-btn.active { color: #4f46e5; border-bottom-color: #4f46e5; }
+    
+    .tab-content { display: none; padding: 24px; }
+    .tab-content.active { display: block; animation: slideUp 0.3s ease; }
+    
     /* Formos elementai */
-    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
     .full-width { grid-column: span 2; }
-    .input-group { margin-bottom: 15px; }
-    .input-group label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 5px; }
-    .form-control { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; transition: 0.2s; }
-    .form-control:focus { border-color: #4f46e5; outline: none; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+    .input-group label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #6b7280; margin-bottom: 6px; }
+    .form-control { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
     
-    /* Kategorijų medis */
-    .cat-box { border: 1px solid #d1d5db; border-radius: 8px; padding: 12px; max-height: 200px; overflow-y: auto; background: #f9fafb; }
-    .cat-item { display: block; margin-bottom: 4px; font-size: 13px; cursor: pointer; }
-    .cat-child { margin-left: 20px; border-left: 2px solid #e5e7eb; padding-left: 8px; }
+    /* Galingas redaktorius */
+    .rich-editor-wrapper { border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; background: #fff; }
+    .editor-toolbar {
+        background: #f3f4f6; border-bottom: 1px solid #d1d5db; padding: 6px;
+        display: flex; gap: 4px; flex-wrap: wrap;
+    }
+    .editor-btn {
+        border: 1px solid transparent; background: transparent; cursor: pointer; padding: 4px 6px; border-radius: 4px; font-size: 14px; color: #374151;
+    }
+    .editor-btn:hover { background: #e5e7eb; border-color: #d1d5db; }
+    .editor-content {
+        min-height: 150px; padding: 12px; outline: none; overflow-y: auto; font-size: 14px; line-height: 1.5;
+    }
+    .editor-content:empty:before { content: attr(placeholder); color: #9ca3af; }
+    /* Specifikacijoms mažesnis redaktorius */
+    .mini-editor .editor-content { min-height: 60px; }
 
-    /* Nuotraukų peržiūra */
-    .img-upload-area { border: 2px dashed #d1d5db; padding: 20px; text-align: center; border-radius: 8px; cursor: pointer; transition: 0.2s; background: #f9fafb; }
-    .img-upload-area:hover { border-color: #4f46e5; background: #eff6ff; }
-    .preview-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
-    .preview-img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb; }
+    /* Atributų lentelė */
+    .attr-row { display: grid; grid-template-columns: 200px 1fr 40px; gap: 10px; margin-bottom: 12px; align-items: start; background: #fdfdfd; padding: 10px; border: 1px solid #eee; border-radius: 6px; }
+    
+    /* Masiniai veiksmai */
+    .bulk-actions { 
+        display: none; align-items: center; gap: 10px; background: #eff6ff; 
+        padding: 8px 16px; border-radius: 8px; border: 1px solid #dbeafe; margin-left: 16px; 
+    }
+    .bulk-actions.visible { display: flex; }
 
-    /* Lentelės patobulinimai */
-    .product-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; background: #f3f4f6; }
-    .stock-badge { padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+    /* Lentelė */
+    .checkbox-col { width: 30px; text-align: center; }
+    .product-thumb { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; background: #eee; }
+    .stock-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
     .in-stock { background: #dcfce7; color: #166534; }
     .out-of-stock { background: #fee2e2; color: #991b1b; }
-    
-    .toolbar { background:#f8f9fa; padding:8px; border:1px solid #d1d5db; border-bottom:none; border-radius:6px 6px 0 0; display:flex; gap:5px; flex-wrap:wrap; }
-    .toolbar button { cursor:pointer; padding:4px 8px; border:1px solid #ccc; border-radius:4px; background:#fff; font-size:12px; font-weight:600; }
-    .rich-editor { min-height:120px; border:1px solid #d1d5db; border-radius:0 0 6px 6px; padding:12px; background:#fff; margin-bottom:12px; }
 
-    @media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } .full-width { grid-column: span 1; } }
+    @keyframes fadeIn { from {opacity:0} to {opacity:1} }
+    @keyframes slideUp { from {opacity:0; transform:translateY(10px)} to {opacity:1; transform:translateY(0)} }
 </style>
 
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-    <div>
-        <h2>Prekių valdymas</h2>
-        <p class="muted" style="margin:0;">Kurkite, redaguokite ir valdykite asortimentą.</p>
-    </div>
-    <button class="btn" onclick="document.getElementById('newProductForm').scrollIntoView({behavior: 'smooth'})">+ Nauja prekė</button>
-</div>
-
-<div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h3>Visos prekės</h3>
-        <input type="text" id="tableSearch" placeholder="Ieškoti prekės..." class="form-control" style="width:250px;" onkeyup="filterTable()">
-    </div>
-
-    <table id="productsTable">
-        <thead>
-            <tr style="border-bottom:2px solid #eee; text-transform:uppercase; font-size:12px; color:#6b7280;">
-                <th style="width:60px;">Foto</th>
-                <th>Pavadinimas</th>
-                <th>Kategorija</th>
-                <th>Kaina</th>
-                <th>Likutis</th>
-                <th style="text-align:right;">Veiksmai</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($products as $p): ?>
-                <tr style="border-bottom:1px solid #f9fafb;">
-                    <td style="padding:10px 0;">
-                        <?php 
-                            $imgSrc = $p['primary_image'] ? $p['primary_image'] : ($p['image_url'] ? $p['image_url'] : 'https://placehold.co/100?text=No+Img');
-                        ?>
-                        <img src="<?php echo htmlspecialchars($imgSrc); ?>" class="product-thumb" alt="">
-                    </td>
-                    <td>
-                        <div style="font-weight:600; font-size:14px;"><?php echo htmlspecialchars($p['title']); ?></div>
-                        <?php if($p['sale_price']): ?>
-                            <span style="font-size:11px; color:#ef4444; font-weight:600;">Išpardavimas</span>
-                        <?php endif; ?>
-                    </td>
-                    <td style="color:#6b7280; font-size:13px;"><?php echo htmlspecialchars($p['category_name'] ?? '-'); ?></td>
-                    <td>
-                        <?php if($p['sale_price']): ?>
-                            <div style="color:#ef4444; font-weight:700;"><?php echo number_format($p['sale_price'], 2); ?> €</div>
-                            <div style="text-decoration:line-through; font-size:11px; color:#9ca3af;"><?php echo number_format($p['price'], 2); ?> €</div>
-                        <?php else: ?>
-                            <div style="font-weight:600;"><?php echo number_format($p['price'], 2); ?> €</div>
-                        <?php endif; ?>
-                    </td>
-                    <td>
-                        <?php if($p['quantity'] > 0): ?>
-                            <span class="stock-badge in-stock"><?php echo $p['quantity']; ?> vnt.</span>
-                        <?php else: ?>
-                            <span class="stock-badge out-of-stock">Išparduota</span>
-                        <?php endif; ?>
-                    </td>
-                    <td style="text-align:right;">
-                        <a href="/product_edit.php?id=<?php echo $p['id']; ?>" class="btn secondary" style="padding:4px 8px; font-size:12px;">Redaguoti</a>
-                        <form method="post" style="display:inline-block;" onsubmit="return confirm('Ar tikrai norite ištrinti šią prekę?');">
-                            <?php echo csrfField(); ?>
-                            <input type="hidden" name="action" value="delete_product">
-                            <input type="hidden" name="id" value="<?php echo $p['id']; ?>">
-                            <button class="btn" style="padding:4px 8px; font-size:12px; background:#fff1f1; color:#b91c1c; border-color:#fecaca;">&times;</button>
-                        </form>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
-    
-    <div style="margin-top:24px; padding-top:16px; border-top:1px dashed #e5e7eb;">
-        <h4 style="font-size:13px; text-transform:uppercase; color:#6b7280; margin-bottom:10px;">Pagrindinio puslapio prekės (Max 3)</h4>
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-            <?php foreach ($fProds as $fp): ?>
-                <div style="border:1px solid #e5e7eb; padding:6px 12px; border-radius:20px; background:#fff; font-size:13px; display:flex; align-items:center; gap:8px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
-                    <span style="font-weight:600;"><?php echo htmlspecialchars($fp['title']); ?></span>
-                    <form method="post" style="margin:0;">
-                        <?php echo csrfField(); ?>
-                        <input type="hidden" name="action" value="featured_remove">
-                        <input type="hidden" name="remove_id" value="<?php echo $fp['id']; ?>">
-                        <button type="submit" style="border:none; background:none; color:#ef4444; font-weight:bold; cursor:pointer; font-size:14px; line-height:1;">&times;</button>
-                    </form>
-                </div>
-            <?php endforeach; ?>
-            
-            <?php if(count($fProds) < 3): ?>
-                <form method="post" style="display:flex; gap:6px;">
-                    <?php echo csrfField(); ?>
-                    <input type="hidden" name="action" value="featured_add">
-                    <input name="featured_query" list="prodList" placeholder="Prekės pavadinimas..." class="form-control" style="width:200px; padding:4px 8px; font-size:12px;">
-                    <datalist id="prodList">
-                        <?php foreach($products as $p) echo "<option value='".htmlspecialchars($p['title'])."'>"; ?>
-                    </datalist>
-                    <button class="btn secondary" style="padding:4px 10px; font-size:12px;">Pridėti</button>
-                </form>
-            <?php endif; ?>
+    <div style="display:flex; align-items:center;">
+        <div>
+            <h2>Prekių valdymas</h2>
+            <p class="muted" style="margin:0;">Viso prekių: <?php echo count($products); ?></p>
+        </div>
+        
+        <div id="bulkActionsPanel" class="bulk-actions">
+            <span style="font-weight:600; font-size:13px; color:#1d4ed8;">Pasirinkta: <span id="selectedCount">0</span></span>
+            <button type="button" class="btn" style="background:#ef4444; border-color:#ef4444; padding:6px 12px; font-size:12px;" onclick="submitBulkDelete()">
+                Ištrinti pasirinktus
+            </button>
         </div>
     </div>
+    
+    <button class="btn" onclick="openProductModal('create')">+ Nauja prekė</button>
 </div>
 
-<div class="card" id="newProductForm" style="margin-top:24px; border-top: 4px solid #4f46e5;">
-    <h3>Sukurti naują prekę</h3>
+<form id="productsListForm" method="post">
+    <?php echo csrfField(); ?>
+    <input type="hidden" name="action" value="bulk_delete_products">
     
-    <form method="post" enctype="multipart/form-data" onsubmit="return syncNewProductForm()">
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">
+            <h3 style="margin:0;">Prekių sąrašas</h3>
+            <input type="text" id="tableSearch" placeholder="Greita paieška..." class="form-control" style="width:250px; padding:6px 10px;" onkeyup="filterTable()">
+        </div>
+
+        <table id="productsTable">
+            <thead>
+                <tr style="background:#f9fafb; font-size:12px; text-transform:uppercase; color:#6b7280;">
+                    <th class="checkbox-col"><input type="checkbox" onchange="toggleAll(this)"></th>
+                    <th style="width:60px; padding-left:10px;">Foto</th>
+                    <th>Pavadinimas</th>
+                    <th>Kategorija</th>
+                    <th>Kaina</th>
+                    <th>Likutis</th>
+                    <th style="text-align:right; padding-right:20px;">Veiksmai</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($products as $p): ?>
+                    <tr style="border-bottom:1px solid #eee;">
+                        <td class="checkbox-col">
+                            <input type="checkbox" name="selected_ids[]" value="<?php echo $p['id']; ?>" class="prod-check" onchange="updateBulkUI()">
+                        </td>
+                        <td style="padding:10px 0 10px 10px;">
+                            <?php $imgSrc = $p['primary_image'] ?: ($p['image_url'] ?: 'https://placehold.co/100'); ?>
+                            <img src="<?php echo htmlspecialchars($imgSrc); ?>" class="product-thumb" alt="">
+                        </td>
+                        <td>
+                            <div style="font-weight:600; font-size:14px; color:#111;"><?php echo htmlspecialchars($p['title']); ?></div>
+                            <?php if($p['sale_price']): ?>
+                                <span style="font-size:10px; color:#ef4444; font-weight:700; text-transform:uppercase;">Akcija</span>
+                            <?php endif; ?>
+                        </td>
+                        <td style="font-size:13px; color:#666;"><?php echo htmlspecialchars($p['category_name'] ?? '-'); ?></td>
+                        <td>
+                            <?php if($p['sale_price']): ?>
+                                <div style="color:#ef4444; font-weight:700;"><?php echo number_format($p['sale_price'], 2); ?> €</div>
+                                <div style="text-decoration:line-through; font-size:11px; color:#999;"><?php echo number_format($p['price'], 2); ?> €</div>
+                            <?php else: ?>
+                                <div style="font-weight:600;"><?php echo number_format($p['price'], 2); ?> €</div>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php if($p['quantity'] > 0): ?>
+                                <span class="stock-badge in-stock"><?php echo $p['quantity']; ?> vnt.</span>
+                            <?php else: ?>
+                                <span class="stock-badge out-of-stock">0 vnt.</span>
+                            <?php endif; ?>
+                        </td>
+                        <td style="text-align:right; padding-right:20px;">
+                            <button type="button" class="btn secondary" style="padding:4px 10px; font-size:12px;" 
+                                    onclick='openProductModal("edit", <?php echo json_encode($p, JSON_HEX_APOS | JSON_HEX_QUOT); ?>)'>
+                                Redaguoti
+                            </button>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</form>
+
+<div id="productModal" class="modal-overlay">
+    <form method="post" enctype="multipart/form-data" class="modal-window" onsubmit="return syncEditors()">
         <?php echo csrfField(); ?>
-        <input type="hidden" name="action" value="new_product">
+        <input type="hidden" name="action" id="formAction" value="save_product">
+        <input type="hidden" name="id" id="productId" value="">
+
+        <div class="modal-header">
+            <h3 style="margin:0;" id="modalTitle">Nauja prekė</h3>
+            <button type="button" onclick="closeProductModal()" style="border:none; background:none; font-size:24px; cursor:pointer;">&times;</button>
+        </div>
 
         <div class="product-tabs">
-            <button type="button" class="tab-trigger active" onclick="openTab(event, 'tab-basic')">1. Pagrindinė info</button>
-            <button type="button" class="tab-trigger" onclick="openTab(event, 'tab-price')">2. Kainos ir Likutis</button>
-            <button type="button" class="tab-trigger" onclick="openTab(event, 'tab-images')">3. Nuotraukos ir Kategorijos</button>
-            <button type="button" class="tab-trigger" onclick="openTab(event, 'tab-attrs')">4. Atributai ir Variacijos</button>
-            <button type="button" class="tab-trigger" onclick="openTab(event, 'tab-seo')">5. SEO ir Ryšiai</button>
+            <button type="button" class="tab-btn active" onclick="switchTab('basic')">Pagrindinė info</button>
+            <button type="button" class="tab-btn" onclick="switchTab('specs')">Specifikacijos (Rich Text)</button>
+            <button type="button" class="tab-btn" onclick="switchTab('prices')">Kaina ir Variacijos</button>
+            <button type="button" class="tab-btn" onclick="switchTab('media')">Nuotraukos</button>
+            <button type="button" class="tab-btn" onclick="switchTab('seo')">SEO ir Ryšiai</button>
         </div>
 
-        <div id="tab-basic" class="tab-pane active">
-            <div class="form-grid">
-                <div class="full-width input-group">
-                    <label>Prekės pavadinimas <span style="color:red">*</span></label>
-                    <input name="title" class="form-control" placeholder="pvz. Gliukometras X" required>
-                </div>
-                <div class="full-width input-group">
-                    <label>Paantraštė (trumpas aprašymas po pavadinimu)</label>
-                    <input name="subtitle" class="form-control" placeholder="pvz. Tikslus ir greitas matavimas">
-                </div>
-                <div class="full-width input-group">
-                    <label>Išsamus aprašymas</label>
-                    <div class="toolbar">
-                        <button type="button" onmousedown="event.preventDefault()" onclick="format('bold')">B</button>
-                        <button type="button" onmousedown="event.preventDefault()" onclick="format('italic')">I</button>
-                        <button type="button" onmousedown="event.preventDefault()" onclick="format('insertUnorderedList')">• Sąrašas</button>
-                        <button type="button" onmousedown="event.preventDefault()" onclick="createLink()">🔗 Nuoroda</button>
+        <div class="modal-body">
+            
+            <div id="tab-basic" class="tab-content active">
+                <div class="form-grid">
+                    <div class="full-width input-group">
+                        <label>Prekės pavadinimas *</label>
+                        <input name="title" id="p_title" class="form-control" required placeholder="pvz. Gliukometras X">
                     </div>
-                    <div id="new-desc-editor" class="rich-editor" contenteditable="true"></div>
-                    <textarea name="description" id="new-desc-textarea" hidden></textarea>
-                </div>
-            </div>
-        </div>
-
-        <div id="tab-price" class="tab-pane">
-            <div class="form-grid">
-                <div class="input-group">
-                    <label>Kaina (€) <span style="color:red">*</span></label>
-                    <input name="price" type="number" step="0.01" class="form-control" placeholder="0.00" required>
-                </div>
-                <div class="input-group">
-                    <label>Akcijos kaina (€) <small class="muted">(palikti tuščią, jei nėra)</small></label>
-                    <input name="sale_price" type="number" step="0.01" class="form-control" placeholder="0.00">
-                </div>
-                <div class="input-group">
-                    <label>Kiekis sandėlyje (vnt.) <span style="color:red">*</span></label>
-                    <input name="quantity" type="number" min="0" class="form-control" value="0" required>
-                </div>
-                <div class="input-group">
-                    <label>Juostelė ant nuotraukos</label>
-                    <input name="ribbon_text" class="form-control" placeholder="pvz. Naujiena, -20%, Išpardavimas">
-                </div>
-            </div>
-        </div>
-
-        <div id="tab-images" class="tab-pane">
-            <div class="form-grid">
-                <div class="input-group">
-                    <label>Priskirti kategorijoms</label>
-                    <div class="cat-box">
-                        <?php foreach ($catTree as $branch): ?>
-                            <div style="margin-bottom:8px;">
-                                <label class="cat-item" style="font-weight:700;">
-                                    <input type="checkbox" name="categories[]" value="<?php echo (int)$branch['self']['id']; ?>">
-                                    <?php echo htmlspecialchars($branch['self']['name']); ?>
-                                </label>
-                                <?php if(!empty($branch['children'])): ?>
-                                    <?php foreach ($branch['children'] as $child): ?>
-                                        <label class="cat-item cat-child">
-                                            <input type="checkbox" name="categories[]" value="<?php echo (int)$child['id']; ?>">
-                                            <?php echo htmlspecialchars($child['name']); ?>
-                                        </label>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </div>
-                        <?php endforeach; ?>
+                    <div class="full-width input-group">
+                        <label>Paantraštė (Trumpas aprašymas)</label>
+                        <input name="subtitle" id="p_subtitle" class="form-control" placeholder="pvz. Tikslus ir patikimas">
                     </div>
-                </div>
-
-                <div class="input-group">
-                    <label>Prekės nuotraukos</label>
-                    <div class="img-upload-area" onclick="document.getElementById('imgInput').click()">
-                        <div style="font-size:24px; margin-bottom:5px;">📷</div>
-                        <div style="color:#6b7280; font-size:13px;">Paspauskite, kad įkeltumėte nuotraukas</div>
-                        <input type="file" name="images[]" id="imgInput" multiple accept="image/*" style="display:none;" onchange="previewImages(this)">
-                    </div>
-                    <div id="imagePreviewContainer" class="preview-grid"></div>
-                </div>
-            </div>
-        </div>
-
-        <div id="tab-attrs" class="tab-pane">
-            <div class="form-grid">
-                <div class="full-width input-group">
-                    <label>Variacijos (pvz. Spalva, Dydis)</label>
-                    <div id="vars-create" style="margin-bottom:10px;">
-                        <div class="input-row" style="display:flex; gap:10px; margin-bottom:8px;">
-                            <input class="form-control" name="variation_name[]" placeholder="Pavadinimas (pvz. Raudona)">
-                            <input class="form-control" name="variation_price[]" type="number" step="0.01" placeholder="+/- Kaina (€)">
+                    
+                    <div class="full-width input-group">
+                        <label>Išsamus aprašymas (Redaktorius)</label>
+                        <div class="rich-editor-wrapper">
+                            <div class="editor-toolbar" id="mainDescToolbar">
+                                </div>
+                            <div id="mainDescEditor" class="editor-content" contenteditable="true" placeholder="Rašykite aprašymą čia..."></div>
+                            <textarea name="description" id="p_description" hidden></textarea>
                         </div>
                     </div>
-                    <button type="button" class="btn secondary" onclick="addVarRow('vars-create')" style="font-size:12px;">+ Pridėti variaciją</button>
-                </div>
-
-                <div class="full-width input-group" style="border-top:1px dashed #e5e7eb; padding-top:15px;">
-                    <label>Techninės specifikacijos (Lentelė)</label>
-                    <div id="attrs-create-container" style="margin-bottom:10px;">
-                        <div class="attr-row" style="display:grid; grid-template-columns:1fr 2fr; gap:10px; margin-bottom:8px;">
-                            <input name="attr_label[]" class="form-control" placeholder="Savybė (pvz. Svoris)">
-                            <input name="attr_value[]" class="form-control" placeholder="Reikšmė (pvz. 1.5 kg)">
-                        </div>
+                    
+                    <div class="input-group">
+                        <label>Kategorija</label>
+                        <select name="category_id" id="p_category" class="form-control">
+                            <option value="">-- Nepriskirta --</option>
+                            <?php foreach ($catTree as $branch): ?>
+                                <option value="<?php echo $branch['self']['id']; ?>" style="font-weight:bold;"><?php echo htmlspecialchars($branch['self']['name']); ?></option>
+                                <?php foreach ($branch['children'] as $child): ?>
+                                    <option value="<?php echo $child['id']; ?>">&nbsp;&nbsp;&nbsp; - <?php echo htmlspecialchars($child['name']); ?></option>
+                                <?php endforeach; ?>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
-                    <button type="button" class="btn secondary" onclick="addNewAttrRow()" style="font-size:12px;">+ Pridėti savybę</button>
+                    <div class="input-group">
+                        <label>Etiketė ant foto (Ribbon)</label>
+                        <input name="ribbon_text" id="p_ribbon" class="form-control" placeholder="pvz. Naujiena">
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div id="tab-seo" class="tab-pane">
-            <div class="form-grid">
-                <div class="full-width input-group">
-                    <label>SEO Meta žymos (atskirti kableliais)</label>
-                    <input name="meta_tags" class="form-control" placeholder="pvz. gliukometras, akcija, diabetas">
+            <div id="tab-specs" class="tab-content">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <label style="font-weight:700; text-transform:uppercase; font-size:12px; color:#666;">Techninės savybės</label>
+                    <button type="button" class="btn secondary" style="font-size:12px;" onclick="addRichAttrRow()">+ Pridėti eilutę</button>
                 </div>
+                <p class="muted" style="font-size:12px; margin-bottom:15px;">Kiekviena reikšmė turi savo teksto redaktorių (galima Bold, List ir t.t.).</p>
                 
+                <div id="attributesContainer">
+                    </div>
+            </div>
+
+            <div id="tab-prices" class="tab-content">
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label>Kaina (€) *</label>
+                        <input type="number" step="0.01" name="price" id="p_price" class="form-control" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Akcijos kaina (€)</label>
+                        <input type="number" step="0.01" name="sale_price" id="p_sale_price" class="form-control">
+                    </div>
+                    <div class="input-group">
+                        <label>Kiekis (vnt.) *</label>
+                        <input type="number" name="quantity" id="p_quantity" class="form-control" value="0" required>
+                    </div>
+                </div>
+
+                <hr style="margin:20px 0; border:0; border-top:1px dashed #eee;">
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <label style="font-weight:700; text-transform:uppercase; font-size:12px; color:#666;">Variacijos (Spalva, Dydis)</label>
+                    <button type="button" class="btn secondary" style="font-size:12px;" onclick="addVarRow()">+ Pridėti variaciją</button>
+                </div>
+                <div id="variationsContainer">
+                    </div>
+            </div>
+
+            <div id="tab-media" class="tab-content">
+                <div class="input-group">
+                    <label>Įkelti nuotraukas</label>
+                    <div style="border: 2px dashed #ddd; padding: 20px; text-align: center; border-radius: 8px; cursor: pointer; background:#f9f9f9;" 
+                         onclick="document.getElementById('modalImgInput').click()">
+                        <div style="font-size:24px;">📷</div>
+                        <div style="font-size:13px; color:#666;">Paspauskite įkėlimui</div>
+                    </div>
+                    <input type="file" name="images[]" id="modalImgInput" multiple accept="image/*" style="display:none;" onchange="previewModalImages(this)">
+                </div>
+                <div id="modalImgPreview" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:15px;"></div>
+                
+                <div id="existingImages" style="margin-top:20px; border-top:1px solid #eee; padding-top:10px;">
+                    <label style="font-size:12px; font-weight:700;">Esamos nuotraukos:</label>
+                    <div id="existingImgContainer" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;"></div>
+                </div>
+            </div>
+
+            <div id="tab-seo" class="tab-content">
                 <div class="full-width input-group">
-                    <label>Susijusios prekės (laikyti Ctrl/Cmd keliems pasirinkti)</label>
-                    <select name="related_products[]" multiple size="6" class="form-control" style="height:auto;">
+                    <label>Meta žymos (Tags)</label>
+                    <input name="meta_tags" id="p_meta_tags" class="form-control" placeholder="pvz. diabetas, sensorius, akcija">
+                </div>
+                <div class="full-width input-group">
+                    <label>Susijusios prekės (Laikyti Ctrl pasirinkimui)</label>
+                    <select name="related_products[]" id="p_related" multiple class="form-control" style="height:200px;">
                         <?php foreach ($products as $p): ?>
-                            <option value="<?php echo (int)$p['id']; ?>"><?php echo htmlspecialchars($p['title']); ?> (<?php echo number_format($p['price'], 2); ?> €)</option>
+                            <option value="<?php echo $p['id']; ?>"><?php echo htmlspecialchars($p['title']); ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <p class="muted" style="font-size:11px; margin-top:4px;">Šios prekės bus rodomos puslapio apačioje kaip "Jums gali patikti".</p>
                 </div>
             </div>
+
         </div>
 
-        <div style="margin-top:20px; text-align:right; border-top:1px solid #e5e7eb; padding-top:15px;">
-            <button class="btn" type="submit" style="padding:10px 24px; font-size:16px;">Išsaugoti prekę</button>
+        <div class="modal-footer">
+            <button type="button" class="btn secondary" onclick="closeProductModal()">Atšaukti</button>
+            <button type="submit" class="btn">Išsaugoti prekę</button>
         </div>
     </form>
 </div>
 
 <script>
-    // Tabų logika
-    function openTab(evt, tabName) {
-        var i, tabcontent, tablinks;
-        tabcontent = document.getElementsByClassName("tab-pane");
-        for (i = 0; i < tabcontent.length; i++) {
-            tabcontent[i].classList.remove("active");
-        }
-        tablinks = document.getElementsByClassName("tab-trigger");
-        for (i = 0; i < tablinks.length; i++) {
-            tablinks[i].classList.remove("active");
-        }
-        document.getElementById(tabName).classList.add("active");
-        evt.currentTarget.classList.add("active");
-    }
-
-    // Teksto redaktorius
-    function format(c, v = null) { document.execCommand(c, false, v); }
-    function createLink() { const u = prompt('Įveskite nuorodą:'); if (u) format('createLink', u); }
+    // --- 1. RICH TEXT EDITOR FUNCTIONS ---
     
-    // Formos sinchronizacija
-    function syncNewProductForm() {
-        document.getElementById('new-desc-textarea').value = document.getElementById('new-desc-editor').innerHTML;
-        return true;
+    // Sukuria mygtukų juostą nurodytam elementui
+    function createToolbar(containerId) {
+        const container = document.getElementById(containerId);
+        if(!container) return;
+        
+        const tools = [
+            { cmd: 'bold', label: 'B', title: 'Paryškinti' },
+            { cmd: 'italic', label: 'I', title: 'Pasviras' },
+            { cmd: 'underline', label: 'U', title: 'Pabraukti' },
+            { cmd: 'insertUnorderedList', label: '• Sąrašas', title: 'Sąrašas' },
+            { cmd: 'formatBlock', val: 'H3', label: 'H3', title: 'Antraštė' },
+            { cmd: 'createLink', label: '🔗', title: 'Nuoroda' },
+            { cmd: 'justifyLeft', label: 'L', title: 'Kairėje' },
+            { cmd: 'justifyCenter', label: 'C', title: 'Centre' },
+            { cmd: 'foreColor', val: '#ef4444', label: '🔴', title: 'Raudona' },
+            { cmd: 'removeFormat', label: '🧹', title: 'Valyti' }
+        ];
+
+        let html = '';
+        tools.forEach(t => {
+            if (t.val) {
+                // Mygtukas su verte (pvz. H3, Color)
+                html += `<button type="button" class="editor-btn" onclick="execEdit('${t.cmd}', '${t.val}')" title="${t.title}">${t.label}</button>`;
+            } else if (t.cmd === 'createLink') {
+                html += `<button type="button" class="editor-btn" onclick="execLink()" title="${t.title}">${t.label}</button>`;
+            } else {
+                html += `<button type="button" class="editor-btn" onclick="execEdit('${t.cmd}')" title="${t.title}">${t.label}</button>`;
+            }
+        });
+        container.innerHTML = html;
     }
 
-    // Dinaminiai laukai
-    function addNewAttrRow() {
-        const c = document.getElementById('attrs-create-container');
-        const d = document.createElement('div');
-        d.style.cssText = "display:grid; grid-template-columns:1fr 2fr; gap:10px; margin-bottom:8px;";
-        d.innerHTML = `
-            <input name="attr_label[]" class="form-control" placeholder="Savybė">
-            <input name="attr_value[]" class="form-control" placeholder="Reikšmė">
+    function execEdit(cmd, val = null) {
+        document.execCommand(cmd, false, val);
+    }
+    
+    function execLink() {
+        const url = prompt('Įveskite nuorodą:');
+        if (url) document.execCommand('createLink', false, url);
+    }
+
+    // Inicijuojame pagrindinį toolbar
+    createToolbar('mainDescToolbar');
+
+
+    // --- 2. ATTRIBUTES (RICH TEXT ROW) ---
+    
+    function addRichAttrRow(label = '', valueHtml = '') {
+        const container = document.getElementById('attributesContainer');
+        const uniqueId = 'attr_editor_' + Date.now() + Math.floor(Math.random() * 1000);
+        
+        const div = document.createElement('div');
+        div.className = 'attr-row';
+        div.innerHTML = `
+            <div>
+                <input type="text" name="attr_label[]" class="form-control" placeholder="Savybė (pvz. Svoris)" value="${label.replace(/"/g, '&quot;')}">
+            </div>
+            <div class="rich-editor-wrapper mini-editor">
+                <div class="editor-toolbar" id="toolbar_${uniqueId}"></div>
+                <div class="editor-content" id="${uniqueId}" contenteditable="true" placeholder="Reikšmė...">${valueHtml}</div>
+                <textarea name="attr_value[]" hidden></textarea> </div>
+            <button type="button" onclick="this.parentElement.remove()" style="color:red; border:none; background:none; cursor:pointer; font-size:20px;">&times;</button>
         `;
-        c.appendChild(d);
+        
+        container.appendChild(div);
+        
+        // Inicijuojame toolbarą šiai konkrečiai eilutei
+        createToolbar('toolbar_' + uniqueId);
     }
 
-    function addVarRow(id) {
-        const c = document.getElementById(id);
-        const d = document.createElement('div');
-        d.className = 'input-row';
-        d.style.cssText = "display:flex; gap:10px; margin-bottom:8px;";
-        d.innerHTML = `
-            <input class="form-control" name="variation_name[]" placeholder="Pavadinimas">
-            <input class="form-control" name="variation_price[]" type="number" step="0.01" placeholder="+/- Kaina">
+
+    // --- 3. VARIATIONS ---
+    
+    function addVarRow(name = '', price = '') {
+        const container = document.getElementById('variationsContainer');
+        const div = document.createElement('div');
+        div.style.cssText = "display:grid; grid-template-columns: 1fr 100px 40px; gap:10px; margin-bottom:8px;";
+        div.innerHTML = `
+            <input name="variation_name[]" class="form-control" placeholder="Pavadinimas" value="${name.replace(/"/g, '&quot;')}">
+            <input name="variation_price[]" type="number" step="0.01" class="form-control" placeholder="+/- €" value="${price}">
+            <button type="button" onclick="this.parentElement.remove()" style="color:red; border:none; background:none; cursor:pointer; font-size:20px;">&times;</button>
         `;
-        c.appendChild(d);
+        container.appendChild(div);
     }
 
-    // Nuotraukų preview
-    function previewImages(input) {
-        const container = document.getElementById('imagePreviewContainer');
+
+    // --- 4. MODAL LOGIC ---
+    
+    const modal = document.getElementById('productModal');
+    
+    function openProductModal(mode, data = null) {
+        // Reset Form
+        document.getElementById('formAction').value = 'save_product';
+        document.getElementById('productId').value = '';
+        document.querySelector('form.modal-window').reset();
+        
+        // Clear dynamic fields
+        document.getElementById('mainDescEditor').innerHTML = '';
+        document.getElementById('attributesContainer').innerHTML = '';
+        document.getElementById('variationsContainer').innerHTML = '';
+        document.getElementById('modalImgPreview').innerHTML = '';
+        document.getElementById('existingImgContainer').innerHTML = '';
+        
+        // Switch to first tab
+        switchTab('basic');
+
+        if (mode === 'create') {
+            document.getElementById('modalTitle').innerText = 'Nauja prekė';
+            // Pridedame vieną tuščią atributų eilutę patogumui
+            addRichAttrRow();
+        } else if (mode === 'edit' && data) {
+            document.getElementById('modalTitle').innerText = 'Redaguoti prekę: ' + data.title;
+            document.getElementById('productId').value = data.id;
+            
+            // Basic Info
+            document.getElementById('p_title').value = data.title;
+            document.getElementById('p_subtitle').value = data.subtitle || '';
+            document.getElementById('p_category').value = data.category_id || '';
+            document.getElementById('p_ribbon').value = data.ribbon_text || '';
+            
+            // Rich Description
+            document.getElementById('mainDescEditor').innerHTML = data.description;
+            
+            // Prices
+            document.getElementById('p_price').value = data.price;
+            document.getElementById('p_sale_price').value = data.sale_price || '';
+            document.getElementById('p_quantity').value = data.quantity;
+            
+            // SEO
+            document.getElementById('p_meta_tags').value = data.meta_tags || '';
+            
+            // Related Products
+            if (data.related_ids) {
+                const select = document.getElementById('p_related');
+                Array.from(select.options).forEach(opt => {
+                    opt.selected = data.related_ids.includes(parseInt(opt.value)); // arba string priklausomai nuo DB
+                });
+            }
+
+            // Attributes (Rich Text)
+            if (data.attributes && data.attributes.length > 0) {
+                data.attributes.forEach(attr => {
+                    addRichAttrRow(attr.label, attr.value);
+                });
+            } else {
+                addRichAttrRow(); // Kad nebūtų tuščia
+            }
+
+            // Variations
+            if (data.variations && data.variations.length > 0) {
+                data.variations.forEach(v => {
+                    addVarRow(v.name, v.price_delta);
+                });
+            }
+            
+            // Existing Images
+            // Čia paprastas atvaizdavimas. Norint trinti, reiktų papildomo mygtuko ir inputo su delete_image_ids[]
+            // Dabar tiesiog parodome, kad yra.
+            if (data.primary_image) {
+                document.getElementById('existingImgContainer').innerHTML = 
+                    `<img src="${data.primary_image}" style="width:60px; height:60px; object-fit:cover; border:1px solid #ddd; border-radius:4px;">`;
+            }
+        }
+        
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('open'), 10);
+    }
+
+    function closeProductModal() {
+        modal.classList.remove('open');
+        setTimeout(() => modal.style.display = 'none', 200);
+    }
+
+    // --- 5. SYNC EDITORS BEFORE SUBMIT ---
+    function syncEditors() {
+        // 1. Main Description
+        document.getElementById('p_description').value = document.getElementById('mainDescEditor').innerHTML;
+        
+        // 2. Attribute Editors
+        const rows = document.querySelectorAll('#attributesContainer .attr-row');
+        rows.forEach(row => {
+            const editor = row.querySelector('.editor-content');
+            const textarea = row.querySelector('textarea[name="attr_value[]"]');
+            if(editor && textarea) {
+                textarea.value = editor.innerHTML;
+            }
+        });
+        
+        return true; // allow submit
+    }
+
+    // --- 6. TABS & UI HELPERS ---
+    function switchTab(id) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        
+        document.getElementById('tab-' + id).classList.add('active');
+        // Find button by onclick text is messy, better use indexing or logic, but simplified:
+        const btns = document.querySelectorAll('.tab-btn');
+        if(id==='basic') btns[0].classList.add('active');
+        if(id==='specs') btns[1].classList.add('active');
+        if(id==='prices') btns[2].classList.add('active');
+        if(id==='media') btns[3].classList.add('active');
+        if(id==='seo') btns[4].classList.add('active');
+    }
+
+    function previewModalImages(input) {
+        const container = document.getElementById('modalImgPreview');
         container.innerHTML = '';
         if (input.files) {
             Array.from(input.files).forEach(file => {
@@ -428,7 +579,7 @@ if ($fIds) {
                 reader.onload = function(e) {
                     const img = document.createElement('img');
                     img.src = e.target.result;
-                    img.className = 'preview-img';
+                    img.style.cssText = "width:60px; height:60px; object-fit:cover; border-radius:4px; border:1px solid #ddd;";
                     container.appendChild(img);
                 }
                 reader.readAsDataURL(file);
@@ -436,24 +587,40 @@ if ($fIds) {
         }
     }
 
-    // Lentelės paieška
-    function filterTable() {
-        const input = document.getElementById("tableSearch");
-        const filter = input.value.toUpperCase();
-        const table = document.getElementById("productsTable");
-        const tr = table.getElementsByTagName("tr");
+    // --- 7. BULK ACTIONS ---
+    function toggleAll(source) {
+        document.querySelectorAll('.prod-check').forEach(c => {
+            c.checked = source.checked;
+        });
+        updateBulkUI();
+    }
 
-        for (let i = 1; i < tr.length; i++) { // Start from 1 to skip header
-            let tdTitle = tr[i].getElementsByTagName("td")[1]; // Pavadinimas
-            let tdCat = tr[i].getElementsByTagName("td")[2];   // Kategorija
-            if (tdTitle || tdCat) {
-                let txtValue = (tdTitle.textContent || tdTitle.innerText) + " " + (tdCat.textContent || tdCat.innerText);
-                if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                    tr[i].style.display = "";
-                } else {
-                    tr[i].style.display = "none";
-                }
-            }
+    function updateBulkUI() {
+        const checked = document.querySelectorAll('.prod-check:checked').length;
+        const panel = document.getElementById('bulkActionsPanel');
+        const countSpan = document.getElementById('selectedCount');
+        
+        countSpan.innerText = checked;
+        if (checked > 0) {
+            panel.classList.add('visible');
+        } else {
+            panel.classList.remove('visible');
         }
+    }
+
+    function submitBulkDelete() {
+        if (confirm('Ar tikrai norite ištrinti pasirinktas prekes?')) {
+            document.getElementById('productsListForm').submit();
+        }
+    }
+
+    // Search
+    function filterTable() {
+        const filter = document.getElementById('tableSearch').value.toUpperCase();
+        const trs = document.querySelectorAll('#productsTable tbody tr');
+        trs.forEach(tr => {
+            const txt = tr.innerText;
+            tr.style.display = txt.toUpperCase().indexOf(filter) > -1 ? '' : 'none';
+        });
     }
 </script>
