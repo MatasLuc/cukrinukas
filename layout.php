@@ -1,7 +1,9 @@
 <?php
 
+/**
+ * Generuoja <head> stilius ir šriftus.
+ */
 function headerStyles($shadowIntensity = 0) {
-    // Užtikriname, kad kintamasis būtų saugus
     $shadowIntensity = max(0, min(100, (int)$shadowIntensity));
     $shadowOpacity = round(0.08 * ($shadowIntensity / 100), 3);
     
@@ -24,7 +26,7 @@ function headerStyles($shadowIntensity = 0) {
         body {
             font-family: var(--font-main);
             margin: 0;
-            padding-top: var(--header-h); /* Kad header neuždengtų turinio */
+            padding-top: var(--header-h);
             background-color: #f7f7fb;
             color: var(--c-text-main);
             display: flex;
@@ -83,7 +85,7 @@ function headerStyles($shadowIntensity = 0) {
             color: var(--c-brand);
         }
 
-        /* Header Actions (Icons) */
+        /* Header Actions */
         .header-actions {
             display: flex;
             align-items: center;
@@ -196,7 +198,7 @@ function headerStyles($shadowIntensity = 0) {
             background: #fff;
             border-top: 1px solid var(--c-border);
             padding: 60px 0 30px;
-            margin-top: auto; /* Push footer to bottom */
+            margin-top: auto;
         }
         .footer-grid {
             max-width: 1200px;
@@ -255,13 +257,15 @@ function headerStyles($shadowIntensity = 0) {
 HTML;
 }
 
+/**
+ * Atvaizduoja Header su navigacija ir mobile meniu.
+ */
 function renderHeader($pdo, $activePage = '') {
     $cartCount = 0;
     if (!empty($_SESSION['cart'])) {
         foreach ($_SESSION['cart'] as $qty) $cartCount += $qty;
     }
     
-    // Nustatom aktyvią klasę
     $navItems = [
         'products' => ['url' => '/products.php', 'label' => 'Parduotuvė'],
         'market' => ['url' => '/community_market.php', 'label' => 'Turgelis'],
@@ -277,8 +281,6 @@ function renderHeader($pdo, $activePage = '') {
         $navHtml .= "<a href=\"{$item['url']}\" class=\"nav-link {$activeClass}\">{$item['label']}</a>";
     }
 
-    $isLoggedIn = !empty($_SESSION['user_id']);
-    
     echo <<<HTML
     <header class="site-header">
         <div class="header-inner">
@@ -324,13 +326,20 @@ function renderHeader($pdo, $activePage = '') {
 
     <script>
         function toggleMobileMenu() {
-            document.getElementById('mobileOverlay').classList.toggle('open');
-            document.getElementById('mobileDrawer').classList.toggle('open');
+            var overlay = document.getElementById('mobileOverlay');
+            var drawer = document.getElementById('mobileDrawer');
+            if(overlay && drawer) {
+                overlay.classList.toggle('open');
+                drawer.classList.toggle('open');
+            }
         }
     </script>
 HTML;
 }
 
+/**
+ * Atvaizduoja Footer.
+ */
 function renderFooter($pdo) {
     echo <<<HTML
     <footer class="site-footer">
@@ -367,7 +376,10 @@ function renderFooter($pdo) {
 HTML;
 }
 
-// Funkcija klaidų atvaizdavimui (išlieka sena, jei naudojama)
+// ---------------------------------------------------------
+// PAGALBINĖS FUNKCIJOS, KURIŲ REIKIA INDEX.PHP (KAD NEMESTŲ 500 KLAIDOS)
+// ---------------------------------------------------------
+
 function renderErrors($errors) {
     if (empty($errors)) return;
     echo '<div style="max-width:1200px; margin:20px auto; padding:0 20px;">';
@@ -377,7 +389,6 @@ function renderErrors($errors) {
     echo '</div>';
 }
 
-// Funkcija sėkmės pranešimams
 function renderSuccess($messages) {
     if (empty($messages)) return;
     echo '<div style="max-width:1200px; margin:20px auto; padding:0 20px;">';
@@ -388,6 +399,7 @@ function renderSuccess($messages) {
 }
 
 function csrfField() {
+    if (session_status() === PHP_SESSION_NONE) session_start();
     if (empty($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
@@ -395,7 +407,8 @@ function csrfField() {
 }
 
 function validateCsrfToken() {
-    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+    if (session_status() === PHP_SESSION_NONE) session_start();
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== ($_SESSION['csrf_token'] ?? '')) {
         die('CSRF validation failed');
     }
 }
