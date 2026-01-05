@@ -237,10 +237,12 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .hero__content { position:relative; z-index:2; max-width:1200px; margin:0 auto; padding: 50px 20px 40px; display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:32px; align-items:center; }
     .hero__copy h1 { margin:0 0 12px; font-size:clamp(32px, 5vw, 42px); line-height:1.2; color:#fff; }
     .hero__copy p { margin:0 0 24px; font-size:18px; line-height:1.6; color:#e0f2fe; max-width:540px; }
+    
+    /* GLASS CARD FIX */
     .glass-card { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:16px; padding:20px; backdrop-filter:blur(12px); box-shadow:0 10px 30px rgba(0,0,0,0.1); color:#fff; }
-    .glass-card h3 { margin:0 0 8px; font-size:18px; }
-    .glass-card p { margin:0 0 12px; font-size:14px; color:#dbeafe; line-height:1.5; }
-    .glass-card a { font-weight:700; text-decoration:underline; text-decoration-color:rgba(255,255,255,0.4); }
+    .glass-card h3 { margin:0 0 8px; font-size:18px; color:#fff; }
+    .glass-card p { margin:0 0 12px; font-size:14px; color:#e0f2fe; line-height:1.5; }
+    .glass-card a { font-weight:700; text-decoration:underline; text-decoration-color:rgba(255,255,255,0.4); color:#fff; }
 
     /* PROMO CARDS */
     .promo-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:20px; }
@@ -263,8 +265,8 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     
     .story-card-inner { background:#fff; border-radius:14px; padding:20px; box-shadow:var(--shadow-md); border:1px solid #e0e7ff; }
 
-    /* STORE GRID - ŠVARESNIS DIZAINAS */
-    .store-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:20px; }
+    /* STORE GRID - 4 EILĖJE */
+    .store-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:20px; }
     .product-card { 
         background:#fff; border:1px solid var(--border); border-radius:16px; 
         overflow:hidden; display:flex; flex-direction:column; transition: all .2s; 
@@ -281,17 +283,18 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .action-btn { width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; border:1px solid var(--border); background:#fff; color:#374151; cursor:pointer; transition:all .2s; }
     .action-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-light); }
 
-    /* FREE SHIPPING - ATNAUJINTAS */
+    /* FREE SHIPPING - 3 EILĖJE */
     .free-shipping-box { 
-        background:#fff; border:1px solid #bae6fd; border-radius:20px; padding:24px;
-        background: linear-gradient(to right, #f0f9ff, #fff);
+        background: linear-gradient(135deg, #eff6ff, #dbeafe); /* PAKEISTA: KAIP STORYBAND */
+        border:1px solid #bae6fd; border-radius:20px; padding:24px;
     }
     .fs-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #e0f2fe; padding-bottom:16px; }
     .fs-title { display:flex; align-items:center; gap:10px; font-size:18px; font-weight:700; color:#0369a1; }
     .fs-icon { font-size:24px; }
     .fs-subtitle { font-size:14px; color:#0c4a6e; }
     
-    .fs-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:16px; }
+    /* PAKEISTA: 3 EILĖJE */
+    .fs-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; }
     .fs-card { 
         background:#fff; border:1px solid #e0f2fe; border-radius:12px; padding:12px; 
         display:flex; align-items:center; gap:12px; transition: all .2s; 
@@ -304,7 +307,11 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     /* HIGHLIGHT SECTION */
     .split-panel { display:grid; grid-template-columns: 1fr 1fr; gap:24px; }
     .story-card { background:#fff; border:1px solid var(--border); border-radius:20px; padding:24px; }
-    .story-visual { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border:1px solid #bae6fd; border-radius:20px; padding:24px; display:flex; flex-direction:column; justify-content:center; gap:16px; }
+    .story-card h3 { margin:0 0 10px; font-size:22px; color:#0f172a; } /* PAKEISTA: GRAŽIAU */
+    .story-card p { margin:0 0 16px; line-height:1.6; color:#374151; font-size:15px; } /* PAKEISTA */
+    
+    /* PAKEISTA: KAIP STORYBAND */
+    .story-visual { background: linear-gradient(135deg, #eff6ff, #dbeafe); border:1px solid #dbeafe; border-radius:20px; padding:24px; display:flex; flex-direction:column; justify-content:center; gap:16px; }
     .story-bubble { background:#fff; padding:14px; border-radius:12px; box-shadow:var(--shadow-sm); border:1px solid #e0f2fe; }
 
     /* TESTIMONIALS - Viena eilė */
@@ -318,7 +325,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .t-role { font-size:12px; color:var(--muted); margin-bottom:10px; }
     .t-text { font-size:14px; line-height:1.6; color:#475467; flex:1; }
 
-    /* NEWS GRID - PATAISYTA */
+    /* NEWS GRID */
     .news-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:20px; }
     .news-card { background:#fff; border:1px solid var(--border); border-radius:16px; overflow:hidden; transition:transform .2s; }
     .news-card:hover { transform:translateY(-3px); border-color:var(--accent); }
@@ -341,11 +348,11 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     /* MEDIA QUERIES */
     @media (max-width: 900px) {
         .storyband-box, .split-panel, .support-box { grid-template-columns: 1fr; gap:24px; }
-        .testimonial-grid, .news-grid { grid-template-columns: 1fr 1fr; }
-        .fs-grid { grid-template-columns: 1fr 1fr; }
+        .testimonial-grid, .news-grid, .store-grid { grid-template-columns: 1fr 1fr; }
+        .fs-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 600px) {
-        .testimonial-grid, .news-grid, .fs-grid, .store-grid { grid-template-columns: 1fr; }
+        .testimonial-grid, .news-grid, .store-grid { grid-template-columns: 1fr; }
         .hero__content { padding: 40px 20px; }
         .promo-grid { grid-template-columns: 1fr; }
     }
@@ -471,8 +478,8 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     <section class="section-shell highlight-section">
       <div class="split-panel">
         <div class="story-card">
-          <h3 style="margin:0 0 8px; color:var(--accent); font-size:14px; text-transform:uppercase;"><?php echo htmlspecialchars($storyRow['title']); ?></h3>
-          <p style="margin:0 0 16px; font-size:22px; font-weight:700; color:#0f172a; line-height:1.3;"><?php echo htmlspecialchars($storyRow['body']); ?></p>
+          <h3><?php echo htmlspecialchars($storyRow['title']); ?></h3>
+          <p><?php echo htmlspecialchars($storyRow['body']); ?></p>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <?php foreach ($storyRow['pills'] as $pill): ?>
               <span class="pill" style="background:#f8fafc; color:#475467; border-color:#e2e8f0;"><?php echo htmlspecialchars($pill); ?></span>
@@ -520,6 +527,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     <section class="section-shell testimonials">
       <div class="section-head">
         <h2>Klientų atsiliepimai</h2>
+        <span class="pill">Klientų istorijos</span>
       </div>
       <div class="testimonials-box">
         <div class="testimonial-grid">
