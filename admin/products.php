@@ -11,22 +11,22 @@ if (isset($_SESSION['flash_error'])) {
     unset($_SESSION['flash_error']);
 }
 
-// 1. DUOMENŲ BAZĖS ATNAUJINIMAS
-try {
-    // Patikriname, ar yra is_featured stulpelis. Jei nėra - sukuriame.
-    $check = $pdo->query("SHOW COLUMNS FROM products LIKE 'is_featured'");
-    if ($check->rowCount() == 0) {
-        $pdo->exec("ALTER TABLE products ADD COLUMN is_featured TINYINT(1) DEFAULT 0");
-    }
-} catch (Exception $e) {
-    // Ignoruojame klaidą jei stulpelis jau yra
-}
-
 // 2. DUOMENŲ SURINKIMAS
-// Surenkame visas prekes
+
+// Featured prekės (iš featured_products lentelės)
+$fProds = $pdo->query('
+    SELECT p.*, fp.id as fp_id 
+    FROM featured_products fp
+    JOIN products p ON fp.product_id = p.id 
+    ORDER BY fp.position ASC
+')->fetchAll(PDO::FETCH_ASSOC);
+
+// Visos prekės
+// Pridedame 'is_featured_flag' lauką, kuris patikrina ar prekė yra featured_products lentelėje
 $stmt = $pdo->query('
     SELECT p.*, c.name AS category_name,
-           (SELECT path FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image
+           (SELECT path FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image,
+           (SELECT COUNT(*) FROM featured_products WHERE product_id = p.id) as is_featured_flag
     FROM products p 
     LEFT JOIN categories c ON c.id = p.category_id 
     ORDER BY p.created_at DESC
@@ -66,9 +66,6 @@ foreach ($allCats as $c) {
 foreach ($allCats as $c) {
     if (!empty($c['parent_id']) && isset($catTree[$c['parent_id']])) { $catTree[$c['parent_id']]['children'][]=$c; }
 }
-
-// Featured prekės (filtruojame pagal is_featured vėliavėlę)
-$fProds = array_filter($products, function($p) { return isset($p['is_featured']) && $p['is_featured'] == 1; });
 ?>
 
 <style>
@@ -199,7 +196,7 @@ $fProds = array_filter($products, function($p) { return isset($p['is_featured'])
                         </td>
                         <td>
                             <div style="font-weight:600; font-size:14px; color:#111;"><?php echo htmlspecialchars($p['title']); ?></div>
-                            <?php if(isset($p['is_featured']) && $p['is_featured']): ?><span style="font-size:10px; color:#4f46e5; font-weight:700;">[Titulinio]</span><?php endif; ?>
+                            <?php if(isset($p['is_featured_flag']) && $p['is_featured_flag'] > 0): ?><span style="font-size:10px; color:#4f46e5; font-weight:700;">[Titulinio]</span><?php endif; ?>
                             <?php if($p['sale_price']): ?><span style="font-size:10px; color:#ef4444; font-weight:700;">[Akcija]</span><?php endif; ?>
                         </td>
                         <td style="font-size:13px; color:#666;"><?php echo htmlspecialchars($p['category_name'] ?? '-'); ?></td>
@@ -432,7 +429,8 @@ $fProds = array_filter($products, function($p) { return isset($p['is_featured'])
             document.getElementById('p_ribbon').value = data.ribbon_text||'';
             document.getElementById('p_meta_tags').value = data.meta_tags||'';
             
-            if(data.is_featured == 1) document.getElementById('p_featured').checked = true;
+            // Pažymime checkbox, jei prekė yra featured_products lentelėje
+            if(data.is_featured_flag > 0) document.getElementById('p_featured').checked = true;
 
             // Categories
             if(data.category_ids) data.category_ids.forEach(cid => {
