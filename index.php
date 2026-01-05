@@ -85,11 +85,15 @@ for ($i = 1; $i <= 3; $i++) {
 }
 
 $promoCards = [];
+// Čia nurodome puslapius: 1->Parduotuvė, 2->Turgelis, 3->Receptai
+$promoUrls = [1 => '/products.php', 2 => '/community_market.php', 3 => '/recipes.php'];
+
 for ($i = 1; $i <= 3; $i++) {
     $promoCards[] = [
         'icon' => $siteContent['promo_' . $i . '_icon'] ?? ($i === 1 ? '🚀' : ($i === 2 ? '🛡️' : '💬')),
         'title' => $siteContent['promo_' . $i . '_title'] ?? '',
         'body' => $siteContent['promo_' . $i . '_body'] ?? '',
+        'url' => $promoUrls[$i] ?? '#'
     ];
 }
 
@@ -216,13 +220,21 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .btn:hover { opacity:0.9; transform:translateY(-1px); }
     .btn.secondary { background:#fff; color:#0b0b0b; border-color:var(--border); }
     
+    /* PILLS - PAKEISTAS DIZAINAS (Kaip action-btn) */
     .pill {
-        display:inline-flex; align-items:center; padding:6px 12px; 
+        display:inline-flex; align-items:center; padding:6px 14px; 
         border-radius:999px; font-size:13px; font-weight:600;
-        background:#fff; color:var(--accent); border:1px solid var(--border);
+        background:#fff; 
+        color:#1f2937; /* Tamsus tekstas */
+        border:1px solid var(--border);
         transition: all .2s;
+        text-decoration: none;
     }
-    .pill:hover { border-color:var(--accent); background:var(--accent-light); }
+    .pill:hover { 
+        border-color:var(--accent); 
+        color:var(--accent); 
+        background:#f0f9ff; /* Šviesiai mėlynas */
+    }
 
     .section-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:24px; flex-wrap: wrap; }
     .section-head h2 { margin:0; font-size:26px; color:#0f172a; letter-spacing:-0.01em; }
@@ -242,12 +254,17 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .glass-card { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:16px; padding:20px; backdrop-filter:blur(12px); box-shadow:0 10px 30px rgba(0,0,0,0.1); color:#fff; }
     .glass-card h3 { margin:0 0 8px; font-size:18px; color:#fff; }
     .glass-card p { margin:0 0 12px; font-size:14px; color:#e0f2fe; line-height:1.5; }
-    .glass-card a { font-weight:700; text-decoration:none; color:#fff; } /* Nuimtas pabraukimas */
+    .glass-card a { font-weight:700; text-decoration:none; color:#fff; } 
 
-    /* PROMO CARDS */
+    /* PROMO CARDS - NUORODOS */
     .promo-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:20px; }
-    .promo-card { background:#fff; border-radius:16px; padding:20px; border:1px solid var(--border); box-shadow:var(--shadow-sm); display:flex; gap:16px; align-items:flex-start; transition: transform .2s; }
-    .promo-card:hover { transform:translateY(-2px); border-color:var(--accent); }
+    a.promo-card { 
+        text-decoration:none; color:inherit; /* Nuorodos stiliaus pašalinimas */
+        background:#fff; border-radius:16px; padding:20px; 
+        border:1px solid var(--border); box-shadow:var(--shadow-sm); 
+        display:flex; gap:16px; align-items:flex-start; transition: transform .2s; 
+    }
+    a.promo-card:hover { transform:translateY(-2px); border-color:var(--accent); }
     .promo-icon { width:42px; height:42px; border-radius:10px; background:var(--accent-light); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
     .promo-card h3 { margin:0 0 4px; font-size:16px; }
     .promo-card p { margin:0; color:var(--muted); font-size:14px; line-height:1.5; }
@@ -265,7 +282,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     
     .story-card-inner { background:#fff; border-radius:14px; padding:20px; box-shadow:var(--shadow-md); border:1px solid #e0e7ff; }
 
-    /* STORE GRID - Pakeista į 3 prekes */
+    /* STORE GRID - 3 EILĖJE */
     .store-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:20px; }
     .product-card { 
         background:#fff; border:1px solid var(--border); border-radius:16px; 
@@ -289,7 +306,6 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
         border:1px solid #bae6fd; border-radius:20px; padding:24px;
     }
     .fs-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #e0f2fe; padding-bottom:16px; }
-    /* Pakeista spalva į juodą */
     .fs-title { display:flex; align-items:center; gap:10px; font-size:18px; font-weight:700; color:#0f172a; }
     .fs-icon { font-size:24px; color: #0f172a; }
     .fs-subtitle { font-size:14px; color:#0c4a6e; }
@@ -298,6 +314,7 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .fs-card { 
         background:#fff; border:1px solid #e0f2fe; border-radius:12px; padding:12px; 
         display:flex; align-items:center; gap:12px; transition: all .2s; 
+        text-decoration: none; color: inherit;
     }
     .fs-card:hover { border-color:#7dd3fc; transform:translateX(2px); }
     .fs-card img { width:50px; height:50px; object-fit:contain; border-radius:6px; border:1px solid #f1f5f9; }
@@ -348,11 +365,12 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
     .support-card .btn { 
         width:100%; 
         background: #fff; 
-        color: var(--accent); 
+        color: #1f2937; 
         border: 1px solid var(--border);
         font-weight: 600;
+        border-radius: 999px; /* Pill shape */
     }
-    .support-card .btn:hover { border-color: var(--accent); background: var(--accent-light); }
+    .support-card .btn:hover { border-color: var(--accent); color: var(--accent); background: #f0f9ff; }
 
     /* MEDIA QUERIES */
     @media (max-width: 900px) {
@@ -406,13 +424,13 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
       </div>
       <div class="promo-grid">
         <?php foreach ($promoCards as $card): ?>
-          <article class="promo-card">
+          <a href="<?php echo htmlspecialchars($card['url']); ?>" class="promo-card">
             <div class="promo-icon"><?php echo htmlspecialchars($card['icon']); ?></div>
             <div>
               <h3><?php echo htmlspecialchars($card['title']); ?></h3>
               <p><?php echo htmlspecialchars($card['body']); ?></p>
             </div>
-          </article>
+          </a>
         <?php endforeach; ?>
       </div>
     </section>
