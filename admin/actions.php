@@ -1,6 +1,6 @@
 <?php
 // admin/actions.php
-session_start(); // BŪTINA CSRF veikimui
+session_start();
 
 require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/functions.php';
@@ -8,12 +8,14 @@ require_once __DIR__ . '/../helpers.php';
 
 $pdo = getPdo();
 
+// Vykdome veiksmus TIK jei tai POST užklausa
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // 1. Patikriname CSRF saugumą
     if (!isset($_POST['csrf_token']) || !validateCsrfToken($_POST['csrf_token'])) {
         $_SESSION['flash_error'] = 'Saugumo klaida (Invalid CSRF token). Bandykite dar kartą.';
-        header('Location: ' . $_SERVER['HTTP_REFERER']);
+        // Grąžiname į ankstesnį puslapį
+        header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? '../admin.php'));
         exit;
     }
 
@@ -198,7 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ?view=community'); exit;
     }
 
-    // --- PREKĖS IR FEATURED (ATNAUJINTA) ---
+    // --- PREKĖS IR FEATURED ---
 
     // 1. Featured prekių valdymas
     if ($action === 'toggle_featured') {
@@ -238,7 +240,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $metaTags = trim($_POST['meta_tags'] ?? '');
         $isFeatured = isset($_POST['is_featured']) ? 1 : 0;
         
-        // Kategorijos (masyvas iš checkboxų)
+        // Kategorijos
         $cats = $_POST['categories'] ?? [];
         $primaryCatId = !empty($cats) ? (int)$cats[0] : null;
 
@@ -254,7 +256,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare('INSERT INTO products (category_id, title, subtitle, description, ribbon_text, image_url, price, sale_price, quantity, meta_tags, is_featured) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                 $stmt->execute([
                     $primaryCatId, $title, $subtitle ?: null, $description, $ribbon ?: null,
-                    'https://placehold.co/600x400?text=Preke', // Default img
+                    'https://placehold.co/600x400?text=Preke',
                     $price, $salePrice, $qty, $metaTags ?: null, $isFeatured
                 ]);
                 $productId = (int)$pdo->lastInsertId();
@@ -287,7 +289,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($primImgId) {
                 $pdo->prepare("UPDATE product_images SET is_primary = 0 WHERE product_id = ?")->execute([$productId]);
                 $pdo->prepare("UPDATE product_images SET is_primary = 1 WHERE id = ?")->execute([$primImgId]);
-                // Sinchronizuojame su products.image_url
+                // Atnaujinam products.image_url
                 $path = $pdo->query("SELECT path FROM product_images WHERE id = ".(int)$primImgId)->fetchColumn();
                 if ($path) $pdo->prepare("UPDATE products SET image_url = ? WHERE id = ?")->execute([$path, $productId]);
             }
@@ -343,10 +345,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ids = $_POST['selected_ids'] ?? [];
         if (!empty($ids) && is_array($ids)) {
             $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            // Trynimas
             $pdo->prepare("DELETE FROM product_attributes WHERE product_id IN ($placeholders)")->execute($ids);
             $pdo->prepare("DELETE FROM product_variations WHERE product_id IN ($placeholders)")->execute($ids);
             $pdo->prepare("DELETE FROM product_category_relations WHERE product_id IN ($placeholders)")->execute($ids);
-            $pdo->prepare("DELETE FROM featured_products WHERE product_id IN ($placeholders)")->execute($ids);
             $pdo->prepare("DELETE FROM product_images WHERE product_id IN ($placeholders)")->execute($ids);
             $pdo->prepare("DELETE FROM products WHERE id IN ($placeholders)")->execute($ids);
             
@@ -401,8 +403,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['flash_success'] = 'Vartotojas atblokuotas.';
         header('Location: ?view=community'); exit;
     }
-    
-    // Papildomi bendruomenės veiksmai iš senojo kodo
     if ($action === 'community_block') {
         $userId = (int)($_POST['user_id'] ?? 0);
         $until = trim($_POST['banned_until'] ?? '');
@@ -470,59 +470,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ?view=orders'); exit;
     }
 
-    // --- MENIU VALDYMAS ---
-    if ($action === 'nav_new') {
-        $label = trim($_POST['label'] ?? '');
-        $url = trim($_POST['url'] ?? '');
-        $parentId = $_POST['parent_id'] !== '' ? (int)$_POST['parent_id'] : null;
-        $sort = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM navigation_items')->fetchColumn());
-        if ($label && $url) {
-            $stmt = $pdo->prepare('INSERT INTO navigation_items (label, url, parent_id, sort_order) VALUES (?, ?, ?, ?)');
-            $stmt->execute([$label, $url, $parentId, $sort]);
-            $_SESSION['flash_success'] = 'Meniu punktas sukurtas';
-        } else {
-            $_SESSION['flash_error'] = 'Įveskite pavadinimą ir nuorodą.';
-        }
-        header('Location: ?view=menus'); exit;
-    }
-
-    if ($action === 'nav_update') {
-        $id = (int)($_POST['id'] ?? 0);
-        $label = trim($_POST['label'] ?? '');
-        $url = trim($_POST['url'] ?? '');
-        $parentId = $_POST['parent_id'] !== '' ? (int)$_POST['parent_id'] : null;
-        if ($id && $label && $url) {
-            $currentSort = $pdo->prepare('SELECT sort_order FROM navigation_items WHERE id = ?');
-            $currentSort->execute([$id]);
-            $sort = (int)($currentSort->fetchColumn() ?: 0);
-            $stmt = $pdo->prepare('UPDATE navigation_items SET label = ?, url = ?, parent_id = ?, sort_order = ? WHERE id = ?');
-            $stmt->execute([$label, $url, $parentId, $sort, $id]);
-            $_SESSION['flash_success'] = 'Meniu atnaujintas';
-        }
-        header('Location: ?view=menus'); exit;
-    }
-
-    if ($action === 'nav_delete') {
-        $id = (int)($_POST['id'] ?? 0);
-        if ($id) {
-            $pdo->prepare('DELETE FROM navigation_items WHERE id = ?')->execute([$id]);
-            $_SESSION['flash_success'] = 'Meniu punktas pašalintas';
-        }
-        header('Location: ?view=menus'); exit;
-    }
-
-    if ($action === 'nav_reorder') {
-        if (!empty($_POST['order']) && is_array($_POST['order'])) {
-            $stmt = $pdo->prepare('UPDATE navigation_items SET sort_order = ? WHERE id = ?');
-            foreach ($_POST['order'] as $id => $sort) {
-                $stmt->execute([(int)$sort, (int)$id]);
-            }
-            $_SESSION['flash_success'] = 'Rikiavimas atnaujintas';
-        }
-        header('Location: ?view=menus'); exit;
-    }
-    
-    // Naujesnės meniu funkcijos (kad veiktų su nauju dizainu)
+    // --- MENIU (NAVIGACIJA) ---
     if ($action === 'save_menu_item') {
         $id = $_POST['id'] ?? '';
         $label = trim($_POST['label']);
@@ -583,6 +531,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->commit();
                 $_SESSION['flash_success'] = 'Pozicija pakeista.';
             }
+        }
+        header('Location: ?view=menus'); exit;
+    }
+    
+    // Senieji menu veiksmai suderinamumui
+    if ($action === 'nav_new') {
+        $label = trim($_POST['label'] ?? '');
+        $url = trim($_POST['url'] ?? '');
+        $parentId = $_POST['parent_id'] !== '' ? (int)$_POST['parent_id'] : null;
+        $sort = (int)($pdo->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM navigation_items')->fetchColumn());
+        if ($label && $url) {
+            $stmt = $pdo->prepare('INSERT INTO navigation_items (label, url, parent_id, sort_order) VALUES (?, ?, ?, ?)');
+            $stmt->execute([$label, $url, $parentId, $sort]);
+            $_SESSION['flash_success'] = 'Meniu punktas sukurtas';
+        } else {
+            $_SESSION['flash_error'] = 'Įveskite pavadinimą ir nuorodą.';
+        }
+        header('Location: ?view=menus'); exit;
+    }
+    if ($action === 'nav_update') {
+        $id = (int)($_POST['id'] ?? 0);
+        $label = trim($_POST['label'] ?? '');
+        $url = trim($_POST['url'] ?? '');
+        $parentId = $_POST['parent_id'] !== '' ? (int)$_POST['parent_id'] : null;
+        if ($id && $label && $url) {
+            $currentSort = $pdo->prepare('SELECT sort_order FROM navigation_items WHERE id = ?');
+            $currentSort->execute([$id]);
+            $sort = (int)($currentSort->fetchColumn() ?: 0);
+            $stmt = $pdo->prepare('UPDATE navigation_items SET label = ?, url = ?, parent_id = ?, sort_order = ? WHERE id = ?');
+            $stmt->execute([$label, $url, $parentId, $sort, $id]);
+            $_SESSION['flash_success'] = 'Meniu atnaujintas';
+        }
+        header('Location: ?view=menus'); exit;
+    }
+    if ($action === 'nav_delete') {
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id) {
+            $pdo->prepare('DELETE FROM navigation_items WHERE id = ?')->execute([$id]);
+            $_SESSION['flash_success'] = 'Meniu punktas pašalintas';
+        }
+        header('Location: ?view=menus'); exit;
+    }
+    if ($action === 'nav_reorder') {
+        if (!empty($_POST['order']) && is_array($_POST['order'])) {
+            $stmt = $pdo->prepare('UPDATE navigation_items SET sort_order = ? WHERE id = ?');
+            foreach ($_POST['order'] as $id => $sort) {
+                $stmt->execute([(int)$sort, (int)$id]);
+            }
+            $_SESSION['flash_success'] = 'Rikiavimas atnaujintas';
         }
         header('Location: ?view=menus'); exit;
     }
@@ -890,7 +887,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         header('Location: ?view=content'); exit;
     }
+    
+    // Čia peradresuojame tik jei tai buvo POST užklausa, bet joks konkretus 'action' nesuveikė
+    header('Location: ../admin.php');
+    exit;
 }
 
-// Jei veiksmas nerastas, grąžiname atgal
+// Jei tai GET užklausa į actions.php, tiesiog grąžiname į admin
 header('Location: ../admin.php');
+exit;
