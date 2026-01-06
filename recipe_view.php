@@ -2,6 +2,7 @@
 session_start();
 require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
+require_once __DIR__ . '/helpers.php'; // Būtina slugify funkcijai
 
 $pdo = getPdo();
 ensureRecipesTable($pdo);
@@ -49,6 +50,9 @@ $meta = [
     'description' => $recipe['summary'] ?: mb_substr(strip_tags($recipe['body']), 0, 160),
     'image' => 'https://cukrinukas.lt' . $recipe['image_url']
 ];
+
+// SEO URL
+$currentRecipeUrl = 'https://cukrinukas.lt/receptas/' . slugify($recipe['title']) . '-' . $id;
 ?>
 <!doctype html>
 <html lang="lt">
@@ -81,7 +85,6 @@ $meta = [
     .content-card img { max-width:100%; height:auto; display:block; margin:12px auto; border-radius:14px; }
     .content-card ul, .content-card ol { padding-left:20px; }
     
-    /* Grid stilius supaprastintas - viena kolona */
     .grid { display:grid; grid-template-columns: 1fr; gap:18px; }
   </style>
 </head>
@@ -145,6 +148,41 @@ $meta = [
       </article>
       </section>
   </main>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org/",
+    "@type": "Recipe",
+    "name": <?php echo json_encode($recipe['title']); ?>,
+    "image": [<?php echo json_encode('https://cukrinukas.lt' . $recipe['image_url']); ?>],
+    "author": {
+      "@type": "Person",
+      "name": <?php echo json_encode($authorName); ?>
+    },
+    "datePublished": <?php echo json_encode(date('Y-m-d', strtotime($recipe['created_at']))); ?>,
+    "description": <?php echo json_encode(mb_substr(strip_tags($recipe['summary'] ?: $recipe['body']), 0, 300)); ?>,
+    "recipeCategory": "Diabetui draugiški",
+    "keywords": "diabetas, receptai, cukrinukas, sveika mityba"
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [{
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Receptai",
+      "item": "https://cukrinukas.lt/recipes.php"
+    },{
+      "@type": "ListItem",
+      "position": 2,
+      "name": <?php echo json_encode($recipe['title']); ?>,
+      "item": <?php echo json_encode($currentRecipeUrl); ?>
+    }]
+  }
+  </script>
 
   <?php renderFooter($pdo); ?>
 </body>
