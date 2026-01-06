@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/db.php';
+require_once __DIR__ . '/helpers.php'; // Prijungiam slugify funkciją
 
 header("Content-Type: application/xml; charset=utf-8");
 
@@ -29,11 +30,13 @@ foreach ($staticPages as $page) {
     echo '</url>' . PHP_EOL;
 }
 
-// 2. Produktai
-$stmt = $pdo->query("SELECT id, created_at FROM products WHERE quantity > 0 ORDER BY created_at DESC");
+// 2. Produktai (Pridėtas title selektinimas SEO URL formavimui)
+$stmt = $pdo->query("SELECT id, title, created_at FROM products WHERE quantity > 0 ORDER BY created_at DESC");
 while ($row = $stmt->fetch()) {
-    // Jei naudojate .htaccess perrašymą:
-    $url = $baseUrl . '/product.php?id=' . $row['id'];
+    // Generuojame SEO draugišką URL: /produktas/pavadinimas-ID
+    $slug = slugify($row['title'] ?? 'preke');
+    $url = $baseUrl . '/produktas/' . $slug . '-' . $row['id'];
+    
     $date = date('c', strtotime($row['created_at']));
     
     echo '<url>' . PHP_EOL;
@@ -45,9 +48,11 @@ while ($row = $stmt->fetch()) {
 }
 
 // 3. Receptai
-$stmt = $pdo->query("SELECT id, created_at FROM recipes ORDER BY created_at DESC");
+$stmt = $pdo->query("SELECT id, title, created_at FROM recipes ORDER BY created_at DESC");
 while ($row = $stmt->fetch()) {
-    $url = $baseUrl . '/recipe_view.php?id=' . $row['id'];
+    $slug = slugify($row['title'] ?? 'receptas');
+    $url = $baseUrl . '/receptas/' . $slug . '-' . $row['id'];
+    
     $date = date('c', strtotime($row['created_at']));
     echo '<url>' . PHP_EOL;
     echo '  <loc>' . $url . '</loc>' . PHP_EOL;
@@ -57,9 +62,11 @@ while ($row = $stmt->fetch()) {
 }
 
 // 4. Naujienos
-$stmt = $pdo->query("SELECT id, created_at FROM news WHERE visibility = 'public' ORDER BY created_at DESC");
+$stmt = $pdo->query("SELECT id, title, created_at FROM news WHERE visibility = 'public' ORDER BY created_at DESC");
 while ($row = $stmt->fetch()) {
-    $url = $baseUrl . '/news_view.php?id=' . $row['id'];
+    $slug = slugify($row['title'] ?? 'naujiena');
+    $url = $baseUrl . '/naujiena/' . $slug . '-' . $row['id'];
+    
     $date = date('c', strtotime($row['created_at']));
     echo '<url>' . PHP_EOL;
     echo '  <loc>' . $url . '</loc>' . PHP_EOL;
