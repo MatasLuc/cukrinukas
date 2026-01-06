@@ -416,9 +416,21 @@ CSS;
 function renderHeader(PDO $pdo, string $active = '', array $meta = []): void {
     // Meta duomenų paruošimas su numatytosiomis reikšmėmis
     $metaTitle = $meta['title'] ?? 'Cukrinukas.lt – diabeto priemonės ir žinios';
-    $metaDesc = $meta['description'] ?? 'Gliukometrai, sensoriai, juostelės, mažo GI užkandžiai ir patarimai gyvenimui su diabetu.';
+    $metaDescRaw = strip_tags($meta['description'] ?? 'Gliukometrai, sensoriai, juostelės, mažo GI užkandžiai ir patarimai gyvenimui su diabetu.');
     $metaImage = $meta['image'] ?? 'https://cukrinukas.lt/uploads/default_social.jpg';
     $metaUrl = "https://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]";
+
+    // SEO: Sutvarkytas aprašymo kirpimas
+    $metaDesc = $metaDescRaw;
+    if (mb_strlen($metaDescRaw) > 160) {
+        $metaDesc = mb_substr($metaDescRaw, 0, 160);
+        $lastSpace = mb_strrpos($metaDesc, ' ');
+        if ($lastSpace !== false) {
+            $metaDesc = mb_substr($metaDesc, 0, $lastSpace) . '...';
+        } else {
+            $metaDesc .= '...';
+        }
+    }
 
     $cart = getCartData($pdo, $_SESSION['cart'] ?? [], $_SESSION['cart_variations'] ?? []);
     $user = currentUser();
@@ -459,17 +471,17 @@ function renderHeader(PDO $pdo, string $active = '', array $meta = []): void {
       <link rel="apple-touch-icon" href="/uploads/icon-192.png">
 
       <title><?php echo htmlspecialchars($metaTitle); ?></title>
-      <meta name="description" content="<?php echo htmlspecialchars(mb_substr(strip_tags($metaDesc), 0, 160)); ?>">
+      <meta name="description" content="<?php echo htmlspecialchars($metaDesc); ?>">
       <link rel="canonical" href="<?php echo htmlspecialchars($metaUrl); ?>">
       <meta property="og:type" content="website">
       <meta property="og:url" content="<?php echo htmlspecialchars($metaUrl); ?>">
       <meta property="og:title" content="<?php echo htmlspecialchars($metaTitle); ?>">
-      <meta property="og:description" content="<?php echo htmlspecialchars(mb_substr(strip_tags($metaDesc), 0, 200)); ?>">
+      <meta property="og:description" content="<?php echo htmlspecialchars($metaDesc); ?>">
       <meta property="og:image" content="<?php echo htmlspecialchars($metaImage); ?>">
       <meta property="twitter:card" content="summary_large_image">
       <meta property="twitter:url" content="<?php echo htmlspecialchars($metaUrl); ?>">
       <meta property="twitter:title" content="<?php echo htmlspecialchars($metaTitle); ?>">
-      <meta property="twitter:description" content="<?php echo htmlspecialchars(mb_substr(strip_tags($metaDesc), 0, 200)); ?>">
+      <meta property="twitter:description" content="<?php echo htmlspecialchars($metaDesc); ?>">
       <meta property="twitter:image" content="<?php echo htmlspecialchars($metaImage); ?>">
 
       <script>
