@@ -2,6 +2,7 @@
 session_start();
 require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
+require_once __DIR__ . '/helpers.php'; // Būtina slugify funkcijai
 
 $pdo = getPdo();
 ensureNewsTable($pdo);
@@ -49,6 +50,9 @@ $meta = [
     'description' => $news['summary'] ?: mb_substr(strip_tags($news['body']), 0, 160),
     'image' => 'https://cukrinukas.lt' . $news['image_url']
 ];
+
+// SEO URL
+$currentNewsUrl = 'https://cukrinukas.lt/naujiena/' . slugify($news['title']) . '-' . $id;
 ?>
 <!doctype html>
 <html lang="lt">
@@ -80,7 +84,6 @@ $meta = [
     .content-card { background:#fff; border:1px solid var(--border); border-radius:18px; padding:22px; box-shadow:0 14px 30px rgba(0,0,0,0.06); line-height:1.7; color:#2b2f4c; }
     .content-card img { max-width:100%; height:auto; display:block; margin:12px auto; border-radius:14px; }
     
-    /* Grid stilius supaprastintas - viena kolona */
     .grid { display:grid; grid-template-columns: 1fr; gap:18px; }
   </style>
 </head>
@@ -147,6 +150,38 @@ $meta = [
       </article>
       </section>
   </main>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    "headline": <?php echo json_encode($news['title']); ?>,
+    "image": [<?php echo json_encode('https://cukrinukas.lt' . $news['image_url']); ?>],
+    "datePublished": <?php echo json_encode(date('Y-m-d', strtotime($news['created_at']))); ?>,
+    "author": [{
+        "@type": "Person",
+        "name": <?php echo json_encode($authorName); ?>
+    }]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [{
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Naujienos",
+      "item": "https://cukrinukas.lt/news.php"
+    },{
+      "@type": "ListItem",
+      "position": 2,
+      "name": <?php echo json_encode($news['title']); ?>,
+      "item": <?php echo json_encode($currentNewsUrl); ?>
+    }]
+  }
+  </script>
 
   <?php renderFooter($pdo); ?>
 </body>
