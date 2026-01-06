@@ -2,6 +2,7 @@
 session_start();
 require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
+require_once __DIR__ . '/helpers.php'; // Būtina slugify funkcijai
 
 $pdo = getPdo();
 ensureRecipesTable($pdo);
@@ -220,14 +221,17 @@ $isAdmin = !empty($_SESSION['is_admin']);
       <?php if (empty($recipes)): ?>
         <p style="grid-column: 1/-1; text-align:center; padding: 40px; color: var(--muted);">Šioje kategorijoje receptų kol kas nėra.</p>
       <?php else: ?>
-        <?php foreach ($recipes as $r): ?>
+        <?php foreach ($recipes as $r): 
+            // SEO nuoroda
+            $recipeUrl = '/receptas/' . slugify($r['title']) . '-' . (int)$r['id'];
+        ?>
             <article class="card">
-            <a href="/recipe_view.php?id=<?php echo (int)$r['id']; ?>">
+            <a href="<?php echo htmlspecialchars($recipeUrl); ?>">
                 <img src="<?php echo htmlspecialchars($r['image_url']); ?>" alt="<?php echo htmlspecialchars($r['title']); ?>">
             </a>
             <div class="card__body">
                 <h2 class="card__title">
-                    <a href="/recipe_view.php?id=<?php echo (int)$r['id']; ?>" style="text-decoration:none; color:inherit;">
+                    <a href="<?php echo htmlspecialchars($recipeUrl); ?>" style="text-decoration:none; color:inherit;">
                         <?php echo htmlspecialchars($r['title']); ?>
                     </a>
                 </h2>
@@ -249,7 +253,7 @@ $isAdmin = !empty($_SESSION['is_admin']);
                 
                 <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; margin-top:auto;">
                     <div style="display:flex; gap:8px; align-items:center;">
-                        <a class="btn-text-action" href="/recipe_view.php?id=<?php echo (int)$r['id'];?>">Gaminti</a>
+                        <a class="btn-text-action" href="<?php echo htmlspecialchars($recipeUrl);?>">Gaminti</a>
                         <?php if ($isLoggedIn): ?>
                             <form method="post" style="margin:0;">
                                 <?php echo csrfField(); ?>
