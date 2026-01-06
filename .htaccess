@@ -1,51 +1,62 @@
 RewriteEngine On
 RewriteBase /
 
-# Priverstinis HTTPS (rekomenduojama)
+# --- 1. SAUGUMAS ---
+# Draudžia rodyti failų sąrašą (Directory Listing), jei nėra index failo
+Options -Indexes
+
+# --- 2. HTTPS NUKREIPIMAS ---
 RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-# Produktų perrašymas
-# Pvz.: e-kolekcija.lt/produktas/gliukometras-123 -> product.php?id=123
+# --- 3. STATINIAI PUSLAPIAI ---
+# Pridėtas /? leidžia nuorodas su ir be "/" gale
+RewriteRule ^parduotuve/?$ products.php [L]
+RewriteRule ^receptai/?$ recipes.php [L]
+RewriteRule ^naujienos/?$ news.php [L]
+RewriteRule ^kontaktai/?$ contact.php [L]
+RewriteRule ^bendruomene/?$ community.php [L]
+RewriteRule ^atsiliepimai/?$ community_discussions.php [L]
+
+# --- 4. DINAMINIAI PUSLAPIAI (SEO URL) ---
+# Produktas: /produktas/pavadinimas-123 -> product.php?id=123
 RewriteRule ^produktas/.*-(?P<id>\d+)$ product.php?id=$1 [L,QSA]
 
-# Receptų perrašymas
+# Receptas: /receptas/pavadinimas-123 -> recipe_view.php?id=123
 RewriteRule ^receptas/.*-(?P<id>\d+)$ recipe_view.php?id=$1 [L,QSA]
 
-# Naujienų perrašymas
+# Naujiena: /naujiena/pavadinimas-123 -> news_view.php?id=123
 RewriteRule ^naujiena/.*-(?P<id>\d+)$ news_view.php?id=$1 [L,QSA]
 
-# Statiniai puslapiai (nebūtina, bet gražiau)
-RewriteRule ^parduotuve$ products.php [L]
-RewriteRule ^receptai$ recipes.php [L]
-RewriteRule ^naujienos$ news.php [L]
-RewriteRule ^kontaktai$ contact.php [L]
-RewriteRule ^bendruomene$ community.php [L]
+# Kategorijos (Nauja): /kategorija/saldumynai -> products.php?category=saldumynai
+RewriteRule ^kategorija/([a-z0-9-]+)/?$ products.php?category=$1 [L,QSA]
 
-# Sitemap
+# --- 5. KITI NUKREIPIMAI ---
 RewriteRule ^sitemap\.xml$ sitemap.php [L]
 
-# 1. Naršyklės podėlio (Browser Caching) nustatymai
+# --- 6. GREITIS IR PODĖLIS (Browser Caching) ---
 <IfModule mod_expires.c>
     ExpiresActive On
     
-    # Paveikslėliai - 1 metai
+    # Paveikslėliai ir ikonos - 1 metai
     ExpiresByType image/jpg "access plus 1 year"
     ExpiresByType image/jpeg "access plus 1 year"
     ExpiresByType image/gif "access plus 1 year"
     ExpiresByType image/png "access plus 1 year"
     ExpiresByType image/webp "access plus 1 year"
     ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
     
-    # CSS ir JS - 1 mėnuo
+    # CSS ir JS - 1 mėnuo (atnaujinus dizainą, naršyklės gali rodyti seną versiją, kol neišvalys cache)
     ExpiresByType text/css "access plus 1 month"
     ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType text/javascript "access plus 1 month"
     
-    # Ikonos - 1 metai
-    ExpiresByType image/x-icon "access plus 1 year"
+    # Šriftai
+    ExpiresByType font/woff2 "access plus 1 year"
 </IfModule>
 
-# 2. Suspaudimas (Gzip) - sumažina failų dydį siunčiant
+# --- 7. SUSPAUDIMAS (Gzip/Deflate) ---
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json image/svg+xml
 </IfModule>
