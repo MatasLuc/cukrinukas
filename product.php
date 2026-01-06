@@ -2,19 +2,23 @@
 session_start();
 require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
+require_once __DIR__ . '/helpers.php'; // Būtina slugify funkcijai
 
 $pdo = getPdo();
 ensureProductsTable($pdo);
 ensureCategoriesTable($pdo);
 ensureCartTables($pdo);
 ensureSavedContentTables($pdo);
-ensureProductRelations($pdo);
+// ensureProductRelations funkcija turi būti db.php faile, jei nėra - ignoruojame klaidą
+if (function_exists('ensureProductRelations')) {
+    ensureProductRelations($pdo);
+}
 ensureAdminAccount($pdo);
 $freeShippingIds = getFreeShippingProductIds($pdo);
 
 $id = (int) ($_GET['id'] ?? 0);
 
-// 1. Atnaujinta užklausa: įtrauktas c.slug kategorijos nuorodai
+// 1. Atnaujinta užklausa
 $stmt = $pdo->prepare('SELECT p.*, c.name AS category_name, c.slug AS category_slug FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.id = ? LIMIT 1');
 $stmt->execute([$id]);
 $product = $stmt->fetch();
@@ -87,10 +91,13 @@ $priceDisplay = buildPriceDisplay($product, $globalDiscount, $categoryDiscounts)
 
 // 2. Meta duomenų paruošimas SEO
 $meta = [
-    'title' => $product['title'] . ' | Cukrinukas',
+    'title' => $product['title'] . ' | Cukrinukas', // Galima pridėti: "– Diabeto prekės"
     'description' => mb_substr(strip_tags($product['description']), 0, 160),
     'image' => 'https://cukrinukas.lt' . $product['image_url']
 ];
+
+// SEO URL formavimas šiam produktui
+$currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['title']) . '-' . $id;
 ?>
 <!doctype html>
 <html lang="lt">
@@ -105,7 +112,6 @@ $meta = [
       --border: #e4e7ec;
       --text: #0f172a;
       --muted: #475467;
-      /* PAKEISTA: Pagrindinė spalva */
       --accent: #829ed6;
       --accent-hover: #6a8bc9;
     }
@@ -131,7 +137,6 @@ $meta = [
     h1 { margin:0; font-size:32px; letter-spacing:-0.02em; }
     .subtitle { margin:0; color:var(--accent); }
     
-    /* Aprašymo stilius (sąrašai ir tarpai) */
     .description { margin:0; color: var(--muted); line-height:1.65; }
     .description ul, .description ol { margin: 10px 0; padding-left: 20px; }
     .description li { margin-bottom: 5px; }
@@ -141,11 +146,8 @@ $meta = [
     .current { font-size:28px; font-weight:800; letter-spacing:-0.02em; }
     
     .form-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:4px; }
-    
-    /* PAKEISTA: Kiekio įvesties aukštis pritaikytas prie mygtukų */
     .quantity { width:80px; height: 42px; padding:0 12px; border-radius:12px; border:1px solid var(--border); background:#f8fafc; font-size: 16px; }
     
-    /* PAKEISTA: Mygtukų stilius identiškas products.php (balti, su ikona) */
     .action-btn {
         width: 42px;
         height: 42px;
@@ -170,7 +172,6 @@ $meta = [
     .section { background:var(--card); border:1px solid var(--border); border-radius:18px; padding:16px 18px; box-shadow:0 12px 28px rgba(0,0,0,0.08); display:grid; gap:12px; }
     
     .attr-card { background:#fff; border:1px solid var(--border); border-radius:12px; padding:12px; box-shadow:0 8px 18px rgba(0,0,0,0.06); }
-    /* PAKEISTA: Ypatybių teksto stilius */
     .attr-value ul, .attr-value ol { margin: 6px 0 6px 20px; padding: 0; }
     .attr-value li { margin-bottom: 2px; }
     .attr-value p { margin: 0 0 4px 0; }
@@ -310,8 +311,12 @@ $meta = [
           <a href="/products.php" style="color:var(--accent); font-weight:700;">Peržiūrėti visą katalogą</a>
         </div>
         <div class="related-grid">
-          <?php foreach ($related as $rel): $relDisplay = buildPriceDisplay($rel, $globalDiscount, $categoryDiscounts); ?>
-            <a href="/product.php?id=<?php echo (int)$rel['related_product_id']; ?>" class="related-card">
+          <?php foreach ($related as $rel): 
+              $relDisplay = buildPriceDisplay($rel, $globalDiscount, $categoryDiscounts); 
+              // SEO Nuoroda į susijusią prekę
+              $relUrl = '/produktas/' . slugify($rel['title']) . '-' . (int)$rel['related_product_id'];
+          ?>
+            <a href="<?php echo htmlspecialchars($relUrl); ?>" class="related-card">
               <img src="<?php echo htmlspecialchars($rel['image_url']); ?>" alt="<?php echo htmlspecialchars($rel['title']); ?>">
               <div style="font-weight:700; font-size:16px; letter-spacing:-0.01em;">&nbsp;<?php echo htmlspecialchars($rel['title']); ?></div>
               <?php if (!empty($rel['subtitle'])): ?><div style="color:#6b6b7a; font-size:14px;">&nbsp;<?php echo htmlspecialchars($rel['subtitle']); ?></div><?php endif; ?>
@@ -337,14 +342,41 @@ $meta = [
     "image": [<?php echo json_encode('https://cukrinukas.lt' . $product['image_url']); ?>],
     "description": <?php echo json_encode(mb_substr(strip_tags($product['description']), 0, 300)); ?>,
     "sku": <?php echo json_encode($product['id']); ?>,
+    "brand": {
+      "@type": "Brand",
+      "name": "Cukrinukas"
+    },
     "offers": {
       "@type": "Offer",
-      "url": <?php echo json_encode("https://cukrinukas.lt/product.php?id=" . $product['id']); ?>,
+      "url": <?php echo json_encode($currentProductUrl); ?>,
       "priceCurrency": "EUR",
       "price": <?php echo json_encode($priceDisplay['current']); ?>,
       "availability": <?php echo ((int)$product['quantity'] > 0) ? '"https://schema.org/InStock"' : '"https://schema.org/OutOfStock"'; ?>,
       "itemCondition": "https://schema.org/NewCondition"
     }
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [{
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Parduotuvė",
+      "item": "https://cukrinukas.lt/products.php"
+    },{
+      "@type": "ListItem",
+      "position": 2,
+      "name": "<?php echo htmlspecialchars($product['category_name'] ?? 'Prekė'); ?>",
+      "item": "https://cukrinukas.lt/products.php?category=<?php echo urlencode($product['category_slug'] ?? ''); ?>"
+    },{
+      "@type": "ListItem",
+      "position": 3,
+      "name": "<?php echo htmlspecialchars($product['title']); ?>",
+      "item": <?php echo json_encode($currentProductUrl); ?>
+    }]
   }
   </script>
 
@@ -362,7 +394,6 @@ $meta = [
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.querySelector('form.form-row');
         if (form) {
-            // PAKEISTA: Pritaikytas selektorius ikonai
             const addToCartBtn = form.querySelector('button[type="submit"]:not([name="action"])');
             if (addToCartBtn) {
                 addToCartBtn.addEventListener('click', function() {
