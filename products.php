@@ -2,6 +2,7 @@
 session_start();
 require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
+require_once __DIR__ . '/helpers.php'; // Būtina slugify funkcijai
 
 $pdo = getPdo();
 ensureUsersTable($pdo);
@@ -67,7 +68,7 @@ if ($selectedSlug) {
         )";
         
         foreach ($targetIds as $tid) $params[] = $tid;
-        foreach ($targetIds as $tid) $params[] = $tid;
+        foreach ($targetIds as $tid) $params[] = $tid; // Pakartojame, nes naudojame parametrą du kartus
     } else {
         $whereClauses[] = '1=0';
     }
@@ -201,7 +202,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
         z-index: 5;
     }
 
-    /* PAKEISTA: Gift badge stilius identiškas ribbon, tik dešinėje */
     .gift-badge {
         position: absolute; top: 12px; right: 12px;
         background: #fff;
@@ -341,6 +341,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
           $priceDisplay = buildPriceDisplay($product, $globalDiscount, $categoryDiscounts);
           $isGift = in_array((int)$product['id'], $freeShippingIds, true);
           $cardImage = $product['primary_image'] ?: $product['image_url'];
+          
+          // SEO URL formavimas
+          $productUrl = '/produktas/' . slugify($product['title']) . '-' . (int)$product['id'];
       ?>
         <article class="card">
           <div style="position:relative;">
@@ -350,7 +353,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
               <?php if ($isGift): ?>
                 <div class="gift-badge">🎁 Nemokamai</div>
               <?php endif; ?>
-              <a href="/product.php?id=<?php echo (int)$product['id']; ?>">
+              <a href="<?php echo htmlspecialchars($productUrl); ?>">
                 <img src="<?php echo htmlspecialchars($cardImage); ?>" alt="<?php echo htmlspecialchars($product['title']); ?>" loading="lazy">
               </a>
           </div>
@@ -359,7 +362,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'])) {
             <div style="font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase;">
                 <?php echo htmlspecialchars($product['category_name'] ?? ''); ?>
             </div>
-            <h3 style="margin:0; font-size:18px; line-height:1.3;"><a href="/product.php?id=<?php echo (int)$product['id']; ?>"><?php echo htmlspecialchars($product['title']); ?></a></h3>
+            <h3 style="margin:0; font-size:18px; line-height:1.3;"><a href="<?php echo htmlspecialchars($productUrl); ?>"><?php echo htmlspecialchars($product['title']); ?></a></h3>
             <p style="margin:0; color:var(--muted); font-size:14px; line-height:1.5;">
                 <?php echo htmlspecialchars(mb_substr(strip_tags($product['description']), 0, 80)); ?>...
             </p>
