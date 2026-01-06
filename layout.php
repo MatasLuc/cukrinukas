@@ -721,6 +721,7 @@ CSS;
            © 2026 cukrinukas.lt. Visos teisės saugomos
         </div>
       </div>
+    <?php include_once __DIR__ . '/cookie_banner.php'; ?>
     </footer>
     <?php
 }
