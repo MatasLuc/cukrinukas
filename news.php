@@ -2,6 +2,7 @@
 session_start();
 require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
+require_once __DIR__ . '/helpers.php'; // Būtina slugify funkcijai
 
 $pdo = getPdo();
 ensureNewsTable($pdo);
@@ -224,14 +225,17 @@ $isAdmin = !empty($_SESSION['is_admin']);
       <?php if (empty($allNews)): ?>
         <p style="grid-column: 1/-1; text-align:center; padding: 40px; color: var(--muted);">Šioje kategorijoje naujienų kol kas nėra.</p>
       <?php else: ?>
-        <?php foreach ($allNews as $news): ?>
+        <?php foreach ($allNews as $news): 
+            // SEO nuoroda
+            $newsUrl = '/naujiena/' . slugify($news['title']) . '-' . (int)$news['id'];
+        ?>
             <article class="card">
-            <a href="/news_view.php?id=<?php echo (int)$news['id']; ?>">
+            <a href="<?php echo htmlspecialchars($newsUrl); ?>">
                 <img src="<?php echo htmlspecialchars($news['image_url']); ?>" alt="<?php echo htmlspecialchars($news['title']); ?>">
             </a>
             <div class="card__body">
                 <div style="display:flex;align-items:center;gap:10px;justify-content:space-between;">
-                    <h2 class="card__title"><a href="/news_view.php?id=<?php echo (int)$news['id']; ?>" style="text-decoration:none; color:inherit;"><?php echo htmlspecialchars($news['title']); ?></a></h2>
+                    <h2 class="card__title"><a href="<?php echo htmlspecialchars($newsUrl); ?>" style="text-decoration:none; color:inherit;"><?php echo htmlspecialchars($news['title']); ?></a></h2>
                 </div>
                 <p class="card__meta"><?php echo date('Y-m-d', strtotime($news['created_at'])); ?></p>
                 
@@ -250,7 +254,7 @@ $isAdmin = !empty($_SESSION['is_admin']);
                 
                 <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; margin-top:auto;">
                     <div style="display:flex; gap:8px; align-items:center;">
-                        <a class="btn-text-action" href="/news_view.php?id=<?php echo (int)$news['id'];?>">Skaityti</a>
+                        <a class="btn-text-action" href="<?php echo htmlspecialchars($newsUrl);?>">Skaityti</a>
                         <?php if ($isLoggedIn): ?>
                             <form method="post" style="margin:0;">
                                 <?php echo csrfField(); ?>
