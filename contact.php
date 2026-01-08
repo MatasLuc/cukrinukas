@@ -4,6 +4,7 @@ require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
 $pdo = getPdo();
 ensureNavigationTable($pdo);
+tryAutoLogin($pdo);
 $siteContent = getSiteContent($pdo);
 ?>
 <!doctype html>
