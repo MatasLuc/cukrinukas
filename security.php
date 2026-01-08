@@ -56,6 +56,7 @@ function sanitizeHtml(string $html): string {
 
     $document = new DOMDocument();
     $previous = libxml_use_internal_errors(true);
+    // UTF-8 hack
     $document->loadHTML('<?xml encoding="utf-8"?>' . $html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
     libxml_clear_errors();
     libxml_use_internal_errors($previous);
@@ -112,4 +113,73 @@ function sanitizeHtml(string $html): string {
 
     $sanitizeNode($document);
     return $document->saveHTML() ?: '';
+}
+
+// --- REMEMBER ME FUNKCIJOS ---
+
+function setRememberMe(PDO $pdo, int $userId): void {
+    // 1. Sugeneruojame saugų atsitiktinį kodą
+    $token = bin2hex(random_bytes(32));
+    // 2. Išsaugome kodo hash'ą duomenų bazėje
+    $hash = password_hash($token, PASSWORD_DEFAULT);
+    
+    $stmt = $pdo->prepare('UPDATE users SET remember_token = ? WHERE id = ?');
+    $stmt->execute([$hash, $userId]);
+
+    // 3. Išsaugome slapuką naršyklėje: "user_id:token" (30 dienų)
+    $cookieValue = $userId . ':' . $token;
+    $expiry = time() + (86400 * 30); 
+    // setcookie(name, value, expires, path, domain, secure, httponly)
+    // Pastaba: 'secure' (6-as parametras) turi būti true, jei naudojate HTTPS. Localhost gali būti false.
+    // Čia nustatome true, bet jei neveikia localhost be HTTPS, pakeiskite į false.
+    setcookie('remember_me', $cookieValue, $expiry, '/', '', false, true); 
+}
+
+function clearRememberMe(PDO $pdo): void {
+    if (isset($_COOKIE['remember_me'])) {
+        // Ištriname iš DB, jei žinome vartotoją
+        if (isset($_SESSION['user_id'])) {
+            $stmt = $pdo->prepare('UPDATE users SET remember_token = NULL WHERE id = ?');
+            $stmt->execute([$_SESSION['user_id']]);
+        }
+        // Ištriname slapuką
+        setcookie('remember_me', '', time() - 3600, '/');
+        unset($_COOKIE['remember_me']);
+    }
+}
+
+function tryAutoLogin(PDO $pdo): void {
+    // Jei vartotojas jau prisijungęs, nieko nedarome
+    if (isset($_SESSION['user_id'])) {
+        return;
+    }
+
+    // Jei nėra slapuko, nieko nedarome
+    if (!isset($_COOKIE['remember_me'])) {
+        return;
+    }
+
+    $parts = explode(':', $_COOKIE['remember_me']);
+    if (count($parts) !== 2) {
+        return;
+    }
+
+    [$userId, $token] = $parts;
+
+    try {
+        $stmt = $pdo->prepare('SELECT id, name, is_admin, remember_token FROM users WHERE id = ?');
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch();
+
+        if ($user && !empty($user['remember_token'])) {
+            if (password_verify($token, $user['remember_token'])) {
+                ensureSessionStarted();
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['user_name'] = $user['name'];
+                $_SESSION['is_admin'] = (int) $user['is_admin'];
+            }
+        }
+    } catch (Exception $e) {
+        // Ignoruojame klaidas automatinio prisijungimo metu
+    }
 }
