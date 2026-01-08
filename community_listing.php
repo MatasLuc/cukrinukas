@@ -225,11 +225,27 @@ a { color:inherit; text-decoration:none; }
                 <span class="info-value"><?php echo $listing['status'] === 'sold' ? 'Parduota' : 'Aktyvus'; ?></span>
              </div>
 
+             <?php 
+             // Patikriname, ar išvis yra įvesti kontaktai
+             $hasContacts = !empty($listing['seller_email']) || !empty($listing['seller_phone']);
+             
+             // Jei vartotojas NEPRISIJUNGĘS ir yra kontaktų, rodome informacinę žinutę
+             if (!$currentUser && $hasContacts): 
+             ?>
+                <div style="margin: 16px 0; padding: 12px; background: #fff7ed; border: 1px solid #ffedd5; border-radius: 8px; font-size: 13px; color: #9a3412; line-height: 1.4;">
+                    🔒 Norėdami matyti pardavėjo kontaktinius duomenis (el. paštą, telefoną), <a href="/login.php" style="font-weight:700; text-decoration:underline;">prisijunkite</a> arba <a href="/register.php" style="font-weight:700; text-decoration:underline;">užsiregistruokite</a>.
+                </div>
+             <?php endif; ?>
+
              <?php if (!empty($listing['seller_email'])): ?>
                  <div class="info-row">
                     <span class="info-label">El. paštas</span>
                     <span class="info-value">
-                        <a href="mailto:<?php echo htmlspecialchars($listing['seller_email']); ?>"><?php echo htmlspecialchars($listing['seller_email']); ?></a>
+                        <?php if ($currentUser): ?>
+                            <a href="mailto:<?php echo htmlspecialchars($listing['seller_email']); ?>"><?php echo htmlspecialchars($listing['seller_email']); ?></a>
+                        <?php else: ?>
+                            <span style="color: var(--muted); font-style: italic; letter-spacing: 1px;">•••@•••.lt</span>
+                        <?php endif; ?>
                     </span>
                  </div>
              <?php endif; ?>
@@ -238,7 +254,11 @@ a { color:inherit; text-decoration:none; }
                  <div class="info-row">
                     <span class="info-label">Tel. nr.</span>
                     <span class="info-value">
-                        <a href="tel:<?php echo htmlspecialchars($listing['seller_phone']); ?>"><?php echo htmlspecialchars($listing['seller_phone']); ?></a>
+                        <?php if ($currentUser): ?>
+                            <a href="tel:<?php echo htmlspecialchars($listing['seller_phone']); ?>"><?php echo htmlspecialchars($listing['seller_phone']); ?></a>
+                        <?php else: ?>
+                            <span style="color: var(--muted); font-style: italic; letter-spacing: 1px;">+370 6•• •••••</span>
+                        <?php endif; ?>
                     </span>
                  </div>
              <?php endif; ?>
