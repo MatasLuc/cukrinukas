@@ -7,6 +7,7 @@ $pdo = getPdo();
 ensureUsersTable($pdo);
 ensureCommunityTables($pdo);
 ensureNavigationTable($pdo);
+tryAutoLogin($pdo);
 $user = currentUser();
 
 $messages = [];
