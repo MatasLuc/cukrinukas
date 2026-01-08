@@ -7,6 +7,7 @@ require_once __DIR__ . '/helpers.php'; // Būtina slugify funkcijai
 $pdo = getPdo();
 ensureNewsTable($pdo);
 ensureSavedContentTables($pdo);
+tryAutoLogin($pdo);
 
 $id = (int)($_GET['id'] ?? 0);
 
