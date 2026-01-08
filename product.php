@@ -9,6 +9,7 @@ ensureProductsTable($pdo);
 ensureCategoriesTable($pdo);
 ensureCartTables($pdo);
 ensureSavedContentTables($pdo);
+tryAutoLogin($pdo);
 // ensureProductRelations funkcija turi būti db.php faile, jei nėra - ignoruojame klaidą
 if (function_exists('ensureProductRelations')) {
     ensureProductRelations($pdo);
