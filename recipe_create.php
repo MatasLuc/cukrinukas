@@ -12,6 +12,7 @@ if (!isset($_SESSION['user_id']) || empty($_SESSION['is_admin'])) {
 $pdo = getPdo();
 ensureRecipesTable($pdo); // Užtikrina lenteles (įskaitant ryšių ir kategorijų)
 ensureAdminAccount($pdo);
+tryAutoLogin($pdo);
 
 // Gauname receptų kategorijas
 $categories = $pdo->query("SELECT * FROM recipe_categories ORDER BY name ASC")->fetchAll();
