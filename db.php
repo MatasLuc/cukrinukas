@@ -1695,4 +1695,54 @@ function ensurePasswordResetsTable(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
 }
+// -------------------------------------------------------------------------
+// RECEPTŲ VERTINIMO FUNKCIJOS (NAUJA)
+// -------------------------------------------------------------------------
+
+function ensureRecipeRatingsTable(PDO $pdo): void {
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS recipe_ratings (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            recipe_id INT NOT NULL,
+            user_id INT NOT NULL,
+            rating TINYINT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_user_recipe_rating (recipe_id, user_id),
+            FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+    );
+}
+
+function getRecipeRatingStats(PDO $pdo, int $recipeId): array {
+    ensureRecipeRatingsTable($pdo);
+    $stmt = $pdo->prepare('SELECT AVG(rating) as average, COUNT(*) as count FROM recipe_ratings WHERE recipe_id = ?');
+    $stmt->execute([$recipeId]);
+    $stats = $stmt->fetch();
+    
+    return [
+        'average' => $stats['average'] ? round((float)$stats['average'], 1) : 0,
+        'count' => (int)$stats['count']
+    ];
+}
+
+function getUserRecipeRating(PDO $pdo, int $userId, int $recipeId): int {
+    ensureRecipeRatingsTable($pdo);
+    $stmt = $pdo->prepare('SELECT rating FROM recipe_ratings WHERE user_id = ? AND recipe_id = ?');
+    $stmt->execute([$userId, $recipeId]);
+    return (int)$stmt->fetchColumn();
+}
+
+function rateRecipe(PDO $pdo, int $userId, int $recipeId, int $rating): void {
+    ensureRecipeRatingsTable($pdo);
+    // Užtikriname, kad reitingas tarp 1 ir 5
+    $rating = max(1, min(5, $rating));
+    
+    $stmt = $pdo->prepare('
+        INSERT INTO recipe_ratings (recipe_id, user_id, rating) 
+        VALUES (?, ?, ?) 
+        ON DUPLICATE KEY UPDATE rating = VALUES(rating), created_at = NOW()
+    ');
+    $stmt->execute([$recipeId, $userId, $rating]);
+}
 ?>
