@@ -7,6 +7,7 @@ $pdo = getPdo();
 $messages = [];
 $errors = [];
 ensureUsersTable($pdo);
+tryAutoLogin($pdo);
 $dmReady = true;
 try {
     ensureDirectMessages($pdo);
