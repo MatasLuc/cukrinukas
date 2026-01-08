@@ -11,6 +11,7 @@ if (empty($_SESSION['user_id'])) {
 $pdo = getPdo();
 ensureUsersTable($pdo);
 ensureAdminAccount($pdo);
+tryAutoLogin($pdo);
 
 $userId = (int) $_SESSION['user_id'];
 $stmt = $pdo->prepare('SELECT id, name, email, profile_photo, birthdate, gender, city, country FROM users WHERE id = ?');
