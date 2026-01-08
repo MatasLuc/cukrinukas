@@ -28,20 +28,25 @@ $activePartnerId = isset($_GET['user']) ? (int)$_GET['user'] : null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     validateCsrfToken();
     $action = $_POST['action'] ?? '';
+    
     if (!$dmReady) {
         $errors[] = 'Žinučių siųsti nepavyko (lentelė nepasiekiama).';
     } elseif ($action === 'send_new') {
-        $recipientEmail = trim($_POST['recipient_email'] ?? '');
+        // Pakeista logika: priimame bendrą identifikatorių (vardą arba el. paštą)
+        $recipientInput = trim($_POST['recipient_input'] ?? '');
         $body = trim($_POST['body'] ?? '');
-        if (!$recipientEmail || !$body) {
+
+        if (!$recipientInput || !$body) {
             $errors[] = 'Užpildykite gavėją ir žinutę.';
         } else {
             try {
-                $stmt = $pdo->prepare('SELECT id, name FROM users WHERE email = ? LIMIT 1');
-                $stmt->execute([$recipientEmail]);
+                // Ieškome vartotojo pagal el. paštą ARBA vardą
+                $stmt = $pdo->prepare('SELECT id, name FROM users WHERE email = ? OR name = ? LIMIT 1');
+                $stmt->execute([$recipientInput, $recipientInput]);
                 $recipient = $stmt->fetch();
+
                 if (!$recipient) {
-                    $errors[] = 'Gavėjas nerastas.';
+                    $errors[] = 'Vartotojas tokiu vardu arba el. paštu nerastas.';
                 } elseif ((int)$recipient['id'] === (int)$user['id']) {
                     $errors[] = 'Negalite rašyti sau.';
                 } else {
@@ -308,8 +313,8 @@ renderHeader($pdo, 'community');
           <?php echo csrfField(); ?>
           <input type="hidden" name="action" value="send_new">
           <div>
-            <label for="recipient_email">Gavėjo el. paštas</label>
-            <input class="form-control" type="email" id="recipient_email" name="recipient_email" placeholder="pvz. vartotojas@cukrinukas.lt" required>
+            <label for="recipient_input">Gavėjas (Vardas arba El. paštas)</label>
+            <input class="form-control" type="text" id="recipient_input" name="recipient_input" placeholder="pvz. Vardenis arba pastas@cukrinukas.lt" required>
           </div>
           <div>
             <label for="new_body">Žinutė</label>
