@@ -6,6 +6,7 @@ require __DIR__ . '/layout.php';
 $pdo = getPdo();
 ensureUsersTable($pdo);
 ensureCommunityTables($pdo);
+tryAutoLogin($pdo);
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 // Pataisyta užklausa, kad gautume ir user_id bei kitus laukus
