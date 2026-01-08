@@ -86,7 +86,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     body { margin:0; background: var(--bg); color: var(--text-main); font-family:'Inter', sans-serif; }
     a { color:inherit; text-decoration:none; }
     
-    .page { max-width: 900px; margin:0 auto; padding:32px 20px 60px; display:grid; gap:24px; }
+    /* Pakeistas plotis į 1200px ir tarpai pagal news.php */
+    .page { max-width: 1200px; margin:0 auto; padding:32px 20px 72px; display:grid; gap:28px; }
 
     /* Hero Section - Matching Login/Register Left Side Style */
     .hero { 
