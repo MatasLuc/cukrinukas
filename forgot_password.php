@@ -6,6 +6,7 @@ require __DIR__ . '/mailer.php';
 
 $pdo = getPdo();
 ensurePasswordResetsTable($pdo);
+tryAutoLogin($pdo);
 
 $message = '';
 $error = '';
@@ -110,3 +111,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php renderFooter($pdo); ?>
 </body>
 </html>
+
