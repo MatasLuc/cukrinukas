@@ -4,6 +4,7 @@ require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
 
 $pdo = getPdo();
+tryAutoLogin($pdo);
 $token = $_GET['token'] ?? '';
 $error = '';
 $success = '';
@@ -104,3 +105,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php renderFooter($pdo); ?>
 </body>
 </html>
+
