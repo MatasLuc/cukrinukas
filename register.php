@@ -93,23 +93,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         overflow: hidden;
     }
 
-    /* Left Side - Hero/Info */
+    /* Left Side - Hero/Info (Identical style to Login) */
     .auth-info {
-        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
         padding: 48px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         border-right: 1px solid var(--border);
     }
-    .auth-info h1 { margin: 0 0 16px; font-size: 32px; color: #0c4a6e; letter-spacing: -0.5px; }
-    .auth-info p { margin: 0 0 32px; color: #0369a1; line-height: 1.6; font-size: 16px; }
+    .auth-info h1 { margin: 0 0 16px; font-size: 32px; color: #1e3a8a; letter-spacing: -0.5px; }
+    .auth-info p { margin: 0 0 32px; color: #1e40af; line-height: 1.6; font-size: 16px; }
     
     .feature-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 16px; }
-    .feature-item { display: flex; align-items: center; gap: 12px; color: #075985; font-weight: 500; }
+    .feature-item { display: flex; align-items: center; gap: 12px; color: #1e3a8a; font-weight: 500; }
     .feature-icon { 
         width: 24px; height: 24px; 
-        background: #0ea5e9; color: #fff; 
+        background: #2563eb; color: #fff; 
         border-radius: 50%; display: flex; align-items: center; justify-content: center;
         font-size: 14px; flex-shrink: 0;
     }
