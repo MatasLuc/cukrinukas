@@ -142,133 +142,249 @@ renderHeader($pdo, 'community');
 ?>
 <style>
   :root {
-    --bg: #f7f7fb;
-    --card: #ffffff;
-    --border: #e4e7ec;
-    --text: #0f172a;
-    --muted: #52606d;
-    --accent: #4338ca;
+      --bg: #f7f7fb;
+      --card: #ffffff;
+      --border: #e4e7ec;
+      --text-main: #0f172a;
+      --text-muted: #475467;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --accent-light: #eff6ff;
+      --focus-ring: rgba(37, 99, 235, 0.2);
   }
-  body { margin:0; background: var(--bg); color: var(--text); font-family:'Inter', system-ui, -apple-system, sans-serif; }
+  body { margin:0; background: var(--bg); color: var(--text-main); font-family:'Inter', sans-serif; }
   a { color:inherit; text-decoration:none; }
 
-  .page { max-width:1200px; margin:0 auto; padding:30px 20px 60px; display:flex; flex-direction:column; gap:18px; }
-  .hero { background: linear-gradient(135deg, #eef2ff, #e0f2fe); border:1px solid #e5e7eb; border-radius:28px; padding:22px 20px; box-shadow:0 24px 60px rgba(0,0,0,0.08); display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; align-items:center; }
-  .hero h1 { margin:0; font-size:clamp(26px, 5vw, 34px); letter-spacing:-0.02em; color:#0b1224; }
-  .hero p { margin:6px 0 0; color: var(--muted); line-height:1.6; max-width:640px; }
-  .pill { display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:999px; background:#fff; border:1px solid #e4e7ec; font-weight:700; color:#0b1224; box-shadow:0 12px 26px rgba(0,0,0,0.08); }
+  .page { max-width:1200px; margin:0 auto; padding:32px 20px 60px; display:flex; flex-direction:column; gap:24px; }
+  
+  /* Hero matching Account/Login style */
+  .hero { 
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border:1px solid #dbeafe; 
+      border-radius:24px; 
+      padding:32px; 
+      display:flex; 
+      justify-content:space-between; 
+      gap:24px; 
+      flex-wrap:wrap; 
+      align-items:center; 
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  }
+  .hero h1 { margin:0 0 8px; font-size:28px; color:#1e3a8a; letter-spacing:-0.5px; }
+  .hero p { margin:0; color:#1e40af; line-height:1.5; max-width:640px; font-size:15px; }
+  .pill { 
+      display:inline-flex; align-items:center; gap:8px; 
+      padding:6px 12px; border-radius:999px; 
+      background:#fff; border:1px solid #bfdbfe; 
+      font-weight:600; font-size:13px; color:#1e40af; 
+      margin-bottom: 12px;
+  }
 
-  .layout { display:grid; grid-template-columns:320px 1fr; gap:18px; align-items:start; }
+  .layout { display:grid; grid-template-columns:340px 1fr; gap:24px; align-items:start; }
   @media(max-width: 960px){ .layout { grid-template-columns:1fr; } }
 
-  .card { background:var(--card); border:1px solid var(--border); border-radius:18px; box-shadow:0 14px 32px rgba(0,0,0,0.06); padding:18px; }
-  .card h3 { margin:0 0 10px; font-size:18px; }
-  .muted { color: var(--muted); }
-  .btn { padding:10px 14px; border-radius:12px; border:1px solid transparent; background: linear-gradient(135deg, #4338ca, #7c3aed); color:#fff; font-weight:700; cursor:pointer; text-decoration:none; box-shadow:0 14px 36px rgba(124,58,237,0.25); transition: transform .18s ease, box-shadow .18s ease; }
-  .btn:hover { transform: translateY(-1px); box-shadow:0 18px 52px rgba(67,56,202,0.35); }
-  .ghost { background:transparent; color:#4338ca; border:1px solid #c7d2fe; box-shadow:none; }
+  .card { 
+      background:var(--card); 
+      border:1px solid var(--border); 
+      border-radius:20px; 
+      padding:24px; 
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  }
+  .card h3 { margin:0 0 16px; font-size:18px; color: var(--text-main); }
+  
+  /* Buttons */
+  .btn { 
+      padding:10px 16px; border-radius:10px; border:none; 
+      background: #0f172a; color:#fff; font-weight:600; font-size:14px;
+      cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center;
+      transition: all .2s;
+  }
+  .btn:hover { background: #1e293b; transform: translateY(-1px); }
+  
+  .btn-outline { 
+      background: #fff; color: var(--text-main); border: 1px solid var(--border); 
+  }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
 
+  /* Inputs */
+  .form-control { 
+      width:100%; padding:12px 14px; 
+      border-radius:10px; border:1px solid var(--border); 
+      background:#fff; font-family:inherit; font-size:14px; color: var(--text-main);
+      transition: all .2s;
+  }
+  .form-control:focus { outline:none; border-color:var(--accent); box-shadow: 0 0 0 4px var(--focus-ring); }
+  label { display:block; margin-bottom:6px; font-weight:600; font-size:13px; color:#344054; }
+
+  /* Conversation List */
   .conversation-list { display:flex; flex-direction:column; gap:8px; }
-  .conversation { padding:12px; border-radius:12px; border:1px solid var(--border); background:#fff; display:flex; justify-content:space-between; gap:8px; align-items:center; transition: border-color .18s ease, box-shadow .18s ease; }
-  .conversation.active { border-color:#c7d2fe; box-shadow:0 12px 28px rgba(67,56,202,0.12); background:#f5f7ff; }
+  .conversation { 
+      padding:12px 14px; border-radius:12px; 
+      border:1px solid transparent; 
+      display:flex; justify-content:space-between; gap:12px; align-items:center; 
+      transition: all .2s; 
+  }
+  .conversation:hover { background: #f8fafc; }
+  .conversation.active { 
+      background: var(--accent-light); 
+      border-color: #bfdbfe; 
+  }
+  .conversation-name { font-weight:600; font-size:15px; color: var(--text-main); }
+  .conversation.active .conversation-name { color: #1e40af; }
+  .conversation-meta { font-size:12px; color: var(--text-muted); }
 
-  .bubble { border-radius:14px; padding:12px 14px; max-width:75%; line-height:1.5; }
-  .bubble.me { background:#e6efff; }
-  .bubble.them { background:#f9fafb; }
-  .message { display:flex; flex-direction:column; gap:6px; }
-  .bubble-row { display:flex; align-items:flex-end; gap:10px; }
-  .bubble-row.me { justify-content:flex-end; }
-  .bubble-row.them { justify-content:flex-start; }
-  .mini-avatar { width:36px; height:36px; border-radius:12px; background:#eef2ff; border:1px solid #e4e7ec; display:flex; align-items:center; justify-content:center; font-weight:700; color:#4338ca; overflow:hidden; flex-shrink:0; }
+  /* Chat Area */
+  .chat-header { 
+      padding-bottom:16px; margin-bottom:16px; border-bottom:1px solid var(--border); 
+      display:flex; align-items:center; justify-content:space-between; 
+  }
+  .chat-window { 
+      display:flex; flex-direction:column; gap:16px; 
+      max-height:500px; overflow-y:auto; 
+      padding-right:8px; margin-bottom:20px;
+  }
+  
+  .message-row { display:flex; gap:12px; width: 100%; }
+  .message-row.me { flex-direction: row-reverse; }
+  
+  .bubble { 
+      border-radius:16px; padding:12px 16px; 
+      max-width: 80%; line-height:1.5; font-size:15px;
+      position: relative;
+  }
+  .bubble.me { 
+      background: var(--accent); color: #fff; 
+      border-bottom-right-radius: 2px;
+  }
+  .bubble.them { 
+      background: #f1f5f9; color: var(--text-main); 
+      border-bottom-left-radius: 2px;
+  }
+  
+  .mini-avatar { 
+      width:38px; height:38px; border-radius:10px; 
+      background:#eff6ff; border:1px solid #dbeafe; 
+      display:flex; align-items:center; justify-content:center; 
+      font-weight:700; color:var(--accent); overflow:hidden; flex-shrink:0; font-size: 14px;
+  }
   .mini-avatar img { width:100%; height:100%; object-fit:cover; }
-  textarea, input[type=email], input[type=text] { width:100%; border-radius:12px; border:1px solid var(--border); padding:12px; background:#f9fafb; font-family:inherit; }
+  
+  .message-meta { 
+      font-size:11px; color: var(--text-muted); margin-top:4px; 
+      text-align: right; opacity: 0.8;
+  }
+  .message-row.them .message-meta { text-align: left; }
+
+  /* Alerts */
+  .notice { padding:12px 16px; border-radius:10px; margin-bottom:16px; font-size:14px; display:flex; gap:10px; }
+  .notice.success { background: #ecfdf5; border: 1px solid #d1fae5; color: #065f46; }
+  .notice.error { background: #fef2f2; border: 1px solid #fee2e2; color: #991b1b; }
+
   @media(max-width: 720px){
-    .bubble { max-width:100%; }
-    .layout { gap:12px; }
+    .bubble { max-width:90%; }
+    .hero { padding: 24px; }
   }
 </style>
+
 <main class="page">
   <section class="hero">
     <div>
       <div class="pill">💬 Žinutės</div>
       <h1>Privatūs pokalbiai</h1>
-      <p>Kurkite naujus susirašinėjimus, tęskite esamus ir gaukite pranešimus vienoje vietoje, išlaikant #f7f7fb šviesų foną.</p>
+      <p>Bendraukite su kitais bendruomenės nariais, klauskite patarimų ir dalinkitės patirtimi saugiai.</p>
     </div>
-    <a class="btn ghost" href="#new">Nauja žinutė</a>
+    <a class="btn btn-outline" href="#new">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        Nauja žinutė
+    </a>
   </section>
 
   <div class="layout">
-    <div style="display:flex; flex-direction:column; gap:12px;">
+    <div style="display:flex; flex-direction:column; gap:24px;">
+      
       <section class="card" id="new">
-        <h3 style="margin:0 0 8px 0;">Nauja žinutė</h3>
-        <form method="post" style="display:grid; gap:10px;">
+        <h3>Nauja žinutė</h3>
+        <form method="post" style="display:grid; gap:16px;">
           <?php echo csrfField(); ?>
-<input type="hidden" name="action" value="send_new">
-          <label style="display:flex; flex-direction:column; gap:6px;">
-            <span class="muted" style="font-size:13px;">Gavėjo el. paštas</span>
-            <input type="email" name="recipient_email" required>
-          </label>
-          <label style="display:flex; flex-direction:column; gap:6px;">
-            <span class="muted" style="font-size:13px;">Žinutė</span>
-            <textarea name="body" style="min-height:90px;" required></textarea>
-          </label>
-          <button class="btn ghost" style="align-self:flex-start;">Siųsti</button>
+          <input type="hidden" name="action" value="send_new">
+          <div>
+            <label for="recipient_email">Gavėjo el. paštas</label>
+            <input class="form-control" type="email" id="recipient_email" name="recipient_email" placeholder="pvz. vartotojas@cukrinukas.lt" required>
+          </div>
+          <div>
+            <label for="new_body">Žinutė</label>
+            <textarea class="form-control" id="new_body" name="body" style="min-height:100px; resize:vertical;" placeholder="Labas, norėjau paklausti..." required></textarea>
+          </div>
+          <button class="btn" type="submit">Siųsti žinutę</button>
         </form>
       </section>
 
       <section class="card">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
           <h3 style="margin:0;">Pokalbiai</h3>
-          <span class="muted" style="font-size:13px;"><?php echo count($conversations); ?> gijų</span>
+          <span style="font-size:12px; font-weight:600; background:#f1f5f9; padding:2px 8px; border-radius:12px;"><?php echo count($conversations); ?></span>
         </div>
+        
         <?php if ($conversations): ?>
           <div class="conversation-list">
             <?php foreach ($conversations as $conv): ?>
               <a class="conversation <?php echo $activePartnerId===(int)$conv['partner_id'] ? 'active' : ''; ?>" href="?user=<?php echo (int)$conv['partner_id']; ?>">
-                <div>
-                  <div style="font-weight:700;"><?php echo htmlspecialchars($conv['name'] ?? 'Narys #' . $conv['partner_id']); ?></div>
-                  <div class="muted" style="font-size:12px;">Atnaujinta: <?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($conv['last_time']))); ?></div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                   <div style="width:8px; height:8px; border-radius:50%; background: <?php echo $activePartnerId===(int)$conv['partner_id'] ? 'var(--accent)' : '#cbd5e1'; ?>;"></div>
+                   <div>
+                      <div class="conversation-name"><?php echo htmlspecialchars($conv['name'] ?? 'Narys #' . $conv['partner_id']); ?></div>
+                      <div class="conversation-meta"><?php echo htmlspecialchars(date('Y-m-d', strtotime($conv['last_time']))); ?></div>
+                   </div>
                 </div>
-                <span style="font-size:18px; color:#c7d2fe;">•</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="<?php echo $activePartnerId===(int)$conv['partner_id'] ? 'var(--accent)' : '#94a3b8'; ?>" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
               </a>
             <?php endforeach; ?>
           </div>
         <?php else: ?>
-          <div class="muted">Dar neturite žinučių.</div>
+          <div class="notice" style="background:#f8fafc; color:var(--text-muted); margin:0;">Dar neturite pradėtų pokalbių.</div>
         <?php endif; ?>
       </section>
     </div>
 
-    <section class="card" style="display:flex; flex-direction:column; gap:12px;">
+    <section class="card" style="display:flex; flex-direction:column; height: 100%;">
+      
       <?php foreach ($messages as $msg): ?>
-        <div style="background:#edf9f0;border:1px solid #b8e2c4;padding:10px;border-radius:10px;">&check; <?php echo $msg; ?></div>
+        <div class="notice success">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            <?php echo $msg; ?>
+        </div>
       <?php endforeach; ?>
+      
       <?php foreach ($errors as $err): ?>
-        <div style="background:#fff1f1;border:1px solid #f3b7b7;padding:10px;border-radius:10px;">&times; <?php echo $err; ?></div>
+        <div class="notice error">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            <?php echo $err; ?>
+        </div>
       <?php endforeach; ?>
 
       <?php if ($activePartnerId): ?>
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-          <h3 style="margin:0; font-size:18px;">Pokalbis su <span style="color:#5671c4;"><?php echo htmlspecialchars($activePartnerName ?? ('Narys #' . $activePartnerId)); ?></span></h3>
-          <span class="muted" style="font-size:13px;">#<?php echo (int)$activePartnerId; ?></span>
+        <div class="chat-header">
+          <div>
+             <span style="font-size:12px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Pokalbis su</span>
+             <div style="font-size:18px; font-weight:700; color:var(--text-main); margin-top:2px;">
+                 <?php echo htmlspecialchars($activePartnerName ?? ('Narys #' . $activePartnerId)); ?>
+             </div>
+          </div>
+          <div style="font-size:13px; color:var(--text-muted);">ID: <?php echo (int)$activePartnerId; ?></div>
         </div>
-          <div style="border:1px solid var(--border); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:10px; max-height:460px; overflow:auto; background:#fff;">
+
+        <div class="chat-window">
             <?php if ($threadMessages): ?>
               <?php foreach ($threadMessages as $tm): ?>
                 <?php
                   $isMe = (int)$tm['sender_id'] === (int)$user['id'];
-                  $avatarInitial = strtoupper(substr($tm['sender_name'] ?? 'V', 0, 1));
+                  $avatarInitial = strtoupper(mb_substr($tm['sender_name'] ?? 'V', 0, 1));
                   $avatarImg = !empty($tm['sender_photo']) ? $tm['sender_photo'] : null;
                 ?>
-                <div class="message" style="<?php echo $isMe ? 'align-items:flex-end;' : ''; ?>">
-                  <div style="font-size:13px; color:#6b6b7a; display:flex; gap:6px; align-items:center; <?php echo $isMe ? 'flex-direction:row-reverse;' : ''; ?>">
-                    <span><?php echo htmlspecialchars($tm['sender_name']); ?></span>
-                    <span aria-hidden="true">•</span>
-                    <span><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($tm['created_at']))); ?></span>
-                  </div>
-                  <div class="bubble-row <?php echo $isMe ? 'me' : 'them'; ?>">
+                <div class="message-row <?php echo $isMe ? 'me' : 'them'; ?>">
+                    
                     <?php if (!$isMe): ?>
-                      <div class="mini-avatar">
+                      <div class="mini-avatar" title="<?php echo htmlspecialchars($tm['sender_name']); ?>">
                         <?php if ($avatarImg): ?>
                           <img src="<?php echo htmlspecialchars($avatarImg); ?>" alt="">
                         <?php else: ?>
@@ -276,37 +392,61 @@ renderHeader($pdo, 'community');
                         <?php endif; ?>
                       </div>
                     <?php endif; ?>
-                    <div class="bubble <?php echo $isMe ? 'me' : 'them'; ?>">
-                      <?php
-                        $isSystemMessage = $systemUserId && ((int)$tm['sender_id'] === (int)$systemUserId);
-                        echo $isSystemMessage ? $tm['body'] : nl2br(htmlspecialchars($tm['body']));
-                      ?>
+
+                    <div style="display:flex; flex-direction:column; max-width:80%;">
+                        <div class="bubble <?php echo $isMe ? 'me' : 'them'; ?>">
+                          <?php
+                            $isSystemMessage = $systemUserId && ((int)$tm['sender_id'] === (int)$systemUserId);
+                            echo $isSystemMessage ? $tm['body'] : nl2br(htmlspecialchars($tm['body']));
+                          ?>
+                        </div>
+                        <div class="message-meta">
+                            <?php echo htmlspecialchars(date('H:i | M d', strtotime($tm['created_at']))); ?>
+                        </div>
                     </div>
+
                     <?php if ($isMe): ?>
-                      <div class="mini-avatar">
-                        <?php if ($avatarImg): ?>
-                          <img src="<?php echo htmlspecialchars($avatarImg); ?>" alt="">
-                        <?php else: ?>
-                          <?php echo htmlspecialchars($avatarInitial); ?>
-                        <?php endif; ?>
-                      </div>
+                        <div class="mini-avatar" title="Jūs">
+                            <?php if ($avatarImg): ?>
+                              <img src="<?php echo htmlspecialchars($avatarImg); ?>" alt="">
+                            <?php else: ?>
+                              <?php echo htmlspecialchars($avatarInitial); ?>
+                            <?php endif; ?>
+                        </div>
                     <?php endif; ?>
-                  </div>
+
                 </div>
               <?php endforeach; ?>
             <?php else: ?>
-              <div class="muted">Dar nėra žinučių.</div>
+              <div style="text-align:center; padding:40px; color:var(--text-muted);">
+                  <div style="font-size:48px; margin-bottom:10px;">👋</div>
+                  <p>Tai jūsų pokalbio pradžia. Pasisveikinkite!</p>
+              </div>
             <?php endif; ?>
-          </div>
-        <form method="post" style="display:flex; gap:10px; align-items:flex-start;">
+        </div>
+
+        <form method="post" style="display:flex; gap:12px; align-items:flex-end; border-top:1px solid var(--border); padding-top:20px; margin-top:auto;">
           <?php echo csrfField(); ?>
-<input type="hidden" name="action" value="send_existing">
+          <input type="hidden" name="action" value="send_existing">
           <input type="hidden" name="partner_id" value="<?php echo (int)$activePartnerId; ?>">
-          <textarea name="body" style="flex:1; min-height:80px;" placeholder="Parašykite žinutę"></textarea>
-          <button class="btn" type="submit">Siųsti</button>
+          
+          <div style="flex:1;">
+            <textarea class="form-control" name="body" style="min-height:50px; resize:none; border-radius:20px; padding:12px 16px;" placeholder="Rašyti žinutę..." required></textarea>
+          </div>
+          
+          <button class="btn" type="submit" style="border-radius:50%; width:46px; height:46px; padding:0; flex-shrink:0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </button>
         </form>
+
       <?php else: ?>
-        <div class="muted">Pasirinkite pokalbį arba sukurkite naują.</div>
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:var(--text-muted); min-height:300px;">
+            <div style="width:64px; height:64px; background:#f1f5f9; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-bottom:16px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            <h3 style="color:var(--text-main); margin:0 0 8px;">Nėra pasirinkto pokalbio</h3>
+            <p style="max-width:300px; margin:0;">Pasirinkite pokalbį iš kairiojo meniu arba pradėkite naują susirašinėjimą.</p>
+        </div>
       <?php endif; ?>
     </section>
   </div>
