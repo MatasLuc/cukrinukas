@@ -25,6 +25,7 @@ ensureCategoryDiscounts($pdo);
 ensureShippingSettings($pdo);
 ensureLockerTables($pdo);
 ensureCommunityTables($pdo);
+tryAutoLogin($pdo);
 
 $messages = [];
 $errors = [];
