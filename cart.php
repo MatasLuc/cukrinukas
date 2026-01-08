@@ -59,101 +59,416 @@ if (isset($_POST['add_promo_product'])) {
       --bg: #f7f7fb;
       --card: #ffffff;
       --border: #e4e7ec;
-      --text: #0f172a;
-      --muted: #475467;
-      --accent: #7c3aed;
+      --text-main: #0f172a;
+      --text-muted: #475467;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --danger: #ef4444;
+      --success-bg: #ecfdf5;
+      --success-text: #065f46;
     }
     * { box-sizing: border-box; }
-    body { margin:0; background: var(--bg); color: var(--text); font-family:'Inter', system-ui, -apple-system, sans-serif; }
-    a { color:inherit; text-decoration:none; }
-    .page { max-width:1000px; margin:0 auto; padding:28px 22px 64px; display:grid; gap:16px; }
-    .head-row { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
-    .btn { padding:12px 16px; border-radius:12px; border:none; background: linear-gradient(135deg, #4338ca, #7c3aed); color:#fff; font-weight:700; cursor:pointer; box-shadow:0 14px 36px rgba(124,58,237,0.2); }
-    .btn.secondary { background:#fff; color:#4338ca; border:1px solid #c7d2fe; box-shadow:none; }
-    .card { background:var(--card); border-radius:18px; padding:16px; border:1px solid var(--border); box-shadow:0 12px 30px rgba(0,0,0,0.08); display:grid; gap:12px; }
-    .item { display:grid; grid-template-columns: 120px 1fr auto; gap:14px; align-items:center; padding:10px 0; border-bottom:1px solid #eee; }
-    .item:last-child { border-bottom:none; }
-    .item img { width:120px; height:90px; object-fit:cover; border-radius:12px; }
-    .muted { color: var(--muted); }
-    .summary { background: #f8fafc; border-radius:14px; padding:12px 14px; border:1px solid var(--border); }
-    .promo { background: linear-gradient(135deg, rgba(16,185,129,0.14), rgba(67,56,202,0.1)); border:1px solid rgba(67,56,202,0.18); border-radius:16px; padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
-    .promo-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:10px; }
-    .promo-card { border:1px solid var(--border); border-radius:14px; padding:10px; display:grid; gap:8px; background:#fff; box-shadow:0 10px 20px rgba(0,0,0,0.06); }
-    .promo-card img { width:100%; height:120px; object-fit:cover; border-radius:10px; }
-    .promo-btn { padding:10px 12px; border-radius:10px; border:none; background: linear-gradient(135deg, #4338ca, #7c3aed); color:#fff; font-weight:700; cursor:pointer; }
+    body { margin:0; background: var(--bg); color: var(--text-main); font-family: 'Inter', sans-serif; }
+    a { color:inherit; text-decoration:none; transition: color .2s; }
+    
+    .page { max-width: 1200px; margin:0 auto; padding:32px 20px 72px; }
+
+    /* Hero Section (Match orders.php) */
+    .hero { 
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        border:1px solid #dbeafe; 
+        border-radius:24px; 
+        padding:32px; 
+        margin-bottom: 32px;
+        display:flex; 
+        flex-direction: column;
+        align-items: flex-start;
+        gap:16px; 
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .hero h1 { margin:0; font-size:28px; color:#1e3a8a; letter-spacing:-0.5px; }
+    .hero p { margin:0; color:#1e40af; line-height:1.5; font-size:15px; }
+    .hero .pill { 
+        display:inline-flex; align-items:center; gap:8px; 
+        padding:6px 12px; border-radius:999px; 
+        background:#fff; border:1px solid #bfdbfe; 
+        font-weight:600; font-size:13px; color:#1e40af; 
+    }
+
+    /* Layout Grid */
+    .cart-grid {
+        display: grid;
+        grid-template-columns: 1fr 380px;
+        gap: 24px;
+        align-items: start;
+    }
+
+    /* Cards */
+    .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        overflow: hidden;
+    }
+    .card-body { padding: 24px; }
+    
+    .section-title {
+        font-size: 18px;
+        font-weight: 700;
+        margin: 0 0 20px 0;
+        color: var(--text-main);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* Cart Items */
+    .cart-item {
+        display: grid;
+        grid-template-columns: 80px 1fr auto;
+        gap: 20px;
+        padding-bottom: 24px;
+        margin-bottom: 24px;
+        border-bottom: 1px solid var(--border);
+    }
+    .cart-item:last-child {
+        padding-bottom: 0;
+        margin-bottom: 0;
+        border-bottom: none;
+    }
+    .item-img {
+        width: 80px;
+        height: 80px;
+        object-fit: contain;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 4px;
+    }
+    .item-info h3 {
+        margin: 0 0 6px;
+        font-size: 16px;
+        font-weight: 600;
+        line-height: 1.4;
+    }
+    .item-meta {
+        font-size: 13px;
+        color: var(--text-muted);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .item-actions {
+        text-align: right;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: flex-end;
+    }
+    .item-price {
+        font-weight: 700;
+        font-size: 16px;
+        color: var(--text-main);
+    }
+    .remove-btn {
+        background: none;
+        border: none;
+        color: var(--danger);
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 0;
+        text-decoration: underline;
+        opacity: 0.8;
+        transition: opacity .2s;
+    }
+    .remove-btn:hover { opacity: 1; }
+
+    /* Summary Sidebar */
+    .summary-box {
+        position: sticky;
+        top: 90px; /* Pagal headerio aukštį */
+    }
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        font-size: 15px;
+        color: var(--text-muted);
+    }
+    .summary-row.total {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+        font-weight: 700;
+        font-size: 18px;
+        color: var(--text-main);
+    }
+    
+    /* Promo / Free Shipping Box */
+    .promo-box {
+        margin-bottom: 24px;
+        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        border: 1px solid #bbf7d0;
+        border-radius: 16px;
+        padding: 20px;
+    }
+    .promo-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .promo-icon { font-size: 20px; }
+    .promo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 12px;
+    }
+    .promo-item {
+        background: #fff;
+        border: 1px solid #bbf7d0;
+        border-radius: 12px;
+        padding: 10px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        transition: transform .2s;
+    }
+    .promo-item:hover { transform: translateY(-2px); border-color: #86efac; }
+    .promo-item img {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+        border-radius: 8px;
+    }
+    .promo-btn {
+        margin-top: 4px;
+        padding: 6px 12px;
+        font-size: 12px;
+        border-radius: 6px;
+        border: none;
+        background: #16a34a;
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
+    }
+    .promo-btn:hover { background: #15803d; }
+
+    /* Buttons */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        padding: 14px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 15px;
+        cursor: pointer;
+        transition: all .2s;
+        text-decoration: none;
+        border: none;
+    }
+    .btn-primary {
+        background: #0f172a;
+        color: #fff;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .btn-primary:hover {
+        background: #1e293b;
+        transform: translateY(-1px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+    .btn-outline {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-main);
+        margin-top: 12px;
+    }
+    .btn-outline:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: #eff6ff;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 48px 20px;
+    }
+
+    /* Utilities */
+    .badge-success {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        background: var(--success-bg);
+        color: var(--success-text);
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-top: 4px;
+    }
+
+    @media (max-width: 900px) {
+        .cart-grid { grid-template-columns: 1fr; }
+        .summary-box { position: static; margin-top: 0; }
+        .hero { align-items: flex-start; text-align: left; }
+    }
+    @media (max-width: 600px) {
+        .cart-item { grid-template-columns: 60px 1fr; grid-template-rows: auto auto; gap: 12px; }
+        .item-actions { grid-column: 1 / -1; flex-direction: row; justify-content: space-between; align-items: center; width: 100%; margin-top: 8px; }
+        .item-img { width: 60px; height: 60px; }
+    }
   </style>
 </head>
 <body>
   <?php renderHeader($pdo, 'cart'); ?>
+  
   <div class="page">
-    <div class="head-row">
-      <a href="/products.php" class="btn secondary">← Grįžti į parduotuvę</a>
-      <a href="/checkout.php" class="btn" onclick="fbq('track', 'InitiateCheckout');">Apmokėti</a>
-    </div>
+    <section class="hero">
+      <div class="pill">🛍️ Jūsų krepšelis</div>
+      <div>
+        <h1>Krepšelio peržiūra</h1>
+        <p>Patikrinkite pasirinktas prekes ir tęskite link apmokėjimo.</p>
+      </div>
+    </section>
 
-    <?php if ($freeShippingOffers): ?>
-      <div class="promo">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-          <strong><?php echo $hasGiftProduct ? 'Nemokamas pristatymas jau pritaikytas su jūsų pasirinkta dovanos preke.' : 'Pridėkite vieną iš šių prekių ir gaukite nemokamą pristatymą.'; ?></strong>
-          <span class="summary" style="margin:0;">Iki 4 parinktų prekių</span>
+    <?php if (!$items): ?>
+      <div class="card empty-state">
+        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;">🛒</div>
+        <h3 style="margin: 0 0 8px; font-size: 20px;">Krepšelis tuščias</h3>
+        <p style="color: var(--text-muted); margin: 0 0 24px;">Atrodo, dar nieko neišsirinkote. Peržiūrėkite mūsų asortimentą.</p>
+        <div style="max-width: 250px; margin: 0 auto;">
+            <a href="/products.php" class="btn btn-primary">Eiti į parduotuvę</a>
         </div>
-        <div class="promo-grid">
-          <?php foreach ($freeShippingOffers as $offer): $offerPrice = $offer['sale_price'] !== null ? (float)$offer['sale_price'] : (float)$offer['price']; ?>
-            <div class="promo-card">
-              <img src="<?php echo htmlspecialchars($offer['image_url']); ?>" alt="<?php echo htmlspecialchars($offer['title']); ?>">
-              <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                <strong><?php echo htmlspecialchars($offer['title']); ?></strong>
-                <span><?php echo number_format($offerPrice, 2); ?> €</span>
+      </div>
+    <?php else: ?>
+      
+      <div class="cart-grid">
+        <div class="cart-main">
+            
+          <?php if ($freeShippingOffers): ?>
+            <div class="promo-box">
+              <div class="promo-header">
+                <div class="promo-icon">🚚</div>
+                <div>
+                    <strong style="color: #14532d; display: block; margin-bottom: 2px;">
+                        <?php echo $hasGiftProduct ? 'Nemokamas pristatymas pritaikytas!' : 'Gaukite nemokamą pristatymą'; ?>
+                    </strong>
+                    <span style="font-size: 14px; color: #166534;">
+                        <?php echo $hasGiftProduct ? 'Pasirinkta dovanos prekė suteikia 0 € pristatymą.' : 'Pridėkite vieną iš šių prekių į krepšelį:'; ?>
+                    </span>
+                </div>
               </div>
-              <form method="post" style="display:flex; justify-content:space-between; gap:8px; align-items:center;">
-                <?php echo csrfField(); ?>
-                <input type="hidden" name="add_promo_product" value="<?php echo (int)$offer['product_id']; ?>">
-                <button class="promo-btn" type="submit">Į krepšelį</button>
-                <a class="muted" style="text-decoration:underline;" href="/product.php?id=<?php echo (int)$offer['product_id']; ?>">Plačiau</a>
-              </form>
+              
+              <div class="promo-grid">
+                <?php foreach ($freeShippingOffers as $offer): $offerPrice = $offer['sale_price'] !== null ? (float)$offer['sale_price'] : (float)$offer['price']; ?>
+                  <div class="promo-item">
+                    <img src="<?php echo htmlspecialchars($offer['image_url']); ?>" alt="<?php echo htmlspecialchars($offer['title']); ?>">
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?php echo htmlspecialchars($offer['title']); ?></div>
+                      <div style="font-size:13px; color:#15803d; font-weight:700;"><?php echo number_format($offerPrice, 2); ?> €</div>
+                      <form method="post">
+                        <?php echo csrfField(); ?>
+                        <input type="hidden" name="add_promo_product" value="<?php echo (int)$offer['product_id']; ?>">
+                        <button class="promo-btn" type="submit">Pridėti +</button>
+                      </form>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
+              </div>
             </div>
-          <?php endforeach; ?>
-        </div>
-      </div>
-    <?php endif; ?>
+          <?php endif; ?>
 
-    <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <h2 style="margin:0;">Jūsų krepšelis</h2>
-        <div class="summary">Iš viso prekių: <?php echo count($items); ?></div>
-      </div>
-      <?php if (!$items): ?>
-        <p class="muted">Krepšelis tuščias.</p>
-      <?php else: ?>
-        <?php foreach ($items as $item): ?>
-          <div class="item">
-            <img src="<?php echo htmlspecialchars($item['image_url']); ?>" alt="<?php echo htmlspecialchars($item['title']); ?>">
-            <div>
-              <strong><?php echo htmlspecialchars($item['title']); ?></strong>
-              <?php if (!empty($item['variation']['name'])): ?>
-                <div class="muted">Variacija: <?php echo htmlspecialchars($item['variation']['name']); ?></div>
-              <?php endif; ?>
-              <?php if (!empty($item['free_shipping_gift'])): ?>
-                <div style="color:#166534; font-weight:600;">Nemokamas pristatymas su šia preke</div>
-              <?php endif; ?>
-              <p class="muted">Kiekis: <?php echo $item['quantity']; ?> | Kaina: <?php echo number_format((float)$item['price'], 2); ?> €</p>
-            </div>
-            <div style="text-align:right;">
-              <div style="font-weight:700; font-size:16px;"><?php echo number_format($item['line_total'], 2); ?> €</div>
-              <form method="post" style="margin-top:8px;">
-                <?php echo csrfField(); ?>
-                <input type="hidden" name="remove_id" value="<?php echo (int)$item['id']; ?>">
-                <button class="btn secondary" type="submit">Pašalinti</button>
-              </form>
+          <div class="card">
+            <div class="card-body">
+                <h2 class="section-title">Prekių sąrašas <span style="font-weight:400; color:var(--text-muted); font-size:14px;"><?php echo count($items); ?> vnt.</span></h2>
+                
+                <?php foreach ($items as $item): ?>
+                  <div class="cart-item">
+                    <a href="/product.php?id=<?php echo (int)$item['id']; ?>">
+                        <img class="item-img" src="<?php echo htmlspecialchars($item['image_url']); ?>" alt="<?php echo htmlspecialchars($item['title']); ?>">
+                    </a>
+                    
+                    <div class="item-info">
+                      <h3><a href="/product.php?id=<?php echo (int)$item['id']; ?>"><?php echo htmlspecialchars($item['title']); ?></a></h3>
+                      <div class="item-meta">
+                        <?php if (!empty($item['variation']['name'])): ?>
+                          <span>Variacija: <strong><?php echo htmlspecialchars($item['variation']['name']); ?></strong></span>
+                        <?php endif; ?>
+                        <span>Kiekis: <?php echo $item['quantity']; ?> × <?php echo number_format((float)$item['price'], 2); ?> €</span>
+                        
+                        <?php if (!empty($item['free_shipping_gift'])): ?>
+                           <span class="badge-success">
+                               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                               Nemokamas pristatymas
+                           </span>
+                        <?php endif; ?>
+                      </div>
+                    </div>
+
+                    <div class="item-actions">
+                      <div class="item-price"><?php echo number_format($item['line_total'], 2); ?> €</div>
+                      <form method="post" style="margin-top: 8px;">
+                        <?php echo csrfField(); ?>
+                        <input type="hidden" name="remove_id" value="<?php echo (int)$item['id']; ?>">
+                        <button class="remove-btn" type="submit">Pašalinti</button>
+                      </form>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
             </div>
           </div>
-        <?php endforeach; ?>
-        <div style="display:flex; justify-content:flex-end; gap:12px; align-items:center; padding-top:12px;">
-          <strong style="font-size:18px;">Iš viso: <?php echo number_format($total, 2); ?> €</strong>
-          <a class="btn" href="/checkout.php" onclick="fbq('track', 'InitiateCheckout');">Tęsti</a>
         </div>
-      <?php endif; ?>
-    </div>
+
+        <div class="summary-box">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="section-title">Užsakymo suma</h2>
+                    
+                    <div class="summary-row">
+                        <span>Tarpinė suma</span>
+                        <span><?php echo number_format($total, 2); ?> €</span>
+                    </div>
+                    <?php if ($hasGiftProduct): ?>
+                        <div class="summary-row" style="color: #166534;">
+                            <span>Pristatymas</span>
+                            <span>0.00 €</span>
+                        </div>
+                    <?php else: ?>
+                        <div class="summary-row">
+                            <span>Pristatymas</span>
+                            <span style="font-size:13px;">Skaičiuojama kitame žingsnyje</span>
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="summary-row total">
+                        <span>Iš viso</span>
+                        <span><?php echo number_format($total, 2); ?> €</span>
+                    </div>
+
+                    <div style="margin-top: 24px;">
+                        <a href="/checkout.php" class="btn btn-primary" onclick="fbq('track', 'InitiateCheckout');">
+                            Apmokėti užsakymą
+                        </a>
+                        <a href="/products.php" class="btn btn-outline">
+                            ← Grįžti į parduotuvę
+                        </a>
+                    </div>
+                    
+                    <div style="margin-top: 16px; font-size: 12px; color: var(--text-muted); text-align: center; line-height: 1.5;">
+                        Saugus atsiskaitymas per elektroninę bankininkystę. Duomenys saugomi pagal BDAR.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+      </div>
+    <?php endif; ?>
   </div>
 
   <?php renderFooter($pdo); ?>
