@@ -161,7 +161,8 @@ renderHeader($pdo, 'community');
   body { margin:0; background: var(--bg); color: var(--text-main); font-family:'Inter', sans-serif; }
   a { color:inherit; text-decoration:none; }
 
-  .page { max-width:1200px; margin:0 auto; padding:32px 20px 60px; display:flex; flex-direction:column; gap:24px; }
+  /* Pakeistas max-width į 1200px ir padding/gap pagal news.php */
+  .page { max-width:1200px; margin:0 auto; padding:32px 20px 72px; display:flex; flex-direction:column; gap:28px; }
   
   /* Hero matching Account/Login style */
   .hero { 
