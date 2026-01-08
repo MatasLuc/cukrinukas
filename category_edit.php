@@ -9,6 +9,7 @@ if (!isset($_SESSION['user_id']) || empty($_SESSION['is_admin'])) {
 }
 
 $pdo = getPdo();
+tryAutoLogin($pdo);
 $id = (int)($_GET['id'] ?? 0);
 $stmt = $pdo->prepare('SELECT * FROM categories WHERE id = ?');
 $stmt->execute([$id]);
