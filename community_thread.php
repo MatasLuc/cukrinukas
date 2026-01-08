@@ -6,6 +6,7 @@ require __DIR__ . '/layout.php';
 $pdo = getPdo();
 ensureUsersTable($pdo);
 ensureCommunityTables($pdo);
+tryAutoLogin($pdo);
 
 $threadId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
