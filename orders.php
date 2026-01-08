@@ -12,6 +12,7 @@ $pdo = getPdo();
 ensureOrdersTables($pdo);
 ensureProductsTable($pdo);
 ensureAdminAccount($pdo);
+tryAutoLogin($pdo);
 
 $userId = (int) $_SESSION['user_id'];
 
