@@ -7,6 +7,7 @@ $pdo = getPdo();
 ensureUsersTable($pdo);
 ensureCommunityTables($pdo);
 ensureNavigationTable($pdo);
+tryAutoLogin($pdo);
 
 $user = currentUser();
 $blocked = $user['id'] ? isCommunityBlocked($pdo, (int)$user['id']) : null;
