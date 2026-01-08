@@ -79,32 +79,19 @@ $itemStmt = $pdo->prepare('SELECT oi.*, p.title, p.image_url FROM order_items oi
         border-radius:24px; 
         padding:32px; 
         display:flex; 
-        justify-content:space-between; 
-        align-items:center; 
-        gap:24px; 
-        flex-wrap:wrap; 
+        flex-direction: column;
+        align-items: flex-start;
+        gap:16px; 
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
     .hero h1 { margin:0 0 8px; font-size:28px; color:#1e3a8a; letter-spacing:-0.5px; }
-    .hero p { margin:0; color:#1e40af; line-height:1.5; max-width:560px; font-size:15px; }
+    .hero p { margin:0; color:#1e40af; line-height:1.5; max-width:600px; font-size:15px; }
     .hero .pill { 
         display:inline-flex; align-items:center; gap:8px; 
         padding:6px 12px; border-radius:999px; 
         background:#fff; border:1px solid #bfdbfe; 
         font-weight:600; font-size:13px; color:#1e40af; 
-        margin-bottom: 12px;
     }
-    
-    /* Stats Box in Hero */
-    .hero-stat {
-        text-align: right;
-        background: rgba(255,255,255,0.6);
-        padding: 16px 24px;
-        border-radius: 16px;
-        border: 1px solid rgba(255,255,255,0.8);
-    }
-    .hero-stat .stat-val { font-weight:800; font-size:24px; color:#1e3a8a; display: block; }
-    .hero-stat .stat-label { font-size:13px; color: #1e40af; font-weight: 500; }
 
     .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom: 4px; }
     .section-header h2 { margin:0; font-size:20px; color: var(--text-main); }
@@ -172,21 +159,41 @@ $itemStmt = $pdo->prepare('SELECT oi.*, p.title, p.image_url FROM order_items oi
     .total-label { font-size: 13px; color: var(--text-muted); }
     .total-value { font-size: 20px; font-weight: 700; color: var(--accent); }
 
-    /* Buttons */
-    .btn { 
-        padding:10px 18px; border-radius:10px; border:none; 
-        background: #0f172a; color:#fff; font-weight:600; font-size:14px;
-        cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center;
+    /* Buttons Styling */
+    .btn, .btn-outline { 
+        padding:10px 18px; border-radius:10px; 
+        font-weight:600; font-size:14px;
+        cursor:pointer; text-decoration:none; 
+        display:inline-flex; align-items:center; justify-content:center;
         transition: all .2s;
         box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
-    .btn:hover { background: #1e293b; transform: translateY(-1px); }
-    
-    .btn-outline { 
-        background: #fff; color: var(--text-main); border: 1px solid var(--border); 
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+
+    /* Primary Button */
+    .btn {
+        border:none; 
+        background: #0f172a; 
+        color:#fff; 
     }
-    .btn-outline:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+    .btn:hover { 
+        background: #1e293b; 
+        transform: translateY(-1px); 
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Secondary/Outline Button */
+    .btn-outline { 
+        background: #fff; 
+        color: var(--text-main); 
+        border: 1px solid var(--border); 
+    }
+    .btn-outline:hover { 
+        border-color: var(--accent); 
+        color: var(--accent); 
+        background: #eff6ff;
+        transform: translateY(-1px); 
+        box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.15);
+    }
 
     .empty-state {
         text-align: center;
@@ -197,13 +204,11 @@ $itemStmt = $pdo->prepare('SELECT oi.*, p.title, p.image_url FROM order_items oi
     }
 
     @media (max-width: 600px) {
-        .hero { flex-direction: column; align-items: flex-start; }
-        .hero-stat { text-align: left; width: 100%; }
         .card-header { flex-direction: column; align-items: flex-start; gap: 16px; }
         .order-meta { width: 100%; justify-content: space-between; }
         .card-footer { flex-direction: column; gap: 16px; align-items: stretch; }
         .total-price { align-items: flex-start; }
-        .btn { width: 100%; }
+        .btn, .btn-outline { width: 100%; }
     }
   </style>
 </head>
@@ -212,14 +217,10 @@ $itemStmt = $pdo->prepare('SELECT oi.*, p.title, p.image_url FROM order_items oi
   
   <div class="page">
     <section class="hero">
+      <div class="pill">📦 Užsakymų istorija</div>
       <div>
-        <div class="pill">📦 Užsakymų istorija</div>
         <h1>Mano užsakymai</h1>
         <p>Sekite užsakymų būseną, peržiūrėkite pirkinių istoriją ir lengvai pakartokite mėgstamus užsakymus.</p>
-      </div>
-      <div class="hero-stat">
-        <span class="stat-val">#<?php echo (int)($orders[0]['id'] ?? 0); ?></span>
-        <span class="stat-label">Naujausias užsakymas</span>
       </div>
     </section>
 
