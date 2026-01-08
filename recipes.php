@@ -8,6 +8,7 @@ $pdo = getPdo();
 ensureRecipesTable($pdo);
 ensureSavedContentTables($pdo);
 ensureAdminAccount($pdo);
+tryAutoLogin($pdo);
 $siteContent = getSiteContent($pdo);
 
 // Išsaugoti receptą
