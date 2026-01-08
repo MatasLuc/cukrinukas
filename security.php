@@ -137,13 +137,13 @@ function setRememberMe(PDO $pdo, int $userId): void {
 
 function clearRememberMe(PDO $pdo): void {
     if (isset($_COOKIE['remember_me'])) {
-        // Ištriname iš DB, jei žinome vartotoją
+        // Ištriname iš DB
         if (isset($_SESSION['user_id'])) {
             $stmt = $pdo->prepare('UPDATE users SET remember_token = NULL WHERE id = ?');
             $stmt->execute([$_SESSION['user_id']]);
         }
-        // Ištriname slapuką
-        setcookie('remember_me', '', time() - 3600, '/');
+        // Ištriname slapuką: SVARBU naudoti tuos pačius parametrus kaip kuriant
+        setcookie('remember_me', '', time() - 3600, '/', '', false, true);
         unset($_COOKIE['remember_me']);
     }
 }
