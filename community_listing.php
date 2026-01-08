@@ -26,9 +26,11 @@ if (!$listing) {
 }
 
 $currentUser = currentUser();
-$isOwner = ($currentUser && $currentUser['id'] == $listing['user_id']);
+// Pataisymas: tikriname ar yra ID, kad nustatytume savininką
+$isOwner = (!empty($currentUser['id']) && $currentUser['id'] == $listing['user_id']);
 $isAdmin = !empty($_SESSION['is_admin']);
 $canEdit = ($isOwner || $isAdmin);
+$isLoggedIn = !empty($currentUser['id']); // Pagalbinis kintamasis tikrinimui
 
 // --- Veiksmai (Parduota / Ištrinti) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -196,7 +198,7 @@ a { color:inherit; text-decoration:none; }
                         Greičiausias ir saugiausias būdas susitarti dėl prekės. 
                         Bendraukite tiesiogiai per sistemą.
                     </p>
-                    <?php if ($currentUser): ?>
+                    <?php if ($isLoggedIn): ?>
                         <a href="/messages.php?recipient_id=<?php echo $listing['user_id']; ?>" class="btn btn-message">
                            Parašyti žinutę pardavėjui
                         </a>
@@ -229,8 +231,9 @@ a { color:inherit; text-decoration:none; }
              // Patikriname, ar išvis yra įvesti kontaktai
              $hasContacts = !empty($listing['seller_email']) || !empty($listing['seller_phone']);
              
-             // Jei vartotojas NEPRISIJUNGĘS ir yra kontaktų, rodome informacinę žinutę
-             if (!$currentUser && $hasContacts): 
+             // Čia buvo klaida: $currentUser visada true.
+             // Dabar tikriname !$isLoggedIn (t.y. ar nėra user_id)
+             if (!$isLoggedIn && $hasContacts): 
              ?>
                 <div style="margin: 16px 0; padding: 12px; background: #fff7ed; border: 1px solid #ffedd5; border-radius: 8px; font-size: 13px; color: #9a3412; line-height: 1.4;">
                     🔒 Norėdami matyti pardavėjo kontaktinius duomenis (el. paštą, telefoną), <a href="/login.php" style="font-weight:700; text-decoration:underline;">prisijunkite</a> arba <a href="/register.php" style="font-weight:700; text-decoration:underline;">užsiregistruokite</a>.
@@ -241,7 +244,7 @@ a { color:inherit; text-decoration:none; }
                  <div class="info-row">
                     <span class="info-label">El. paštas</span>
                     <span class="info-value">
-                        <?php if ($currentUser): ?>
+                        <?php if ($isLoggedIn): ?>
                             <a href="mailto:<?php echo htmlspecialchars($listing['seller_email']); ?>"><?php echo htmlspecialchars($listing['seller_email']); ?></a>
                         <?php else: ?>
                             <span style="color: var(--muted); font-style: italic; letter-spacing: 1px;">•••@•••.lt</span>
@@ -254,7 +257,7 @@ a { color:inherit; text-decoration:none; }
                  <div class="info-row">
                     <span class="info-label">Tel. nr.</span>
                     <span class="info-value">
-                        <?php if ($currentUser): ?>
+                        <?php if ($isLoggedIn): ?>
                             <a href="tel:<?php echo htmlspecialchars($listing['seller_phone']); ?>"><?php echo htmlspecialchars($listing['seller_phone']); ?></a>
                         <?php else: ?>
                             <span style="color: var(--muted); font-style: italic; letter-spacing: 1px;">+370 6•• •••••</span>
