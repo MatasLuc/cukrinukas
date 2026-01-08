@@ -8,6 +8,7 @@ $pdo = getPdo();
 ensureUsersTable($pdo);
 ensureProductsTable($pdo);
 ensureAdminAccount($pdo);
+tryAutoLogin($pdo);
 
 $errors = [];
 $message = '';
