@@ -4,6 +4,7 @@ require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
 $pdo = getPdo();
 ensureNavigationTable($pdo);
+tryAutoLogin($pdo);
 $siteContent = getSiteContent($pdo);
 $faqs = [
     ['Kokias diabetui skirtas prekes siūlote?', 'Gliukometrai, sensoriai, lancetai, juostelės, mitybos produktai ir kita reikalinga priežiūrai.'],
