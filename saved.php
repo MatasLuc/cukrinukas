@@ -17,6 +17,7 @@ ensureSavedContentTables($pdo);
 ensureCartTables($pdo);
 ensureOrdersTables($pdo);
 ensureNavigationTable($pdo);
+tryAutoLogin($pdo);
 
 $userId = (int)$_SESSION['user_id'];
 $messages = [];
