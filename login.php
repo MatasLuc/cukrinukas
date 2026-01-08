@@ -55,99 +55,175 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Prisijungimas | E-kolekcija</title>
+  <title>Prisijungimas | Cukrinukas.lt</title>
   <?php echo headerStyles(); ?>
   <style>
     :root {
       --bg: #f7f7fb;
       --surface: #ffffff;
-      --ink: #0f172a;
-      --muted: #5b5f6a;
-      --accent: #6f4ef2;
-      --accent-2: #2f9aff;
-      --border: #e4e6f0;
+      --border: #e4e7ec;
+      --input-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #475467;
+      --accent: #2563eb;
+      --focus-ring: rgba(37, 99, 235, 0.2);
     }
-    * { box-sizing: border-box; }
-    body { background: var(--bg); color: var(--ink); }
-    .wrapper { min-height: 100vh; display: grid; grid-template-columns: 1.1fr 1fr; align-items: center; gap: 24px; padding: 32px 24px; max-width: 1100px; margin: 0 auto; }
-    .hero { background: linear-gradient(135deg, rgba(47,154,255,0.18), rgba(111,78,242,0.28)); border-radius: 28px; padding: 32px; border: 1px solid rgba(255,255,255,0.5); box-shadow: 0 18px 48px rgba(15,23,42,0.12); backdrop-filter: blur(5px); position: relative; overflow: hidden; }
-    .hero::after { content: ""; position: absolute; right: -60px; top: -40px; width: 200px; height: 200px; background: radial-gradient(circle at center, rgba(255,255,255,0.6), transparent 60%); filter: blur(20px); }
-    .hero h1 { margin: 0 0 10px; font-size: 32px; letter-spacing: -0.4px; }
-    .hero p { margin: 0 0 16px; color: #161e33; max-width: 520px; }
-    .hero-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 18px; }
-    .hero-card { background: rgba(255,255,255,0.9); border-radius: 16px; padding: 14px; border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 14px 30px rgba(17,24,39,0.12); }
-    .hero-card strong { display: block; font-size: 22px; margin-bottom: 4px; }
-    .hero-card span { color: var(--muted); font-size: 14px; }
-    .card { background: var(--surface); padding: 30px; border-radius: 20px; box-shadow: 0 16px 38px rgba(15,23,42,0.08); border: 1px solid var(--border); width: min(460px, 100%); margin-left: auto; }
-    .card h2 { margin: 0 0 8px; font-size: 26px; letter-spacing: -0.2px; }
-    .card p { margin: 0 0 18px; color: var(--muted); }
-    label { display: block; margin-bottom: 6px; font-weight: 700; color: #121826; }
-    input { width: 100%; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: #fbfbff; font-size: 15px; transition: all .2s ease; }
-    input:focus { outline: 2px solid rgba(111,78,242,0.3); box-shadow: 0 8px 20px rgba(111,78,242,0.12); }
-    button { width: 100%; padding: 14px; border-radius: 14px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-weight: 700; cursor: pointer; margin-top: 12px; box-shadow: 0 16px 40px rgba(47,154,255,0.25); }
-    .link-row { display: flex; justify-content: space-between; margin-top: 14px; font-size: 14px; }
-    .notice { padding: 14px; border-radius: 14px; margin-bottom: 12px; border: 1px solid; }
-    .notice.error { background: #fff1f1; border: 1px solid #f3b7b7; color: #991b1b; box-shadow: 0 10px 24px rgba(244, 63, 94, 0.12); }
-    .notice.success { background: #edf9f0; border: 1px solid #b8e2c4; color: #0f5132; box-shadow: 0 10px 24px rgba(16, 185, 129, 0.12); }
-    .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; color: var(--ink); text-decoration: none; margin-bottom: 16px; font-size: 21px; letter-spacing: -0.2px; }
-    .eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.6); font-weight: 700; font-size: 13px; color: #1e293b; }
-    .pill-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(0,0,0,0.04); color: #111827; font-weight: 600; border: 1px solid rgba(0,0,0,0.06); }
-    @media (max-width: 900px) { .wrapper { grid-template-columns: 1fr; } .card { margin: 0 auto; } }
+    body { background: var(--bg); color: var(--text-main); font-family: 'Inter', sans-serif; }
+    
+    .auth-wrapper {
+        min-height: calc(100vh - 160px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+    }
+    
+    .auth-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        max-width: 1000px;
+        width: 100%;
+        background: var(--surface);
+        border-radius: 24px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--border);
+        overflow: hidden;
+    }
+
+    /* Left Side - Hero/Info */
+    .auth-info {
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        padding: 48px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        border-right: 1px solid var(--border);
+    }
+    .auth-info h1 { margin: 0 0 16px; font-size: 32px; color: #1e3a8a; letter-spacing: -0.5px; }
+    .auth-info p { margin: 0 0 32px; color: #1e40af; line-height: 1.6; font-size: 16px; }
+    
+    .feature-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 16px; }
+    .feature-item { display: flex; align-items: center; gap: 12px; color: #1e3a8a; font-weight: 500; }
+    .feature-icon { 
+        width: 24px; height: 24px; 
+        background: #2563eb; color: #fff; 
+        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        font-size: 14px; flex-shrink: 0;
+    }
+
+    /* Right Side - Form */
+    .auth-form-box { padding: 48px; }
+    .auth-header { margin-bottom: 32px; }
+    .auth-header h2 { margin: 0 0 8px; font-size: 24px; color: var(--text-main); }
+    .auth-header p { margin: 0; color: var(--text-muted); font-size: 14px; }
+
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; color: #344054; }
+    .form-input { 
+        width: 100%; padding: 12px 14px; 
+        border: 1px solid var(--border); border-radius: 10px; 
+        background: var(--input-bg); color: var(--text-main);
+        font-size: 15px; transition: all .2s;
+    }
+    .form-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px var(--focus-ring); }
+    
+    .btn-submit {
+        width: 100%; padding: 12px;
+        border-radius: 10px; border: none;
+        background: #0f172a; color: #fff;
+        font-weight: 600; font-size: 15px;
+        cursor: pointer; transition: all .2s;
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-submit:hover { background: #1e293b; transform: translateY(-1px); }
+
+    .auth-links { margin-top: 24px; display: flex; justify-content: space-between; font-size: 14px; }
+    .auth-links a { color: var(--text-muted); font-weight: 500; text-decoration: none; transition: color .2s; }
+    .auth-links a:hover { color: var(--accent); }
+    .link-primary { color: var(--accent) !important; font-weight: 600 !important; }
+
+    /* Messages */
+    .notice { padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 14px; display: flex; gap: 10px; line-height: 1.4; }
+    .notice.error { background: #fef2f2; border: 1px solid #fee2e2; color: #991b1b; }
+    .notice.success { background: #ecfdf5; border: 1px solid #d1fae5; color: #065f46; }
+
+    @media (max-width: 800px) {
+        .auth-container { grid-template-columns: 1fr; }
+        .auth-info { padding: 32px; display: none; } /* Mobile: Hide decorative side or keep simple */
+        .auth-form-box { padding: 32px 24px; }
+    }
   </style>
 </head>
 <body>
   <?php renderHeader($pdo, 'login'); ?>
-  <div class="wrapper">
-    <div class="hero">
-      <div class="eyebrow">Sveiki sugrįžę · Premium patirtis</div>
-      <h1>Prisijunkite ir tęskite savo atradimus</h1>
-      <p>Valdykite užsakymus, išsaugotus produktus ir pranešimus vienoje vietoje. Modernus dizainas, greita sąsaja ir saugus prisijungimas.</p>
-      <div class="pill-row">
-        <span class="pill">🔒 Dviejų lygių apsauga</span>
-        <span class="pill">⚡ Greitas užsakymų peržiūrėjimas</span>
-        <span class="pill">💌 Personalizuotos naujienos</span>
-      </div>
-      <div class="hero-grid">
-        <div class="hero-card"><strong>150k+</strong><span>Sėkmingų atsiskaitymų</span></div>
-        <div class="hero-card"><strong>24/7</strong><span>Klientų aptarnavimas</span></div>
-        <div class="hero-card"><strong>99.9%</strong><span>Veikimo laikas</span></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <a class="brand" href="/">Cukrinukas.lt</a>
-      <h2>Prisijungti</h2>
-      <p>Įveskite savo el. pašto adresą ir slaptažodį.</p>
-
-      <?php if ($errors): ?>
-        <div class="notice error">
-          <?php foreach ($errors as $error): ?>
-            <div><?php echo htmlspecialchars($error); ?></div>
-          <?php endforeach; ?>
+  
+  <div class="auth-wrapper">
+    <div class="auth-container">
+        <div class="auth-info">
+            <h1>Sveiki sugrįžę!</h1>
+            <p>Prisijunkite prie savo paskyros ir tęskite apsipirkimą, valdykite užsakymus bei matykite išsaugotus produktus.</p>
+            
+            <ul class="feature-list">
+                <li class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <span>Greitas užsakymų valdymas</span>
+                </li>
+                <li class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <span>Išsaugoti receptai ir prekės</span>
+                </li>
+                <li class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <span>Personalizuoti pasiūlymai</span>
+                </li>
+            </ul>
         </div>
-      <?php endif; ?>
 
-      <?php if ($message): ?>
-        <div class="notice success"><?php echo $message; ?></div>
-      <?php endif; ?>
+        <div class="auth-form-box">
+            <div class="auth-header">
+                <h2>Prisijungimas</h2>
+                <p>Įveskite savo prisijungimo duomenis</p>
+            </div>
 
-      <form method="post">
-        <?php echo csrfField(); ?>
-        <label for="email">El. paštas</label>
-        <input id="email" name="email" type="email" required autocomplete="email">
+            <?php if ($errors): ?>
+                <div class="notice error">
+                    <svg style="width:20px;height:20px;flex-shrink:0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <div>
+                        <?php foreach ($errors as $error): ?>
+                            <div><?php echo htmlspecialchars($error); ?></div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
 
-        <label for="password">Slaptažodis</label>
-        <input id="password" name="password" type="password" required autocomplete="current-password">
+            <?php if ($message): ?>
+                <div class="notice success">
+                    <svg style="width:20px;height:20px;flex-shrink:0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                    <div><?php echo $message; ?></div>
+                </div>
+            <?php endif; ?>
 
-        <button type="submit">Prisijungti</button>
-      </form>
+            <form method="post">
+                <?php echo csrfField(); ?>
+                
+                <div class="form-group">
+                    <label for="email">El. paštas</label>
+                    <input class="form-input" id="email" name="email" type="email" placeholder="pvz. vardas@pastas.lt" required autocomplete="email">
+                </div>
 
-      <div class="link-row">
-        <a href="/forgot_password.php">Pamiršau slaptažodį</a>
-        <a href="/register.php">Neturite paskyros? Registruokitės</a>
-        <a href="/">↩ Pagrindinis</a>
-      </div>
+                <div class="form-group">
+                    <label for="password">Slaptažodis</label>
+                    <input class="form-input" id="password" name="password" type="password" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+
+                <button type="submit" class="btn-submit">Prisijungti</button>
+            </form>
+
+            <div class="auth-links">
+                <a href="/forgot_password.php">Pamiršote slaptažodį?</a>
+                <span>Neturite paskyros? <a href="/register.php" class="link-primary">Registruokitės</a></span>
+            </div>
+        </div>
     </div>
   </div>
 
