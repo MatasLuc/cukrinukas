@@ -6,6 +6,7 @@ require_once __DIR__ . '/helpers.php'; // Būtina slugify funkcijai
 
 $pdo = getPdo();
 ensureNewsTable($pdo);
+tryAutoLogin($pdo);
 // Ryšių lentelė užtikrinama per ensureNewsTable
 if (function_exists('ensureNewsCategoryRelationsTable')) {
     ensureNewsCategoryRelationsTable($pdo);
