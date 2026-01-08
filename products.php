@@ -11,6 +11,7 @@ ensureProductsTable($pdo);
 ensureCartTables($pdo);
 ensureSavedContentTables($pdo);
 ensureAdminAccount($pdo);
+tryAutoLogin($pdo);
 
 // Užtikriname, kad egzistuoja ryšių lentelė
 $pdo->exec("CREATE TABLE IF NOT EXISTS product_category_relations (
