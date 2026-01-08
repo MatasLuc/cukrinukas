@@ -73,6 +73,19 @@ $errors = [];
 $orderId = null;
 $shippingAmount = $courierPrice;
 
+// Pasiimame vartotojo info, jei prisijungęs
+if (empty($_POST) && !empty($_SESSION['user_id'])) {
+    $userStmt = $pdo->prepare('SELECT name, email, phone, address FROM users WHERE id = ?');
+    $userStmt->execute([$_SESSION['user_id']]);
+    $uData = $userStmt->fetch(PDO::FETCH_ASSOC);
+    if ($uData) {
+        $name = $uData['name'];
+        $email = $uData['email'];
+        $phone = $uData['phone'];
+        $address = $uData['address'];
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     validateCsrfToken();
     $name = trim($_POST['name'] ?? '');
@@ -85,7 +98,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $lockerLocation = $_POST['locker_location'] ?? '';
 
     if ($deliveryMethod !== 'locker') {
-        // Nepaliekame seno pasirinkimo, jei pirkėjas grįžta prie kurjerio.
         $lockerProvider = '';
         $lockerLocation = '';
         $lockerRequest = '';
@@ -219,128 +231,335 @@ if ($selectedLockerData) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Apmokėjimas</title>
+  <title>Apmokėjimas | Cukrinukas.lt</title>
   <?php echo headerStyles(); ?>
   <style>
-    body { background:#f7f7fb; }
-    .container { max-width: 1000px; margin: 20px auto 60px; padding: 0 18px; display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 18px; }
-    .card { background: #fff; border-radius: 18px; border:1px solid #e5e7eb; padding: 20px; box-shadow: 0 20px 50px rgba(15,23,42,0.08); }
-    .section-title { margin:0 0 10px; font-size:22px; }
-    label { display:block; margin: 12px 0 6px; font-weight: 700; }
-    input, textarea, select { width:100%; padding: 12px; border-radius: 12px; border:1px solid #e5e7eb; background:#fbfbff; box-sizing: border-box; max-width:100%; }
-    textarea { resize: vertical; min-height: 80px; }
-    .delivery-choice { display:flex; gap:10px; flex-wrap:wrap; margin: 6px 0 4px; }
-    .chip { border:1px solid #e5e7eb; padding: 10px 12px; border-radius: 14px; display:flex; align-items:center; gap:8px; background:#f9f9ff; cursor:pointer; }
-    .chip input { margin:0; }
-    .notice { padding: 12px; border-radius: 12px; border:1px solid #f5c2c7; background:#fff1f2; color:#991b1b; }
-    .btn { width:100%; padding: 14px 16px; border-radius: 14px; border:none; background: linear-gradient(135deg, #6f4ef2, #2f9aff); color:#fff; font-weight:700; cursor:pointer; box-shadow:0 16px 40px rgba(47,154,255,0.25); }
-    .summary-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #e5e7eb; }
-    .muted { color:#6b7280; }
-    .locker-box { border:1px dashed #e5e7eb; padding:12px; border-radius:12px; background:#fafaff; }
-    .checkout-form { max-width: 560px; width: 100%; }
+    :root {
+      --bg: #f7f7fb;
+      --card: #ffffff;
+      --border: #e4e7ec;
+      --text-main: #0f172a;
+      --text-muted: #475467;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --focus-ring: rgba(37, 99, 235, 0.2);
+      --danger-bg: #fef2f2;
+      --danger-text: #991b1b;
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background: var(--bg); color: var(--text-main); font-family: 'Inter', sans-serif; }
+    
+    .page { max-width: 1100px; margin:0 auto; padding:32px 20px 80px; }
+    
+    .page-title { margin: 0 0 24px; font-size: 28px; color: var(--text-main); letter-spacing: -0.5px; }
+
+    .checkout-grid {
+        display: grid;
+        grid-template-columns: 1fr 380px;
+        gap: 24px;
+        align-items: start;
+    }
+
+    .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        padding: 24px;
+    }
+    .card-title {
+        font-size: 18px;
+        font-weight: 700;
+        margin: 0 0 20px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    /* Form Styles */
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; color: var(--text-main); }
+    
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="search"],
+    textarea,
+    select {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        font-size: 14px;
+        font-family: inherit;
+        background: #fff;
+        color: var(--text-main);
+        transition: all .2s;
+        outline: none;
+    }
+    input:focus, textarea:focus, select:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px var(--focus-ring);
+    }
+    textarea { min-height: 80px; resize: vertical; }
+
+    /* Radio Chips */
+    .delivery-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .radio-chip {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all .2s;
+        background: #fff;
+    }
+    .radio-chip:hover { border-color: #cbd5e1; background: #f8fafc; }
+    .radio-chip.checked {
+        border-color: var(--accent);
+        background: var(--accent-light);
+        color: var(--accent);
+    }
+    .radio-chip input { margin: 0; accent-color: var(--accent); width: 16px; height: 16px; }
+    .radio-chip span { font-weight: 600; font-size: 14px; }
+
+    /* Locker Styles */
+    .locker-container {
+        background: #f8fafc;
+        border: 1px dashed var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 16px;
+    }
     .locker-combobox { position: relative; }
-    .locker-results { display:none; position:absolute; left:0; right:0; top:100%; background:#fff; border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 12px 30px rgba(15,23,42,0.12); margin-top:6px; max-height:230px; overflow-y:auto; z-index:40; }
-    .locker-result { padding:10px 12px; cursor:pointer; }
-    .locker-result:hover { background:#f3f4f6; }
-    .locker-empty { padding:10px 12px; color:#6b7280; }
-    @media (max-width: 900px) { .container { grid-template-columns: 1fr; } }
+    .locker-results {
+        display: none;
+        position: absolute;
+        top: 100%; left: 0; right: 0;
+        margin-top: 6px;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        max-height: 240px;
+        overflow-y: auto;
+        z-index: 50;
+    }
+    .locker-result { padding: 10px 14px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+    .locker-result:last-child { border-bottom: none; }
+    .locker-result:hover { background: #f1f5f9; }
+    .locker-empty { padding: 12px; text-align: center; color: var(--text-muted); font-size: 13px; }
+
+    /* Alerts */
+    .alert {
+        padding: 12px 16px;
+        border-radius: 12px;
+        background: var(--danger-bg);
+        border: 1px solid #fecaca;
+        color: var(--danger-text);
+        margin-bottom: 20px;
+        font-size: 14px;
+    }
+
+    /* Summary Sidebar */
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 14px;
+    }
+    .summary-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .summary-title { font-weight: 500; color: var(--text-main); margin-bottom: 2px; }
+    .summary-meta { font-size: 12px; color: var(--text-muted); }
+    
+    .totals-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        font-size: 14px;
+        color: var(--text-muted);
+    }
+    .totals-row.final {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+        color: var(--text-main);
+        font-weight: 700;
+        font-size: 18px;
+        align-items: center;
+    }
+
+    .btn-pay {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        padding: 14px;
+        margin-top: 24px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 16px;
+        cursor: pointer;
+        border: none;
+        background: #0f172a;
+        color: #fff;
+        transition: all .2s;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .btn-pay:hover {
+        background: #1e293b;
+        transform: translateY(-1px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+
+    @media (max-width: 900px) {
+        .checkout-grid { grid-template-columns: 1fr; }
+        .card.sticky { position: static !important; }
+        .page-title { font-size: 24px; }
+    }
+    @media (max-width: 600px) {
+        .delivery-options { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
   <?php renderHeader($pdo, 'checkout'); ?>
-  <div class="container">
-    <div class="card">
-      <h1 class="section-title">Pristatymo pasirinkimas</h1>
-      <p class="muted">Pasirinkite kurjerį arba paštomatą ir suveskite kontaktus.</p>
+  
+  <div class="page">
+    <h1 class="page-title">Užsakymo apmokėjimas</h1>
 
-      <?php if (!$schemaReady): ?>
-        <div class="notice" style="margin-top:10px;">
-          Duomenų bazės struktūra negali būti automatiškai atnaujinta. Prašome kreiptis į administratorių.
-        </div>
-      <?php endif; ?>
+    <div class="checkout-grid">
+      <div class="main-column">
+        <?php if (!$schemaReady): ?>
+          <div class="alert">Techninė klaida: duomenų bazės struktūra neatnaujinta. Susisiekite su administracija.</div>
+        <?php endif; ?>
 
-      <?php if ($errors): ?>
-        <div class="notice" style="margin-top:10px;">
-          <?php foreach ($errors as $error): ?>
-            <div><?php echo htmlspecialchars($error); ?></div>
-          <?php endforeach; ?>
-        </div>
-      <?php endif; ?>
-
-      <form method="post" class="checkout-form" style="margin-top:12px; display:grid; gap:8px;">
-        <?php echo csrfField(); ?>
-<label for="name">Vardas ir pavardė</label>
-        <input id="name" name="name" value="<?php echo htmlspecialchars($name); ?>" required>
-
-        <label for="email">El. paštas</label>
-        <input id="email" type="email" name="email" value="<?php echo htmlspecialchars($email); ?>" required>
-
-        <label for="phone">Telefono numeris</label>
-        <input id="phone" type="tel" name="phone" value="<?php echo htmlspecialchars($phone); ?>" required>
-
-        <label>Pristatymo būdas</label>
-        <div class="delivery-choice">
-          <label class="chip">
-            <input type="radio" name="delivery_method" value="courier" <?php echo $deliveryMethod === 'courier' ? 'checked' : ''; ?>>
-            <span>Kurjeris (<?php echo number_format($courierPrice, 2); ?> €)</span>
-          </label>
-          <label class="chip">
-            <input type="radio" name="delivery_method" value="locker" <?php echo $deliveryMethod === 'locker' ? 'checked' : ''; ?>>
-            <span>Paštomatas (<?php echo number_format($lockerPrice, 2); ?> €)</span>
-          </label>
-        </div>
-
-        <div id="courier-fields" style="display: <?php echo $deliveryMethod === 'courier' ? 'block' : 'none'; ?>;">
-          <label for="address">Adresas kurjeriui</label>
-          <textarea id="address" name="address" placeholder="Gatvė, namo nr., miestas" <?php echo $deliveryMethod === 'courier' ? 'required' : ''; ?>><?php echo htmlspecialchars($address); ?></textarea>
-        </div>
-
-        <div id="locker-fields" class="locker-box" style="display: <?php echo $deliveryMethod === 'locker' ? 'block' : 'none'; ?>;">
-          <label for="locker-provider">Paštomatų tinklas</label>
-          <select id="locker-provider" name="locker_provider">
-            <option value="">Pasirinkite tinklą</option>
-            <option value="omniva" <?php echo $lockerProvider === 'omniva' ? 'selected' : ''; ?>>Omniva</option>
-            <option value="lpexpress" <?php echo $lockerProvider === 'lpexpress' ? 'selected' : ''; ?>>LP Express</option>
-          </select>
-
-          <label for="locker-location">Pasirinkite paštomatą</label>
-          <div class="locker-combobox">
-            <input id="locker-location-input" type="search" placeholder="Ieškokite pagal miestą, gatvę ar pavadinimą" value="<?php echo htmlspecialchars($lockerDisplay); ?>" autocomplete="off">
-            <input type="hidden" id="locker-location" name="locker_location" value="<?php echo htmlspecialchars($lockerLocation); ?>">
-            <div id="locker-location-results" class="locker-results"></div>
+        <?php if ($errors): ?>
+          <div class="alert">
+            <?php foreach ($errors as $e): ?>
+              <div>• <?php echo htmlspecialchars($e); ?></div>
+            <?php endforeach; ?>
           </div>
+        <?php endif; ?>
 
-          <p class="muted" style="margin:10px 0 6px;">Jeigu sąraše nerandate savo pageidaujamo paštomato, įveskite jo pavadinimą arba aprašymą į žemiau esantį langelį ir pasistengsime siuntą jums ten pristatyti.</p>
-          <label for="locker-request">Pageidaujamas paštomatas (pasirinktinai)</label>
-          <input id="locker-request" name="locker_request" value="<?php echo htmlspecialchars($lockerRequest); ?>" placeholder="Pvz. „Omniva prekybos centre“ ar tikslesnis aprašymas">
-        </div>
-
-        <button class="btn" type="submit">Apmokėti</button>
-      </form>
-    </div>
-
-    <div class="card" style="position:sticky; top:20px;">
-      <h2 class="section-title">Suvestinė</h2>
-      <?php if (!$items): ?>
-        <p class="muted">Krepšelis tuščias.</p>
-      <?php else: ?>
-        <?php foreach ($items as $item): ?>
-          <div class="summary-row">
-            <div>
-              <strong><?php echo htmlspecialchars($item['title']); ?></strong>
-              <div class="muted" style="font-size:13px;">Kiekis: <?php echo (int)$item['quantity']; ?></div>
+        <form method="post" id="checkout-form">
+          <?php echo csrfField(); ?>
+          
+          <div class="card" style="margin-bottom: 24px;">
+            <h2 class="card-title">Kontaktinė informacija</h2>
+            <div class="form-group">
+                <label for="name">Vardas, pavardė</label>
+                <input type="text" id="name" name="name" value="<?php echo htmlspecialchars($name); ?>" required placeholder="Įveskite vardą">
             </div>
-            <div><?php echo number_format($item['line_total'], 2); ?> €</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                <div class="form-group">
+                    <label for="email">El. paštas</label>
+                    <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($email); ?>" required placeholder="pvz@pastas.lt">
+                </div>
+                <div class="form-group">
+                    <label for="phone">Telefono numeris</label>
+                    <input type="tel" id="phone" name="phone" value="<?php echo htmlspecialchars($phone); ?>" required placeholder="+37060000000">
+                </div>
+            </div>
           </div>
-        <?php endforeach; ?>
-        <div class="summary-row"><span>Tarpinė suma</span><strong><?php echo number_format($subtotal, 2); ?> €</strong></div>
-        <div class="summary-row"><span>Pristatymas</span><strong id="shipping-summary"><?php echo number_format($shippingAmount, 2); ?> €</strong></div>
-        <div class="summary-row" style="border-bottom:none;">
-          <span style="font-weight:800;">Mokėtina</span>
-          <span style="font-weight:800; font-size:18px;" id="payable-total"><?php echo number_format($payable, 2); ?> €</span>
+
+          <div class="card">
+            <h2 class="card-title">Pristatymo būdas</h2>
+            
+            <div class="delivery-options">
+              <label class="radio-chip <?php echo $deliveryMethod === 'courier' ? 'checked' : ''; ?>" id="chip-courier">
+                <input type="radio" name="delivery_method" value="courier" <?php echo $deliveryMethod === 'courier' ? 'checked' : ''; ?>>
+                <span>Kurjeris į namus<?php echo $freeShippingFlag ? '' : ' (' . number_format($courierPrice, 2) . ' €)'; ?></span>
+              </label>
+              <label class="radio-chip <?php echo $deliveryMethod === 'locker' ? 'checked' : ''; ?>" id="chip-locker">
+                <input type="radio" name="delivery_method" value="locker" <?php echo $deliveryMethod === 'locker' ? 'checked' : ''; ?>>
+                <span>Paštomatas<?php echo $freeShippingFlag ? '' : ' (' . number_format($lockerPrice, 2) . ' €)'; ?></span>
+              </label>
+            </div>
+
+            <div id="courier-fields" style="display: <?php echo $deliveryMethod === 'courier' ? 'block' : 'none'; ?>;">
+                <div class="form-group">
+                    <label for="address">Pristatymo adresas</label>
+                    <textarea id="address" name="address" placeholder="Gatvė, namo nr., miestas, pašto kodas" <?php echo $deliveryMethod === 'courier' ? 'required' : ''; ?>><?php echo htmlspecialchars($address); ?></textarea>
+                </div>
+            </div>
+
+            <div id="locker-fields" class="locker-container" style="display: <?php echo $deliveryMethod === 'locker' ? 'block' : 'none'; ?>;">
+                <div class="form-group">
+                    <label for="locker-provider">Pasirinkite tinklą</label>
+                    <select id="locker-provider" name="locker_provider">
+                        <option value="">-- Pasirinkite --</option>
+                        <option value="omniva" <?php echo $lockerProvider === 'omniva' ? 'selected' : ''; ?>>Omniva</option>
+                        <option value="lpexpress" <?php echo $lockerProvider === 'lpexpress' ? 'selected' : ''; ?>>LP Express</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="locker-location-input">Paštomato paieška</label>
+                    <div class="locker-combobox">
+                        <input id="locker-location-input" type="search" placeholder="Pradėkite vesti miestą ar adresą..." value="<?php echo htmlspecialchars($lockerDisplay); ?>" autocomplete="off">
+                        <input type="hidden" id="locker-location" name="locker_location" value="<?php echo htmlspecialchars($lockerLocation); ?>">
+                        <div id="locker-location-results" class="locker-results"></div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="locker-request">Kitas paštomatas (jei neradote sąraše)</label>
+                    <input type="text" id="locker-request" name="locker_request" value="<?php echo htmlspecialchars($lockerRequest); ?>" placeholder="Pvz.: artimiausias PC Akropolis">
+                </div>
+            </div>
+          </div>
+
+        </form>
+      </div>
+
+      <div class="sidebar">
+        <div class="card sticky" style="position: sticky; top: 100px;">
+            <h2 class="card-title">Jūsų užsakymas</h2>
+            
+            <?php if (!$items): ?>
+                <p class="muted">Krepšelis tuščias.</p>
+            <?php else: ?>
+                <div style="margin-bottom: 20px;">
+                    <?php foreach ($items as $item): ?>
+                        <div class="summary-item">
+                            <div>
+                                <div class="summary-title"><?php echo htmlspecialchars($item['title']); ?></div>
+                                <div class="summary-meta"><?php echo $item['quantity']; ?> vnt. × <?php echo number_format((float)$item['price'], 2); ?> €</div>
+                            </div>
+                            <div style="font-weight:600;"><?php echo number_format($item['line_total'], 2); ?> €</div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <div class="totals-row">
+                    <span>Tarpinė suma</span>
+                    <span><?php echo number_format($subtotal, 2); ?> €</span>
+                </div>
+                
+                <div class="totals-row">
+                    <span>Pristatymas</span>
+                    <span id="shipping-summary"><?php echo number_format($shippingAmount, 2); ?> €</span>
+                </div>
+
+                <div class="totals-row final">
+                    <span>Viso mokėti</span>
+                    <span id="payable-total"><?php echo number_format($payable, 2); ?> €</span>
+                </div>
+
+                <button type="submit" form="checkout-form" class="btn-pay">Apmokėti (Paysera)</button>
+                
+                <p style="margin:16px 0 0; font-size:12px; color:var(--text-muted); text-align:center; line-height:1.5;">
+                    Paspausdami „Apmokėti“, jūs sutinkate su pirkimo taisyklėmis ir privatumo politika.
+                </p>
+            <?php endif; ?>
         </div>
-        <p class="muted" style="margin:8px 0 0;">Kainos perskaičiuojamos pagal pasirinktą pristatymą.</p>
-      <?php endif; ?>
+      </div>
     </div>
   </div>
 
@@ -349,12 +568,15 @@ if ($selectedLockerData) {
       const courierFields = document.getElementById('courier-fields');
       const lockerFields = document.getElementById('locker-fields');
       const methodRadios = document.querySelectorAll('input[name="delivery_method"]');
+      const chipCourier = document.getElementById('chip-courier');
+      const chipLocker = document.getElementById('chip-locker');
       const providerSelect = document.getElementById('locker-provider');
       const locationInput = document.getElementById('locker-location-input');
       const locationHidden = document.getElementById('locker-location');
       const resultsBox = document.getElementById('locker-location-results');
       const shippingSummary = document.getElementById('shipping-summary');
       const payableTotal = document.getElementById('payable-total');
+      
       const lockerOptions = <?php echo json_encode($lockerNetworks, JSON_UNESCAPED_UNICODE); ?>;
       const prices = { courier: <?php echo json_encode($courierPrice); ?>, locker: <?php echo json_encode($lockerPrice); ?> };
       const freeShipping = <?php echo $freeShippingFlag ? 'true' : 'false'; ?>;
@@ -366,6 +588,15 @@ if ($selectedLockerData) {
         const shipping = freeShipping ? 0 : (method === 'locker' ? prices.locker : prices.courier);
         if (shippingSummary) shippingSummary.textContent = formatPrice(shipping);
         if (payableTotal) payableTotal.textContent = formatPrice(Math.max(0, subtotal + shipping));
+        
+        // Update styling
+        if (method === 'courier') {
+            chipCourier.classList.add('checked');
+            chipLocker.classList.remove('checked');
+        } else {
+            chipCourier.classList.remove('checked');
+            chipLocker.classList.add('checked');
+        }
       }
 
       function getFilteredLocations(provider) {
@@ -397,9 +628,9 @@ if ($selectedLockerData) {
         if (!locations.length) {
           const empty = document.createElement('div');
           empty.className = 'locker-empty';
-          empty.textContent = provider ? 'Nėra galimų paštomatų pagal paiešką' : 'Pasirinkite tinklą';
+          empty.textContent = provider ? 'Nėra galimų paštomatų pagal paiešką' : 'Pirmiausia pasirinkite tinklą';
           resultsBox.appendChild(empty);
-          resultsBox.style.display = provider ? 'block' : 'none';
+          resultsBox.style.display = 'block';
           return;
         }
 
@@ -427,12 +658,11 @@ if ($selectedLockerData) {
         if (courierFields) courierFields.style.display = method === 'courier' ? 'block' : 'none';
         if (lockerFields) lockerFields.style.display = method === 'locker' ? 'block' : 'none';
         if (method === 'courier') {
-          if (providerSelect) providerSelect.value = '';
-          if (locationInput) locationInput.value = '';
-          if (locationHidden) locationHidden.value = '';
+          // Reset locker selection if switching away? Optional. 
+          // Keeping values is better for UX if user switches back.
           hideResults();
         } else if (providerSelect && providerSelect.value) {
-          renderLocations(providerSelect.value);
+           // If returning to locker, maybe re-render? No need unless focused.
         }
       }
 
@@ -464,13 +694,14 @@ if ($selectedLockerData) {
       });
 
       const initialMethod = document.querySelector('input[name="delivery_method"]:checked')?.value || 'courier';
+      // Pre-fill logic
       if (initialMethod === 'locker' && providerSelect?.value) {
         const selected = findLocation(providerSelect.value, locationHidden?.value || '');
         if (!locationInput?.value && selected) {
           locationInput.value = formatLockerLabel(selected);
         }
-        renderLocations(providerSelect.value);
       }
+      
       toggleSections(initialMethod);
       updateTotals(initialMethod);
     })();
