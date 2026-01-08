@@ -23,6 +23,7 @@ try {
     ensureLockerTables($pdo);
     ensureShippingSettings($pdo);
     ensureDiscountTables($pdo);
+    tryAutoLogin($pdo);
 } catch (Throwable $e) {
     $schemaReady = false;
     logError('Checkout schema init failed', $e);
