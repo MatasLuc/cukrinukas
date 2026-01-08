@@ -5,6 +5,7 @@ require __DIR__ . '/layout.php';
 
 $pdo = getPdo();
 ensureNavigationTable($pdo);
+tryAutoLogin($pdo);
 
 // Grąžinimo sąlygų informacija
 $returnRules = [
