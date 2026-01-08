@@ -6,6 +6,7 @@ require __DIR__ . '/layout.php';
 $pdo = getPdo();
 ensureNavigationTable($pdo);
 ensureAdminAccount($pdo);
+tryAutoLogin($pdo);
 ?>
 <!doctype html>
 <html lang="lt">
