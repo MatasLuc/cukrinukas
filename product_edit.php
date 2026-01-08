@@ -14,6 +14,7 @@ ensureUsersTable($pdo);
 ensureProductsTable($pdo);
 ensureProductRelations($pdo);
 ensureAdminAccount($pdo);
+tryAutoLogin($pdo);
 
 // Užtikrinam, kad turim parent_id
 try { $pdo->query("SELECT parent_id FROM categories LIMIT 1"); } 
