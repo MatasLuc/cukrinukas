@@ -39,6 +39,7 @@ function ensureUsersTable(PDO $pdo): void {
             email VARCHAR(190) NOT NULL UNIQUE,
             password_hash VARCHAR(255) NOT NULL,
             is_admin TINYINT(1) NOT NULL DEFAULT 0,
+            remember_token VARCHAR(255) DEFAULT NULL,
             profile_photo VARCHAR(255) DEFAULT NULL,
             birthdate DATE DEFAULT NULL,
             gender VARCHAR(20) DEFAULT NULL,
@@ -48,20 +49,19 @@ function ensureUsersTable(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
 
-    // Add missing admin column for existing deployments.
-    $column = $pdo->query("SHOW COLUMNS FROM users LIKE 'is_admin'")->fetch();
-    if (!$column) {
-        $pdo->exec('ALTER TABLE users ADD COLUMN is_admin TINYINT(1) NOT NULL DEFAULT 0 AFTER password_hash');
-    }
-
+    // Pridedame stulpelius, jei jų nėra (suderinamumas su senomis versijomis)
     $columns = $pdo->query('SHOW COLUMNS FROM users')->fetchAll(PDO::FETCH_COLUMN);
+    
     $addIfMissing = [
-        'profile_photo' => "ALTER TABLE users ADD COLUMN profile_photo VARCHAR(255) DEFAULT NULL AFTER is_admin",
+        'is_admin' => "ALTER TABLE users ADD COLUMN is_admin TINYINT(1) NOT NULL DEFAULT 0 AFTER password_hash",
+        'remember_token' => "ALTER TABLE users ADD COLUMN remember_token VARCHAR(255) DEFAULT NULL AFTER is_admin",
+        'profile_photo' => "ALTER TABLE users ADD COLUMN profile_photo VARCHAR(255) DEFAULT NULL AFTER remember_token",
         'birthdate' => "ALTER TABLE users ADD COLUMN birthdate DATE DEFAULT NULL AFTER profile_photo",
         'gender' => "ALTER TABLE users ADD COLUMN gender VARCHAR(20) DEFAULT NULL AFTER birthdate",
         'city' => "ALTER TABLE users ADD COLUMN city VARCHAR(120) DEFAULT NULL AFTER gender",
         'country' => "ALTER TABLE users ADD COLUMN country VARCHAR(120) DEFAULT NULL AFTER city",
     ];
+
     foreach ($addIfMissing as $field => $sql) {
         if (!in_array($field, $columns, true)) {
             $pdo->exec($sql);
@@ -260,7 +260,6 @@ function ensureNewsTable(PDO $pdo): void {
         // Galime pridėti dėl viso pikto, jei kažkur senas kodas dar kreipiasi, 
         // bet naujame kode jo nebenaudojame.
         $pdo->exec('ALTER TABLE news ADD COLUMN category_id INT NULL AFTER id');
-        // $pdo->exec('ALTER TABLE news ADD CONSTRAINT fk_news_category FOREIGN KEY (category_id) REFERENCES news_categories(id) ON DELETE SET NULL');
     }
 }
 
