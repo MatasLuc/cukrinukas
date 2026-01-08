@@ -7,6 +7,7 @@ $pdo = getPdo();
 ensureProductsTable($pdo);
 ensureCartTables($pdo);
 ensureAdminAccount($pdo);
+tryAutoLogin($pdo);
 
 $cartData = getCartData($pdo, $_SESSION['cart'] ?? [], $_SESSION['cart_variations'] ?? []);
 $items = $cartData['items'];
