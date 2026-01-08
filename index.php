@@ -22,6 +22,7 @@ ensureSavedContentTables($pdo);
 seedStoreExamples($pdo);
 seedNewsExamples($pdo);
 seedRecipeExamples($pdo);
+tryAutoLogin($pdo);
 
 $siteContent = getSiteContent($pdo);
 $globalDiscount = getGlobalDiscount($pdo);
