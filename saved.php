@@ -112,7 +112,8 @@ function priceDisplay(array $row): string {
     a { color:inherit; text-decoration:none; }
     * { box-sizing:border-box; }
     
-    .page { max-width:1100px; margin:0 auto; padding:32px 20px 60px; display:flex; flex-direction:column; gap:24px; }
+    /* Pakeistas plotis į 1200px ir tarpai pagal news.php */
+    .page { max-width:1200px; margin:0 auto; padding:32px 20px 72px; display:flex; flex-direction:column; gap:28px; }
 
     /* Hero Section */
     .hero { 
