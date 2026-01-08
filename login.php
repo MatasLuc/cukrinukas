@@ -8,10 +8,22 @@ ensureUsersTable($pdo);
 ensureProductsTable($pdo);
 ensureAdminAccount($pdo);
 
+// Bandome prisijungti automatiškai (jei yra slapukas)
+tryAutoLogin($pdo);
+
+// Jei jau prisijungęs, nukreipiame
+if (isset($_SESSION['user_id'])) {
+    header('Location: /');
+    exit;
+}
+
 $errors = [];
 $message = '';
 
 if (isset($_POST['logout'])) {
+    // Išvalome slapuką ir DB įrašą atsijungiant
+    clearRememberMe($pdo);
+    
     session_unset();
     session_destroy();
     header('Location: /');
@@ -40,6 +52,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['user_name'] = $user['name'];
                 $_SESSION['is_admin'] = (int) $user['is_admin'];
+                
+                // Jei pažymėta "Prisiminti mane", nustatome slapuką
+                if (!empty($_POST['remember'])) {
+                    setRememberMe($pdo, $user['id']);
+                }
+                
                 header('Location: /');
                 exit;
             }
@@ -90,7 +108,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         overflow: hidden;
     }
 
-    /* Left Side - Hero/Info */
     .auth-info {
         background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
         padding: 48px;
@@ -111,7 +128,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         font-size: 14px; flex-shrink: 0;
     }
 
-    /* Right Side - Form */
     .auth-form-box { padding: 48px; }
     .auth-header { margin-bottom: 32px; }
     .auth-header h2 { margin: 0 0 8px; font-size: 24px; color: var(--text-main); }
@@ -142,14 +158,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .auth-links a:hover { color: var(--accent); }
     .link-primary { color: var(--accent) !important; font-weight: 600 !important; }
 
-    /* Messages */
     .notice { padding: 12px 16px; border-radius: 8px; margin-bottom: 24px; font-size: 14px; display: flex; gap: 10px; line-height: 1.4; }
     .notice.error { background: #fef2f2; border: 1px solid #fee2e2; color: #991b1b; }
     .notice.success { background: #ecfdf5; border: 1px solid #d1fae5; color: #065f46; }
 
     @media (max-width: 800px) {
         .auth-container { grid-template-columns: 1fr; }
-        .auth-info { padding: 32px; display: none; } /* Mobile: Hide decorative side or keep simple */
+        .auth-info { padding: 32px; display: none; }
         .auth-form-box { padding: 32px 24px; }
     }
   </style>
@@ -214,6 +229,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="form-group">
                     <label for="password">Slaptažodis</label>
                     <input class="form-input" id="password" name="password" type="password" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-bottom: 24px;">
+                    <input type="checkbox" id="remember" name="remember" value="1" style="width: 16px; height: 16px; cursor: pointer;">
+                    <label for="remember" style="margin: 0; cursor: pointer; color: var(--text-muted); font-weight: 500;">Prisiminti mane</label>
                 </div>
 
                 <button type="submit" class="btn-submit">Prisijungti</button>
