@@ -12,6 +12,7 @@ if (!isset($_SESSION['user_id']) || empty($_SESSION['is_admin'])) {
 $pdo = getPdo();
 ensureNewsTable($pdo); // Užtikrina ir ryšių lentelės buvimą
 ensureAdminAccount($pdo);
+tryAutoLogin($pdo);
 
 // Gauname kategorijas
 $categories = $pdo->query("SELECT * FROM news_categories ORDER BY name ASC")->fetchAll();
