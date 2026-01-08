@@ -7,7 +7,7 @@ require_once __DIR__ . '/helpers.php';
 $pdo = getPdo();
 ensureRecipesTable($pdo);
 ensureSavedContentTables($pdo);
-ensureRecipeRatingsTable($pdo); // Užtikriname, kad lentelė yra
+ensureRecipeRatingsTable($pdo);
 tryAutoLogin($pdo);
 
 $id = (int)($_GET['id'] ?? 0);
@@ -34,7 +34,7 @@ $catStmt = $pdo->prepare("
 $catStmt->execute([$id]);
 $categories = $catStmt->fetchAll();
 
-// POST veiksmai (Išsaugojimas ir Vertinimas)
+// POST veiksmai
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     validateCsrfToken();
     if (!$userId) {
@@ -55,13 +55,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($rating >= 1 && $rating <= 5) {
             rateRecipe($pdo, $userId, $id, $rating);
         }
-        // Perkrauname tą patį puslapį, kad atsinaujintų statistika
         header("Location: " . $_SERVER['REQUEST_URI']);
         exit;
     }
 }
 
-// Gauname reitingo statistiką
 $ratingStats = getRecipeRatingStats($pdo, $id);
 $userRating = $userId ? getUserRecipeRating($pdo, $userId, $id) : 0;
 
@@ -88,8 +86,8 @@ $currentRecipeUrl = 'https://cukrinukas.lt/receptas/' . slugify($recipe['title']
         --color-primary: #0b0b0b; 
         --pill: #f0f2ff; 
         --border: #e4e6f0;
-        --star-color: #d1d5db; /* Pilka */
-        --star-active: #f59e0b; /* Gintarinė/Auksinė */
+        --star-color: #d1d5db; 
+        --star-active: #f59e0b;
         --accent-blue: #2563eb;
     }
     * { box-sizing: border-box; }
@@ -97,7 +95,7 @@ $currentRecipeUrl = 'https://cukrinukas.lt/receptas/' . slugify($recipe['title']
     body { background: var(--color-bg); }
     .shell { max-width:1080px; margin:32px auto 64px; padding:0 20px; display:flex; flex-direction:column; gap:24px; }
     
-    /* Hero kortelė */
+    /* Hero */
     .hero { 
         background:linear-gradient(135deg,#ffffff 0%,#eef0ff 100%); 
         border:1px solid var(--border); 
@@ -118,84 +116,74 @@ $currentRecipeUrl = 'https://cukrinukas.lt/receptas/' . slugify($recipe['title']
     .badge-cat { background:#f0f7ff; border-color:#dbeafe; color:#1e40af; text-decoration:none; transition:0.2s; }
     .badge-cat:hover { background:#dbeafe; }
     
-    /* Reitingo žvaigždutė badge viduje */
     .badge-rating { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
     .star-icon { width: 14px; height: 14px; fill: currentColor; }
 
-    /* Veiksmų mygtukai */
     .heart-btn { width:44px; height:44px; border-radius:12px; border:1px solid var(--border); background:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:20px; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.05); transition: all .2s ease; color: #64748b; }
     .heart-btn:hover { border-color: #ef4444; color: #ef4444; transform: translateY(-2px); }
     
     .media { overflow:hidden; border-radius:20px; border:1px solid var(--border); background:#fff; box-shadow:0 16px 38px rgba(0,0,0,0.06); position: relative; }
     .media img { width:100%; object-fit:cover; max-height:480px; display:block; }
     
-    /* Turinys */
     .content-card { background:#fff; border:1px solid var(--border); border-radius:20px; padding:32px; box-shadow:0 14px 30px rgba(0,0,0,0.06); line-height:1.8; color:#334155; font-size: 17px; }
     .content-card img { max-width:100%; height:auto; display:block; margin:24px auto; border-radius:14px; }
     .content-card ul, .content-card ol { padding-left:24px; margin-bottom: 24px; }
     .content-card h2, .content-card h3 { color: var(--color-primary); margin-top: 32px; }
 
-    /* --- INTERAKTYVUS REITINGO BLOKAS --- */
+    /* --- REITINGO BLOKAS (Perkelta į apačią) --- */
     .rating-box {
         background: #ffffff;
         border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 20px;
+        border-radius: 20px; /* Šiek tiek didesnis radius, kad derėtų su content-card */
+        padding: 32px;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 20px;
+        gap: 24px;
         flex-wrap: wrap;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        margin-top: 8px;
+        box-shadow: 0 14px 30px rgba(0,0,0,0.06);
     }
 
-    .rating-label { font-weight: 600; font-size: 15px; color: var(--color-primary); margin-bottom: 4px; }
-    .rating-desc { font-size: 13px; color: #64748b; }
+    .rating-label { font-weight: 600; font-size: 16px; color: var(--color-primary); margin-bottom: 6px; }
+    .rating-desc { font-size: 14px; color: #64748b; }
 
-    /* Žvaigždučių logika */
     .star-rating {
         display: flex;
-        flex-direction: row-reverse; /* Reikalinga hover efektui "į kairę" */
-        gap: 4px;
+        flex-direction: row-reverse;
+        gap: 6px;
     }
-
     .star-rating input { display: none; }
-
     .star-rating label {
         cursor: pointer;
-        width: 32px;
-        height: 32px;
+        width: 36px;
+        height: 36px;
         display: flex;
         align-items: center;
         justify-content: center;
         transition: transform 0.2s;
         color: var(--star-color);
     }
-
-    .star-rating label svg { width: 28px; height: 28px; fill: currentColor; }
-
-    /* Hover ir Checked būsenos */
+    .star-rating label svg { width: 32px; height: 32px; fill: currentColor; }
     .star-rating label:hover,
     .star-rating label:hover ~ label,
     .star-rating input:checked ~ label {
         color: var(--star-active);
     }
-    
-    .star-rating label:hover { transform: scale(1.2); }
+    .star-rating label:hover { transform: scale(1.15); }
 
     .rating-display-large {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 16px;
     }
-    .big-score { font-size: 32px; font-weight: 800; color: var(--color-primary); line-height: 1; }
+    .big-score { font-size: 42px; font-weight: 800; color: var(--color-primary); line-height: 1; }
     .star-row-static { display: flex; color: var(--star-active); gap: 2px; }
-    .count-text { font-size: 13px; color: #64748b; font-weight: 500; }
+    .count-text { font-size: 14px; color: #64748b; font-weight: 500; margin-top: 4px; }
 
-    @media (max-width: 600px) {
-        .rating-box { flex-direction: column; align-items: flex-start; }
-        .hero h1 { font-size: 24px; }
+    @media (max-width: 700px) {
+        .rating-box { flex-direction: column; align-items: flex-start; text-align: left; }
+        .rating-display-large { width: 100%; border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 0; }
+        .star-rating { justify-content: flex-start; }
     }
   </style>
 </head>
@@ -259,47 +247,6 @@ $currentRecipeUrl = 'https://cukrinukas.lt/receptas/' . slugify($recipe['title']
             <?php echo nl2br(htmlspecialchars($recipe['summary'])); ?>
         </p>
       <?php endif; ?>
-
-      <div class="rating-box">
-          <div class="rating-display-large">
-              <div class="big-score"><?php echo $ratingStats['average'] ?: '-'; ?></div>
-              <div>
-                  <div class="star-row-static">
-                      <?php 
-                      $avg = round($ratingStats['average']);
-                      for($i=1; $i<=5; $i++): ?>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="<?php echo $i <= $avg ? 'currentColor' : '#e5e7eb'; ?>"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                      <?php endfor; ?>
-                  </div>
-                  <div class="count-text"><?php echo $ratingStats['count']; ?> vertinimai</div>
-              </div>
-          </div>
-
-          <?php if ($userId): ?>
-            <div>
-                <div class="rating-label">Jūsų įvertinimas:</div>
-                <form method="post" style="margin:0;">
-                    <?php echo csrfField(); ?>
-                    <input type="hidden" name="action" value="rate">
-                    <div class="star-rating">
-                        <?php for ($i = 5; $i >= 1; $i--): ?>
-                            <input type="radio" id="star<?php echo $i; ?>" name="rating" value="<?php echo $i; ?>" <?php echo $userRating === $i ? 'checked' : ''; ?> onchange="this.form.submit()">
-                            <label for="star<?php echo $i; ?>" title="<?php echo $i; ?> žvaigždutės">
-                                <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                            </label>
-                        <?php endfor; ?>
-                    </div>
-                </form>
-                <div class="rating-desc">Paspauskite, kad įvertintumėte</div>
-            </div>
-          <?php else: ?>
-             <div style="text-align:right;">
-                 <div class="rating-label">Norite įvertinti?</div>
-                 <a href="/login.php" style="font-size:14px; color:var(--accent-blue); text-decoration:underline;">Prisijunkite prie bendruomenės</a>
-             </div>
-          <?php endif; ?>
-      </div>
-
     </section>
 
     <?php if ($recipe['image_url']): ?>
@@ -319,6 +266,50 @@ $currentRecipeUrl = 'https://cukrinukas.lt/receptas/' . slugify($recipe['title']
           </div>
         <?php endif; ?>
       </article>
+    </section>
+
+    <section>
+      <div class="rating-box">
+          <div class="rating-display-large">
+              <div class="big-score"><?php echo $ratingStats['average'] ?: '-'; ?></div>
+              <div>
+                  <div class="star-row-static">
+                      <?php 
+                      $avg = round($ratingStats['average']);
+                      for($i=1; $i<=5; $i++): ?>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="<?php echo $i <= $avg ? 'currentColor' : '#e5e7eb'; ?>"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                      <?php endfor; ?>
+                  </div>
+                  <div class="count-text">
+                      <?php echo $ratingStats['count']; ?> <?php echo ($ratingStats['count'] % 10 == 1 && $ratingStats['count'] % 100 != 11) ? 'vertinimas' : 'vertinimai'; ?>
+                  </div>
+              </div>
+          </div>
+
+          <?php if ($userId): ?>
+            <div>
+                <div class="rating-label">Jūsų įvertinimas:</div>
+                <form method="post" style="margin:0;">
+                    <?php echo csrfField(); ?>
+                    <input type="hidden" name="action" value="rate">
+                    <div class="star-rating">
+                        <?php for ($i = 5; $i >= 1; $i--): ?>
+                            <input type="radio" id="star<?php echo $i; ?>" name="rating" value="<?php echo $i; ?>" <?php echo $userRating === $i ? 'checked' : ''; ?> onchange="this.form.submit()">
+                            <label for="star<?php echo $i; ?>" title="<?php echo $i; ?> balai">
+                                <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                            </label>
+                        <?php endfor; ?>
+                    </div>
+                </form>
+                <div class="rating-desc">Spustelėkite, kad įvertintumėte</div>
+            </div>
+          <?php else: ?>
+             <div style="text-align:right;">
+                 <div class="rating-label">Patiko receptas?</div>
+                 <a href="/login.php" style="font-size:15px; color:var(--accent-blue); text-decoration:underline; font-weight:500;">Prisijunkite ir įvertinkite</a>
+             </div>
+          <?php endif; ?>
+      </div>
     </section>
 
   </main>
