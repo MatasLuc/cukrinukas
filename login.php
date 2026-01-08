@@ -8,10 +8,19 @@ ensureUsersTable($pdo);
 ensureProductsTable($pdo);
 ensureAdminAccount($pdo);
 
-// Bandome prisijungti automatiškai (jei yra slapukas)
+// --- 1. SVARBU: Atsijungimo logika turi būti PIRMA ---
+if (isset($_POST['logout'])) {
+    clearRememberMe($pdo);
+    session_unset();
+    session_destroy();
+    header('Location: /');
+    exit;
+}
+
+// --- 2. Bandome automatiškai prisijungti (jei nesame prisijungę) ---
 tryAutoLogin($pdo);
 
-// Jei jau prisijungęs, nukreipiame
+// --- 3. Jei vartotojas jau prisijungęs, nukreipiame į pagrindinį ---
 if (isset($_SESSION['user_id'])) {
     header('Location: /');
     exit;
@@ -19,16 +28,6 @@ if (isset($_SESSION['user_id'])) {
 
 $errors = [];
 $message = '';
-
-if (isset($_POST['logout'])) {
-    // Išvalome slapuką ir DB įrašą atsijungiant
-    clearRememberMe($pdo);
-    
-    session_unset();
-    session_destroy();
-    header('Location: /');
-    exit;
-}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     validateCsrfToken();
@@ -53,9 +52,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_name'] = $user['name'];
                 $_SESSION['is_admin'] = (int) $user['is_admin'];
                 
-                // Jei pažymėta "Prisiminti mane", nustatome slapuką
+                // Jei pažymėta "Prisiminti mane"
                 if (!empty($_POST['remember'])) {
-                    setRememberMe($pdo, $user['id']);
+                    setRememberMe($pdo, (int)$user['id']);
                 }
                 
                 header('Location: /');
