@@ -70,7 +70,7 @@ foreach ($products as &$p) {
     $attrsStmt->execute([$p['id']]);
     $p['attributes'] = $attrsStmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Variacijos
+    // Variacijos (su track_price ir track_stock)
     $varsStmt = $pdo->prepare("SELECT * FROM product_variations WHERE product_id = ? ORDER BY id ASC");
     $varsStmt->execute([$p['id']]);
     $p['variations'] = $varsStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -124,10 +124,10 @@ foreach ($allCats as $c) {
     .var-group { border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 20px; background: #f9fafb; overflow: hidden; }
     .var-group-header { background: #f3f4f6; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; }
     .var-group-body { padding: 15px; }
-    .var-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: center; }
+    .var-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start; }
     .var-row input { margin: 0; }
     
-    /* CUSTOM IMAGE SELECTOR (NAUJAS STILIUS) */
+    /* CUSTOM IMAGE SELECTOR */
     .cis-wrapper { position: relative; width: 100%; }
     .cis-trigger { 
         border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 8px; 
@@ -436,7 +436,7 @@ foreach ($allCats as $c) {
                 <div style="margin-bottom:30px; border-bottom:1px dashed #eee; padding-bottom:20px;">
                     <div style="margin-bottom:15px;">
                         <label style="font-size:16px; color:#111;">Variacijos (Grupavimas)</label>
-                        <p class="muted" style="font-size:12px;">Sukurkite grupes (pvz. "Dydis") ir pridėkite joms reikšmes (pvz. "S", "M") su kainos pokyčiais ir likučiais.</p>
+                        <p class="muted" style="font-size:12px;">Sukurkite grupes (pvz. "Dydis") ir pridėkite joms reikšmes. Galite pasirinkti, ar variacija keičia kainą ir ar sekamas jos likutis.</p>
                     </div>
 
                     <div id="variationsWrapper"></div>
@@ -545,9 +545,105 @@ foreach ($allCats as $c) {
         wrapper.appendChild(groupDiv);
 
         if(items && items.length > 0) {
-            items.forEach(item => addVariationRow(groupId, item.name, item.price_delta, item.quantity, item.image_id));
+            items.forEach(item => addVariationRow(groupId, item.name, item.price_delta, item.quantity, item.image_id, item.track_price, item.track_stock));
         } else {
             addVariationRow(groupId);
+        }
+    }
+    
+    // ATNAUJINTA FUNKCIJA SU CHECKBOXAIS IR LOGIKA
+    window.addVariationRow = function(groupId, name='', price='', qty='', imageId='', trackPrice=0, trackStock=0) {
+        const body = document.getElementById('group_body_' + groupId);
+        const rowId = Date.now() + Math.floor(Math.random()*1000);
+        
+        // Paveikslėlių logika
+        let currentImgSrc = '';
+        if (imageId && window.currentProductAllImages) {
+            const found = window.currentProductAllImages.find(i => i.id == imageId);
+            if(found) currentImgSrc = found.path;
+        }
+
+        let triggerHtml = currentImgSrc 
+            ? `<img src="${currentImgSrc}"><span>Pakeisti</span>` 
+            : `<span>Pasirinkti foto</span>`;
+
+        let dropdownItems = '';
+        if (window.currentProductAllImages && window.currentProductAllImages.length > 0) {
+            window.currentProductAllImages.forEach(img => {
+                const isSel = (img.id == imageId) ? 'selected' : '';
+                dropdownItems += `
+                    <div class="cis-item ${isSel}" onclick="selectCisImage(this, '${img.id}', '${img.path}')" title="Pasirinkti">
+                        <img src="${img.path}">
+                    </div>
+                `;
+            });
+            dropdownItems += `<div class="cis-remove" onclick="selectCisImage(this, '', '')">Pašalinti nuotrauką</div>`;
+        } else {
+            dropdownItems = `<div style="padding:10px; font-size:11px; color:#999; text-align:center; grid-column:1/-1;">Nėra įkeltų nuotraukų.</div>`;
+        }
+
+        // Būsenos (checkbox ir input disabled)
+        const priceChecked = (trackPrice == 1) ? 'checked' : '';
+        const priceDisabled = (trackPrice == 1) ? '' : 'disabled';
+        const priceStyle = (trackPrice == 1) ? '' : 'opacity:0.5;';
+        
+        const qtyChecked = (trackStock == 1) ? 'checked' : '';
+        const qtyDisabled = (trackStock == 1) ? '' : 'disabled';
+        const qtyStyle = (trackStock == 1) ? '' : 'opacity:0.5;';
+
+        const row = document.createElement('div');
+        row.className = 'var-row';
+        row.style.alignItems = "flex-start"; // Kad checkboxai gražiai lygiuotųsi
+        row.innerHTML = `
+            <div style="flex:2;">
+                <label style="font-size:10px; color:#999; text-transform:uppercase; display:block; margin-bottom:2px;">Reikšmė</label>
+                <input type="text" name="variations[${groupId}][items][${rowId}][name]" class="form-control" placeholder="Pvz. Raudona" value="${(name||'').replace(/"/g, '&quot;')}" required>
+            </div>
+            
+            <div style="flex:1;">
+                 <label style="font-size:10px; color:#999; text-transform:uppercase; display:flex; align-items:center; gap:4px; margin-bottom:2px; cursor:pointer;">
+                    <input type="checkbox" name="variations[${groupId}][items][${rowId}][track_price]" value="1" ${priceChecked} 
+                           onchange="toggleInput(this)">
+                    Keisti kainą?
+                 </label>
+                <input type="number" step="0.01" name="variations[${groupId}][items][${rowId}][price]" class="form-control" placeholder="+/- €" value="${price}" ${priceDisabled} style="${priceStyle}">
+            </div>
+            
+             <div style="flex:1;">
+                <label style="font-size:10px; color:#999; text-transform:uppercase; display:flex; align-items:center; gap:4px; margin-bottom:2px; cursor:pointer;">
+                    <input type="checkbox" name="variations[${groupId}][items][${rowId}][track_stock]" value="1" ${qtyChecked}
+                           onchange="toggleInput(this)">
+                    Sekti likutį?
+                 </label>
+                <input type="number" name="variations[${groupId}][items][${rowId}][qty]" class="form-control" placeholder="Vnt." value="${qty}" ${qtyDisabled} style="${qtyStyle}">
+            </div>
+            
+            <div style="flex:1.5;">
+                 <label style="font-size:10px; color:#999; text-transform:uppercase; display:block; margin-bottom:2px;">Nuotrauka</label>
+                 <div class="cis-wrapper">
+                    <input type="hidden" name="variations[${groupId}][items][${rowId}][image_id]" class="cis-input" value="${imageId}">
+                    <div class="cis-trigger" onclick="toggleCisDropdown(this)">${triggerHtml}</div>
+                    <div class="cis-dropdown">
+                        ${dropdownItems}
+                    </div>
+                 </div>
+            </div>
+            <button type="button" class="del-btn" style="margin-top:20px;" onclick="this.parentElement.remove()">&times;</button>
+        `;
+        body.appendChild(row);
+    }
+    
+    // Pagalbinė funkcija inputų įjungimui/išjungimui
+    window.toggleInput = function(checkbox) {
+        const input = checkbox.closest('div').querySelector('input[type="number"]');
+        if(checkbox.checked) {
+            input.disabled = false;
+            input.style.opacity = '1';
+            if(input.value === '') input.value = '0'; 
+        } else {
+            input.disabled = true;
+            input.style.opacity = '0.5';
+            input.value = ''; 
         }
     }
 
@@ -581,67 +677,6 @@ foreach ($allCats as $c) {
         }
         
         wrapper.querySelector('.cis-dropdown').classList.remove('open');
-    }
-
-    window.addVariationRow = function(groupId, name='', price='', qty='', imageId='') {
-        const body = document.getElementById('group_body_' + groupId);
-        const rowId = Date.now() + Math.floor(Math.random()*1000);
-        
-        // Find current image src if exists
-        let currentImgSrc = '';
-        if (imageId && window.currentProductAllImages) {
-            const found = window.currentProductAllImages.find(i => i.id == imageId);
-            if(found) currentImgSrc = found.path;
-        }
-
-        // Build Trigger HTML
-        let triggerHtml = '';
-        if (currentImgSrc) {
-            triggerHtml = `<img src="${currentImgSrc}"><span>Pakeisti</span>`;
-        } else {
-            triggerHtml = `<span>Pasirinkti foto</span>`;
-        }
-
-        // Build Dropdown Items
-        let dropdownItems = '';
-        if (window.currentProductAllImages && window.currentProductAllImages.length > 0) {
-            window.currentProductAllImages.forEach(img => {
-                const isSel = (img.id == imageId) ? 'selected' : '';
-                dropdownItems += `
-                    <div class="cis-item ${isSel}" onclick="selectCisImage(this, '${img.id}', '${img.path}')" title="Pasirinkti">
-                        <img src="${img.path}">
-                    </div>
-                `;
-            });
-            dropdownItems += `<div class="cis-remove" onclick="selectCisImage(this, '', '')">Pašalinti nuotrauką</div>`;
-        } else {
-            dropdownItems = `<div style="padding:10px; font-size:11px; color:#999; text-align:center; grid-column:1/-1;">Nėra įkeltų nuotraukų. Išsaugokite prekę su nuotraukomis.</div>`;
-        }
-
-        const row = document.createElement('div');
-        row.className = 'var-row';
-        row.innerHTML = `
-            <div style="flex:2;">
-                <input type="text" name="variations[${groupId}][items][${rowId}][name]" class="form-control" placeholder="Reikšmė" value="${(name||'').replace(/"/g, '&quot;')}" required>
-            </div>
-            <div style="flex:1;">
-                <input type="number" step="0.01" name="variations[${groupId}][items][${rowId}][price]" class="form-control" placeholder="+/- €" value="${price}">
-            </div>
-             <div style="flex:1;">
-                <input type="number" name="variations[${groupId}][items][${rowId}][qty]" class="form-control" placeholder="Vnt." value="${qty}">
-            </div>
-            <div style="flex:1.5;">
-                 <div class="cis-wrapper">
-                    <input type="hidden" name="variations[${groupId}][items][${rowId}][image_id]" class="cis-input" value="${imageId}">
-                    <div class="cis-trigger" onclick="toggleCisDropdown(this)">${triggerHtml}</div>
-                    <div class="cis-dropdown">
-                        ${dropdownItems}
-                    </div>
-                 </div>
-            </div>
-            <button type="button" class="del-btn" onclick="this.parentElement.remove()">&times;</button>
-        `;
-        body.appendChild(row);
     }
 
     // --- MAIN FORM LOGIC ---
