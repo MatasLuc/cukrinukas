@@ -2,6 +2,7 @@
 session_start();
 require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
+require_once __DIR__ . '/helpers.php'; // Būtina slugify funkcijai
 
 if (empty($_SESSION['user_id'])) {
     header('Location: /login.php');
@@ -280,10 +281,16 @@ $itemStmt = $pdo->prepare('SELECT oi.*, p.title, p.image_url FROM order_items oi
 
                 <div class="item-list">
                   <?php foreach ($orderItems as $item): ?>
+                    <?php 
+                      // SEO URL generavimas
+                      $itemUrl = '/produktas/' . slugify($item['title']) . '-' . (int)$item['product_id']; 
+                    ?>
                     <div class="item">
-                      <img src="<?php echo htmlspecialchars($item['image_url']); ?>" alt="<?php echo htmlspecialchars($item['title']); ?>">
+                      <a href="<?php echo htmlspecialchars($itemUrl); ?>">
+                        <img src="<?php echo htmlspecialchars($item['image_url']); ?>" alt="<?php echo htmlspecialchars($item['title']); ?>">
+                      </a>
                       <div class="item-details">
-                        <a href="/product.php?id=<?php echo (int)$item['product_id']; ?>" class="item-title"><?php echo htmlspecialchars($item['title']); ?></a>
+                        <a href="<?php echo htmlspecialchars($itemUrl); ?>" class="item-title"><?php echo htmlspecialchars($item['title']); ?></a>
                         <div class="item-meta"><?php echo (int)$item['quantity']; ?> vnt. × <?php echo number_format((float)$item['price'], 2); ?> €</div>
                       </div>
                       <div class="item-price"><?php echo number_format((float)$item['price'] * (int)$item['quantity'], 2); ?> €</div>
