@@ -31,7 +31,7 @@ $messages = [];
 $errors = [];
 $view = $_GET['view'] ?? 'dashboard';
 
-// Įtraukiame funkcijas ir veiksmus
+// Įtraukiame pagalbines funkcijas ir veiksmų logiką
 require __DIR__ . '/admin/functions.php';
 require __DIR__ . '/admin/actions.php';
 ?>
@@ -70,22 +70,22 @@ require __DIR__ . '/admin/actions.php';
           padding: 0 20px 40px 20px;
       }
 
-      /* Navigation Tabs */
-      .nav-scroll-wrapper {
-          overflow-x: auto;
-          padding-bottom: 5px;
+      /* PAKEISTAS NAVIGACIJOS STILIUS */
+      .nav-wrapper {
           margin-bottom: 24px;
           border-bottom: 1px solid var(--border);
+          padding-bottom: 12px;
       }
       
       .nav-tabs {
           display: flex;
-          gap: 4px;
-          min-width: max-content;
+          gap: 6px; /* Tarpai tarp mygtukų */
+          flex-wrap: wrap; /* <--- ESMINIS PAKEITIMAS: leidžia elementams kristi į kitą eilutę */
+          align-items: center;
       }
       
       .nav-link {
-          padding: 10px 16px;
+          padding: 8px 14px;
           text-decoration: none;
           color: var(--text-muted);
           font-weight: 500;
@@ -95,6 +95,9 @@ require __DIR__ . '/admin/actions.php';
           display: inline-flex;
           align-items: center;
           gap: 6px;
+          white-space: nowrap; /* Kad tekstas mygtuko viduje nelūžtų */
+          background: #fff; /* Pridėjau foną, kad geriau atrodytų keliose eilutėse */
+          border: 1px solid transparent;
       }
       
       .nav-link:hover {
@@ -105,6 +108,7 @@ require __DIR__ . '/admin/actions.php';
       .nav-link.active {
           background: #eef2ff;
           color: var(--primary);
+          border-color: #c7d2fe;
           font-weight: 600;
       }
 
@@ -121,7 +125,7 @@ require __DIR__ . '/admin/actions.php';
       .alert.success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
       .alert.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
-      /* Kortelių stilius (jei nėra layout.php) */
+      /* Cards */
       .card {
           background: var(--bg-card);
           border: 1px solid var(--border);
@@ -141,6 +145,7 @@ require __DIR__ . '/admin/actions.php';
           .grid-4 { grid-template-columns: repeat(4, 1fr); }
       }
       
+      /* Tables */
       table { width: 100%; border-collapse: collapse; font-size: 14px; }
       th { text-align: left; padding: 12px; border-bottom: 2px solid var(--border); color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
       td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
@@ -175,7 +180,7 @@ require __DIR__ . '/admin/actions.php';
       <div class="alert error">&times; <?php echo htmlspecialchars($err); ?></div>
     <?php endforeach; ?>
 
-    <div class="nav-scroll-wrapper">
+    <div class="nav-wrapper">
         <div class="nav-tabs">
           <a class="nav-link <?php echo $view === 'dashboard' ? 'active' : ''; ?>" href="?view=dashboard">📊 Skydelis</a>
           <a class="nav-link <?php echo $view === 'orders' ? 'active' : ''; ?>" href="?view=orders">📦 Užsakymai</a>
@@ -206,6 +211,7 @@ require __DIR__ . '/admin/actions.php';
   </div>
   
   <script>
+    // Automatiškai paslepiame pranešimus po 5s
     setTimeout(() => {
         document.querySelectorAll('.alert').forEach(el => el.style.display = 'none');
     }, 5000);
@@ -258,7 +264,6 @@ require __DIR__ . '/admin/actions.php';
       wrap.appendChild(div);
     }
     
-    // Select toggle logika (pvz. pristatymui)
     document.querySelectorAll('[data-toggle-select]').forEach(function(input){
       const selectName = input.getAttribute('data-toggle-select');
       let select = input.closest('form')?.querySelector('select[name="' + selectName + '"]');
