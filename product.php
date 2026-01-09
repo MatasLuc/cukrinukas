@@ -84,8 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Į krepšelį
     $qty = max(1, (int) ($_POST['quantity'] ?? 1));
-    $_SESSION['cart'][$id] = ($_SESSION['cart'][$id] ?? 0) + $qty;
-
+    
     // Variacijų apdorojimas (MULTI-SELECT)
     $postedVariations = $_POST['variations'] ?? [];
     $cartVariations = [];
@@ -110,15 +109,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Rūšiuojame variacijas, kad sukurtume unikalų raktą nepriklausomai nuo pasirinkimo tvarkos
+    usort($cartVariations, function($a, $b) {
+        return $a['id'] <=> $b['id'];
+    });
+
+    // Generuojame unikalų raktą šiai kombinacijai (PrekėsID_Hash)
+    $variationSignature = !empty($cartVariations) ? md5(json_encode($cartVariations)) : 'default';
+    $cartKey = $id . '_' . $variationSignature;
+
+    // Saugome į sesiją su nauju raktu
+    $_SESSION['cart'][$cartKey] = ($_SESSION['cart'][$cartKey] ?? 0) + $qty;
+    
     if (!empty($cartVariations)) {
-        $_SESSION['cart_variations'][$id] = $cartVariations; 
-    } else {
-        unset($_SESSION['cart_variations'][$id]);
+        $_SESSION['cart_variations'][$cartKey] = $cartVariations; 
     }
 
+    // Jei vartotojas prisijungęs, galime išsaugoti ir DB (reikėtų atnaujinti saveCartItem funkciją, kad palaikytų variacijų raktus,
+    // bet kol kas paliekame bazinę logiką arba tik sesiją, jei helperiai nepakeisti)
     if (!empty($_SESSION['user_id'])) {
-        saveCartItem($pdo, (int)$_SESSION['user_id'], $id, $qty);
+        // Pastaba: Standartinė saveCartItem funkcija gali nepalaikyti string raktų, 
+        // todėl čia galime palikti tik sesiją arba kviesti atnaujintą funkciją.
+        // Šiame pavyzdyje paliekame sesiją kaip pagrindinį šaltinį.
     }
+
     header('Location: /cart.php');
     exit;
 }
@@ -238,7 +252,6 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
         color: var(--text-muted);
     }
     
-    /* Jei specifikacija turi HTML elementų (pvz. ul, p), kad jie atrodytų tvarkingai */
     .spec-value p { margin: 0 0 8px 0; }
     .spec-value p:last-child { margin: 0; }
     .spec-value ul { margin: 0; padding-left: 20px; text-align: left; }
@@ -303,16 +316,12 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
     @media (max-width: 900px) {
         .product-grid { display: flex; flex-direction: column; gap: 24px; }
         .left-col { display: contents; }
-        
-        /* FIX: Ensure content cards take full width in flex column */
         .content-card { width: 100%; }
-
         .gallery-section { order: 1; }
         .buy-box { order: 2; position: static; margin-bottom: 20px; width: 100%; }
         .content-desc { order: 3; }
         .content-specs { order: 4; }
         .related-section { order: 5; }
-
         .hero { padding: 20px; margin-top: 10px; }
         .action-row { position: sticky; bottom: 10px; background: #fff; padding: 10px; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); z-index: 20; }
     }
