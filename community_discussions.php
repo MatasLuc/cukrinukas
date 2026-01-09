@@ -1,8 +1,5 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
+// community_discussions.php
 session_start();
 require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
@@ -15,9 +12,15 @@ $user = currentUser();
 
 // --- LOGIKA ---
 
-$categories = ['Bendra', 'Receptai', 'Mityba', 'Sveikata', 'Įvairūs'];
+// 1. Ištraukiame kategorijas iš DB diskusijoms
+$stmtCats = $pdo->query("SELECT * FROM community_thread_categories ORDER BY name ASC");
+$dbCategories = $stmtCats->fetchAll();
+$validCategoryNames = array_column($dbCategories, 'name');
+
 $catFilter = $_GET['cat'] ?? null;
-if ($catFilter && !in_array($catFilter, $categories)) $catFilter = null;
+if ($catFilter && !in_array($catFilter, $validCategoryNames)) {
+    $catFilter = null;
+}
 
 $page = max(1, (int)($_GET['page'] ?? 1));
 $perPage = 10;
@@ -38,9 +41,7 @@ $countStmt->execute($params);
 $totalThreads = $countStmt->fetchColumn();
 $totalPages = ceil($totalThreads / $perPage);
 
-// Pagrindinė užklausa
-// SVARBU: u.name as username (nes lentelėje nėra username stulpelio)
-// SVARBU: community_comments lentelė (ne posts)
+// Pagrindinė užklausa (naudojame u.name kaip username)
 $sql = "
     SELECT t.*, u.name as username, c.name as category_name,
            (SELECT COUNT(*) FROM community_comments p WHERE p.thread_id = t.id) as reply_count,
@@ -74,7 +75,6 @@ echo headerStyles();
     
     .page { max-width: 1200px; margin:0 auto; padding:32px 20px 72px; display:flex; flex-direction:column; gap:32px; }
 
-    /* Hero */
     .hero { 
         background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
         border:1px solid #dbeafe; 
@@ -113,13 +113,11 @@ echo headerStyles();
     .hero-card h3 { margin: 0 0 8px; font-size: 18px; color: var(--text-main); }
     .hero-card p { margin: 0 0 16px; font-size: 13px; color: var(--text-muted); line-height: 1.4; }
 
-    /* Filter */
     .filter-bar { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; align-items: center; }
     .filter-chip { padding: 8px 16px; border-radius: 99px; background: #fff; border: 1px solid var(--border); color: var(--text-muted); font-size: 14px; font-weight: 500; white-space: nowrap; }
     .filter-chip:hover { border-color: var(--accent); color: var(--accent); }
     .filter-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-    /* Thread List */
     .thread-list { display: flex; flex-direction: column; gap: 16px; }
     .thread-card {
         background: var(--card); border: 1px solid var(--border); border-radius: 16px;
@@ -180,9 +178,9 @@ echo headerStyles();
     <div>
         <div class="filter-bar">
             <a href="/community_discussions.php" class="filter-chip <?php echo !$catFilter ? 'active' : ''; ?>">Visos temos</a>
-            <?php foreach ($categories as $cat): ?>
-                <a href="?cat=<?php echo urlencode($cat); ?>" class="filter-chip <?php echo $catFilter === $cat ? 'active' : ''; ?>">
-                    <?php echo htmlspecialchars($cat); ?>
+            <?php foreach ($dbCategories as $cat): ?>
+                <a href="?cat=<?php echo urlencode($cat['name']); ?>" class="filter-chip <?php echo $catFilter === $cat['name'] ? 'active' : ''; ?>">
+                    <?php echo htmlspecialchars($cat['name']); ?>
                 </a>
             <?php endforeach; ?>
         </div>
@@ -192,7 +190,7 @@ echo headerStyles();
         <div class="empty-state">
             <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;">📭</div>
             <h3 style="margin: 0 0 8px; font-size: 18px;">Diskusijų nerasta</h3>
-            <p style="color: var(--text-muted); margin: 0 0 24px; font-size: 15px;">Šioje kategorijoje temų kol kas nėra. Būkite pirmas!</p>
+            <p style="color: var(--text-muted); margin: 0 0 24px; font-size: 15px;">Šiuo metu šioje kategorijoje temų kol kas nėra.</p>
             <?php if ($user['id']): ?>
                 <a class="btn" href="/community_thread_new.php" style="width:auto;">Kurti temą</a>
             <?php endif; ?>
