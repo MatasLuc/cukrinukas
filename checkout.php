@@ -209,15 +209,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmtItem = $pdo->prepare($sqlItem);
 
             foreach ($items as $item) {
-                // Formuojame variacijos info tekstą (pataisyta, kad palaikytų masyvus)
+                // Formuojame variacijos info tekstą
                 $varInfoParts = [];
                 
-                // Paimame variacijų duomenis
-                $varData = $item['variation'] ?? [];
+                // SVARBU: Naudojame 'variation_features', nes getCartData į 'variation' įdeda tik pirmą elementą.
+                $varData = $item['variation_features'] ?? [];
                 
-                // Jei tai nėra masyvų masyvas, paverčiame į masyvą su vienu elementu
-                if (!empty($varData) && !isset($varData[0])) {
-                    $varData = [$varData];
+                // Atsarginis variantas: jei variation_features tuščias, bet yra variation (senas formatas/kitoks call)
+                if (empty($varData) && !empty($item['variation'])) {
+                    // Jei tai objektas/masyvas, įdedame į masyvą
+                    $varData = [$item['variation']]; 
                 }
 
                 // Surenkame info
@@ -227,13 +228,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($val) {
                         $varInfoParts[] = trim(($group ? "$group: " : '') . $val);
                     }
-                }
-
-                // Atsarginis variantas senai struktūrai (jei yra)
-                if (empty($varInfoParts) && !empty($item['variation_features'])) {
-                     foreach ($item['variation_features'] as $vf) {
-                         $varInfoParts[] = ($vf['group_name'] ?? '') . ' ' . ($vf['name'] ?? '');
-                     }
                 }
 
                 $varInfo = !empty($varInfoParts) ? implode(', ', $varInfoParts) : null;
@@ -491,10 +485,10 @@ $finalTotal = $subtotal + $finalShipping;
                             <div style="font-weight:500; margin-bottom:2px;"><?php echo htmlspecialchars($item['title']); ?></div>
                             <div style="font-size:12px; color:var(--text-muted); display:flex; flex-direction:column; gap:2px;">
                                 <?php 
-                                    $varData = $item['variation'] ?? [];
-                                    // Normalizacija, kad visada būtų masyvų masyvas
-                                    if (!empty($varData) && !isset($varData[0])) {
-                                        $varData = [$varData];
+                                    // Svarbu: naudojame 'variation_features', nes getCartData į 'variation' deda tik pirmą elementą
+                                    $varData = $item['variation_features'] ?? [];
+                                    if (empty($varData) && !empty($item['variation'])) {
+                                        $varData = [$item['variation']];
                                     }
                                     
                                     if (!empty($varData)): ?>
