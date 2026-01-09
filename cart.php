@@ -279,6 +279,7 @@ if (isset($_POST['add_promo_product'])) {
     }
     .btn-primary:hover {
         background: #1e293b;
+        color: #ffffff !important; /* FIX: Priverstinė balta spalva */
         transform: translateY(-1px);
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     }
