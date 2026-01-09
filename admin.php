@@ -193,13 +193,15 @@ require __DIR__ . '/admin/actions.php';
           <a class="nav-link <?php echo $view === 'design' ? 'active' : ''; ?>" href="?view=design">🎨 Dizainas</a>
           <a class="nav-link <?php echo $view === 'menus' ? 'active' : ''; ?>" href="?view=menus">🔗 Meniu</a>
           <a class="nav-link <?php echo $view === 'shipping' ? 'active' : ''; ?>" href="?view=shipping">🚚 Pristatymas</a>
+          <a class="nav-link <?php echo $view === 'emails' ? 'active' : ''; ?>" href="?view=emails">📧 Laiškai</a>
         </div>
     </div>
 
     <?php
     $allowedViews = [
         'dashboard', 'products', 'categories', 'content', 'design', 
-        'shipping', 'discounts', 'community', 'menus', 'users', 'orders'
+        'shipping', 'discounts', 'community', 'menus', 'users', 'orders',
+        'emails'
     ];
 
     if (in_array($view, $allowedViews)) {
