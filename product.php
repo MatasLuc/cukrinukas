@@ -304,8 +304,11 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
         .product-grid { display: flex; flex-direction: column; gap: 24px; }
         .left-col { display: contents; }
         
+        /* FIX: Ensure content cards take full width in flex column */
+        .content-card { width: 100%; }
+
         .gallery-section { order: 1; }
-        .buy-box { order: 2; position: static; margin-bottom: 20px; }
+        .buy-box { order: 2; position: static; margin-bottom: 20px; width: 100%; }
         .content-desc { order: 3; }
         .content-specs { order: 4; }
         .related-section { order: 5; }
