@@ -580,13 +580,28 @@ function renderHeader(PDO $pdo, string $active = '', array $meta = []): void {
                     <img src="<?php echo htmlspecialchars($item['image_url']); ?>" alt="<?php echo htmlspecialchars($item['title']); ?>">
                     <div style="width:100%;">
                       <div class="cart-preview-meta">
-                        <strong><?php echo htmlspecialchars($item['title']); ?></strong>
+                        <div>
+                            <strong><?php echo htmlspecialchars($item['title']); ?></strong>
+                            <?php 
+                                $vars = $item['variation'] ?? [];
+                                if (!empty($vars) && !isset($vars[0])) $vars = [$vars];
+                                foreach($vars as $v): 
+                                    $g = $v['group'] ?? $v['group_name'] ?? '';
+                                    $n = $v['name'] ?? '';
+                                    if($n):
+                            ?>
+                                <div style="font-size:11px; color:#6b6b7a; line-height:1.2; margin-top:2px;">
+                                    <?php echo $g ? htmlspecialchars($g).': ' : ''; ?>
+                                    <strong><?php echo htmlspecialchars($n); ?></strong>
+                                </div>
+                            <?php endif; endforeach; ?>
+                        </div>
                         <span>
                           <?php if ($discounted): ?><span style="text-decoration:line-through; color:#6b6b7a; font-size:13px; margin-right:6px;"><?php echo number_format($item['line_total'], 2); ?> €</span><?php endif; ?>
                           <?php echo number_format($lineTotal, 2); ?> €
                         </span>
                       </div>
-                      <div style="color:#6b6b7a; font-size:14px;">Kiekis: <?php echo $item['quantity']; ?> × <?php echo number_format($finalUnit, 2); ?> €</div>
+                      <div style="color:#6b6b7a; font-size:14px; margin-top:4px;">Kiekis: <?php echo $item['quantity']; ?> × <?php echo number_format($finalUnit, 2); ?> €</div>
                     </div>
                   </div>
                 <?php endforeach; ?>
