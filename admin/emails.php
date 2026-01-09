@@ -6,31 +6,61 @@ $stmt = $pdo->query("SELECT id, name, email FROM users ORDER BY name ASC");
 $users = $stmt->fetchAll();
 ?>
 
-<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
-<script>
-  tinymce.init({
-    selector: '#emailMessage',
-    height: 500,
-    plugins: [
-      'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-      'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-      'insertdatetime', 'media', 'table', 'help', 'wordcount', 'emoticons'
-    ],
-    toolbar: 'undo redo | formatselect | ' +
-    'bold italic backcolor | alignleft aligncenter ' +
-    'alignright alignjustify | bullist numlist outdent indent | ' +
-    'removeformat | emoticons | help',
-    content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; }',
-    language: 'lt' // Jei reikia lietuvių k., bet veiks ir EN
-  });
-</script>
+<style>
+    /* Paprasto redaktoriaus stilius */
+    .simple-editor-wrapper {
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        background: #fff;
+        overflow: hidden;
+    }
+    .editor-toolbar {
+        background: #f3f4f6;
+        border-bottom: 1px solid #ccc;
+        padding: 8px;
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+    .editor-btn {
+        background: #fff;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        cursor: pointer;
+        padding: 5px 10px;
+        font-size: 14px;
+        font-weight: 600;
+        min-width: 30px;
+    }
+    .editor-btn:hover {
+        background: #e5e7eb;
+    }
+    #editor-visual {
+        min-height: 300px;
+        padding: 16px;
+        outline: none;
+        overflow-y: auto;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+    #editor-visual:focus {
+        background-color: #fafafa;
+    }
+    #editor-visual blockquote {
+        border-left: 3px solid #ccc;
+        margin-left: 0;
+        padding-left: 10px;
+        color: #666;
+    }
+</style>
 
 <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
         <h3>📧 Siųsti laišką</h3>
     </div>
 
-    <form action="admin.php?view=emails" method="POST" class="table-form" onsubmit="return confirm('Ar tikrai norite siųsti šį laišką?');">
+    <form action="admin.php?view=emails" method="POST" class="table-form" onsubmit="syncContent(); return confirm('Ar tikrai norite siųsti šį laišką?');">
         <?php echo csrfField(); ?>
         
         <input type="hidden" name="action" value="send_email">
@@ -72,7 +102,27 @@ $users = $stmt->fetchAll();
 
         <div style="margin-top:16px;">
             <label style="display:block; margin-bottom:8px; font-weight:600;">Laiško turinis</label>
-            <textarea name="message" id="emailMessage" placeholder="Rašykite savo laišką čia..."></textarea>
+            
+            <textarea name="message" id="hiddenMessage" style="display:none;"></textarea>
+
+            <div class="simple-editor-wrapper">
+                <div class="editor-toolbar">
+                    <button type="button" class="editor-btn" onclick="execCmd('bold')" title="Paryškinti"><b>B</b></button>
+                    <button type="button" class="editor-btn" onclick="execCmd('italic')" title="Pasviras"><i>I</i></button>
+                    <button type="button" class="editor-btn" onclick="execCmd('underline')" title="Pabraukti"><u>U</u></button>
+                    <div style="width:1px; background:#ccc; margin:0 5px;"></div>
+                    <button type="button" class="editor-btn" onclick="execCmd('insertUnorderedList')" title="Sąrašas su taškais">• Sąrašas</button>
+                    <button type="button" class="editor-btn" onclick="execCmd('insertOrderedList')" title="Numeruotas sąrašas">1. Sąrašas</button>
+                    <div style="width:1px; background:#ccc; margin:0 5px;"></div>
+                    <button type="button" class="editor-btn" onclick="createLink()" title="Įterpti nuorodą">🔗</button>
+                    <button type="button" class="editor-btn" onclick="execCmd('unlink')" title="Panaikinti nuorodą">❌🔗</button>
+                    <div style="width:1px; background:#ccc; margin:0 5px;"></div>
+                    <button type="button" class="editor-btn" onclick="execCmd('removeFormat')" title="Išvalyti formatavimą">Išvalyti</button>
+                </div>
+                
+                <div id="editor-visual" contenteditable="true"></div>
+            </div>
+
             <p class="text-muted" style="font-size:12px; margin-top:4px;">
                 Jūsų tekstas bus automatiškai įdėtas į standartinį „Cukrinukas“ dizaino rėmelį su logotipu.
             </p>
@@ -87,13 +137,36 @@ $users = $stmt->fetchAll();
 </div>
 
 <script>
+// --- Paprasto redaktoriaus funkcijos ---
+function execCmd(command) {
+    document.execCommand(command, false, null);
+    document.getElementById('editor-visual').focus();
+}
+
+function createLink() {
+    const url = prompt("Įveskite nuorodą (pvz., https://cukrinukas.lt):", "https://");
+    if (url) {
+        document.execCommand("createLink", false, url);
+    }
+}
+
+// Prieš siunčiant formą, perkeliam turinį iš DIV į TEXTAREA
+function syncContent() {
+    const visualContent = document.getElementById('editor-visual').innerHTML;
+    document.getElementById('hiddenMessage').value = visualContent;
+}
+
+// Sinchronizuojame ir rašymo metu, kad netyčia neprarastume
+document.getElementById('editor-visual').addEventListener('input', syncContent);
+
+// --- Šablonų logika ---
 const templates = {
     promo: {
         subject: "Specialus pasiūlymas tik Jums! 🍭",
         body: `<p>Sveiki!</p>
 <p>Norime pranešti, kad šią savaitę <b>Cukrinukas.lt</b> parduotuvėje vyksta ypatinga akcija.</p>
-<p>Pasinaudokite proga įsigyti savo mėgstamiausių saldumynų su <span style="color: #e03e2d;"><strong>20% nuolaida</strong></span>! Tiesiog atsiskaitymo metu naudokite kodą:</p>
-<h2 style="text-align: center;"><span style="background-color: #f1c40f; padding: 5px 15px; border-radius: 5px;">SALDU20</span></h2>
+<p>Pasinaudokite proga įsigyti savo mėgstamiausių saldumynų su <strong style="color: #e03e2d;">20% nuolaida</strong>! Tiesiog atsiskaitymo metu naudokite kodą:</p>
+<h3 style="text-align: center; background-color: #fffacd; padding: 10px;">SALDU20</h3>
 <p>Pasiūlymas galioja iki sekmadienio.</p>
 <p>Laukiame Jūsų sugrįžtant!</p>`
     },
@@ -130,18 +203,17 @@ const templates = {
     }
 };
 
-// JavaScript atnaujintas, kad veiktų su TinyMCE
 document.getElementById('templateSelector').addEventListener('change', function() {
     const key = this.value;
     if (templates[key]) {
+        // Nustatome temą
         document.getElementById('emailSubject').value = templates[key].subject;
-        // Naudojame TinyMCE API turiniui nustatyti
-        if (tinymce.get('emailMessage')) {
-            tinymce.get('emailMessage').setContent(templates[key].body);
-        } else {
-            // Fallback, jei netyčia redaktorius dar neužsikrovė
-            document.getElementById('emailMessage').value = templates[key].body;
-        }
+        
+        // Įdedame HTML į vizualų redaktorių
+        document.getElementById('editor-visual').innerHTML = templates[key].body;
+        
+        // Atnaujiname paslėptą lauką
+        syncContent();
     }
 });
 </script>
