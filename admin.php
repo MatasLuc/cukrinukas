@@ -9,7 +9,6 @@ if (!isset($_SESSION['user_id']) || empty($_SESSION['is_admin'])) {
 }
 
 $pdo = getPdo();
-// Užtikriname, kad visos lentelės egzistuoja
 ensureUsersTable($pdo);
 ensureCategoriesTable($pdo);
 ensureProductsTable($pdo);
@@ -32,13 +31,9 @@ $messages = [];
 $errors = [];
 $view = $_GET['view'] ?? 'dashboard';
 
-// Įtraukiame pagalbines funkcijas ir veiksmų logiką
+// Įtraukiame funkcijas ir veiksmus
 require __DIR__ . '/admin/functions.php';
 require __DIR__ . '/admin/actions.php';
-
-// Pastaba: hero_stats.php paliekame, jei jis naudojamas kitur,
-// bet Dashboard'e naudosime atskirus skaičiavimus detalesnei statistikai.
-require __DIR__ . '/admin/hero_stats.php'; 
 ?>
 <!doctype html>
 <html lang="lt">
@@ -66,22 +61,16 @@ require __DIR__ . '/admin/hero_stats.php';
           background-color: var(--bg-body);
           color: var(--text-main);
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          margin: 0;
       }
       
-      .admin-header {
-          background: var(--bg-card);
-          border-bottom: 1px solid var(--border);
-          padding: 1rem 0;
-          margin-bottom: 2rem;
-      }
-
       .page {
           max-width: 1200px;
           margin: 0 auto;
           padding: 0 20px 40px 20px;
       }
 
-      /* Modern Navigation Tabs */
+      /* Navigation Tabs */
       .nav-scroll-wrapper {
           overflow-x: auto;
           padding-bottom: 5px;
@@ -132,7 +121,7 @@ require __DIR__ . '/admin/hero_stats.php';
       .alert.success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
       .alert.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
-      /* Common Card Styles (jei nenaudojamas layout.php stilius) */
+      /* Kortelių stilius (jei nėra layout.php) */
       .card {
           background: var(--bg-card);
           border: 1px solid var(--border);
@@ -144,7 +133,7 @@ require __DIR__ . '/admin/hero_stats.php';
       
       h3 { margin-top: 0; font-size: 16px; font-weight: 700; color: var(--text-main); margin-bottom: 16px; }
       
-      /* Grid System overrides */
+      /* Grid System */
       .grid { display: grid; gap: 24px; }
       @media (min-width: 768px) {
           .grid-2 { grid-template-columns: 1fr 1fr; }
@@ -152,7 +141,6 @@ require __DIR__ . '/admin/hero_stats.php';
           .grid-4 { grid-template-columns: repeat(4, 1fr); }
       }
       
-      /* Tables */
       table { width: 100%; border-collapse: collapse; font-size: 14px; }
       th { text-align: left; padding: 12px; border-bottom: 2px solid var(--border); color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
       td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
@@ -162,7 +150,12 @@ require __DIR__ . '/admin/hero_stats.php';
           display: inline-flex; align-items: center; justify-content: center;
           padding: 8px 16px; border-radius: 6px; font-weight: 500; font-size: 14px;
           cursor: pointer; transition: 0.2s; border: 1px solid transparent;
+          text-decoration: none; color: inherit;
       }
+      .btn.secondary { background: #fff; border: 1px solid var(--border); color: var(--text-main); }
+      .btn.secondary:hover { background: #f9fafb; border-color: #d1d5db; }
+      
+      .chip-input { padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
   </style>
 </head>
 <body>
@@ -213,12 +206,10 @@ require __DIR__ . '/admin/hero_stats.php';
   </div>
   
   <script>
-    // Automatiškai paslepiame pranešimus po 5s
     setTimeout(() => {
         document.querySelectorAll('.alert').forEach(el => el.style.display = 'none');
     }, 5000);
 
-    // Egzistuojančios funkcijos
     function addAttrRow(targetId){
       const wrap = document.getElementById(targetId);
       if(!wrap) return;
@@ -243,30 +234,52 @@ require __DIR__ . '/admin/hero_stats.php';
     }
     
     function addVarRow(targetId){
-        // ... (tavo esama funkcija)
-        const wrap = document.getElementById(targetId);
-        if(!wrap) return;
-        const div = document.createElement('div');
-        div.style.display = 'flex'; div.style.gap = '8px'; div.style.marginBottom = '8px';
+      const wrap = document.getElementById(targetId);
+      if(!wrap) return;
+      const div = document.createElement('div');
+      div.style.display = 'flex'; div.style.gap = '8px'; div.style.marginBottom = '8px';
 
-        const name = document.createElement('input');
-        name.name = 'variation_name[]';
-        name.className = 'chip-input';
-        name.placeholder = 'Variacijos pavadinimas';
-        name.style.flex = '2';
+      const name = document.createElement('input');
+      name.name = 'variation_name[]';
+      name.className = 'chip-input';
+      name.placeholder = 'Variacijos pavadinimas';
+      name.style.flex = '2';
 
-        const price = document.createElement('input');
-        price.name = 'variation_price[]';
-        price.type = 'number';
-        price.step = '0.01';
-        price.className = 'chip-input';
-        price.placeholder = '+Kaina';
-        price.style.flex = '1';
+      const price = document.createElement('input');
+      price.name = 'variation_price[]';
+      price.type = 'number';
+      price.step = '0.01';
+      price.className = 'chip-input';
+      price.placeholder = '+Kaina';
+      price.style.flex = '1';
 
-        div.appendChild(name);
-        div.appendChild(price);
-        wrap.appendChild(div);
+      div.appendChild(name);
+      div.appendChild(price);
+      wrap.appendChild(div);
     }
+    
+    // Select toggle logika (pvz. pristatymui)
+    document.querySelectorAll('[data-toggle-select]').forEach(function(input){
+      const selectName = input.getAttribute('data-toggle-select');
+      let select = input.closest('form')?.querySelector('select[name="' + selectName + '"]');
+      if (!select && input.getAttribute('form')) {
+        const f = document.getElementById(input.getAttribute('form'));
+        if (f) select = f.elements[selectName];
+      }
+      if (!select) select = document.querySelector('select[name="' + selectName + '"]');
+      
+      const toggle = function(){
+        if (!select) return;
+        const v = select.value;
+        const disable = (v === 'free_shipping' || v === 'none');
+        input.disabled = disable;
+        if (disable) { input.value = '0'; }
+      };
+      if (select) {
+        select.addEventListener('change', toggle);
+        toggle();
+      }
+    });
   </script>
   <?php renderFooter($pdo); ?>
 </body>
