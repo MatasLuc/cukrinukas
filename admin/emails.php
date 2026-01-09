@@ -7,88 +7,126 @@ $users = $stmt->fetchAll();
 ?>
 
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
     /* Paprasto redaktoriaus stilius */
     .simple-editor-wrapper {
         border: 1px solid #e5e7eb;
-        border-radius: 8px;
+        border-radius: 12px;
         background: #fff;
         overflow: hidden;
         box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        font-family: 'Inter', sans-serif;
     }
     .editor-toolbar {
-        background: #f9fafb;
+        background: #f8fafc;
         border-bottom: 1px solid #e5e7eb;
-        padding: 8px;
+        padding: 10px;
         display: flex;
-        gap: 5px;
+        gap: 6px;
         flex-wrap: wrap;
         align-items: center;
     }
     .editor-btn {
         background: #fff;
         border: 1px solid #d1d5db;
-        border-radius: 6px;
+        border-radius: 8px;
         cursor: pointer;
-        padding: 6px 10px;
+        padding: 6px 12px;
         font-size: 14px;
         font-weight: 600;
-        min-width: 32px;
-        color: #374151;
-        transition: all 0.2s;
+        min-width: 36px;
+        color: #4b5563;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     .editor-btn:hover {
-        background: #f3f4f6;
+        background: #f1f5f9;
         color: #111827;
         border-color: #9ca3af;
     }
     #editor-visual {
-        min-height: 400px;
-        padding: 24px;
+        min-height: 450px;
+        padding: 32px;
         outline: none;
         overflow-y: auto;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        font-family: 'Inter', Helvetica, Arial, sans-serif;
         font-size: 16px;
         line-height: 1.6;
-        color: #374151;
+        color: #475467; /* Atitinka mailer.php tekstą */
+        background-color: #ffffff;
     }
     #editor-visual:focus {
-        background-color: #fff;
+        background-color: #fafafa;
+    }
+    /* Elementų stiliai pačiame redaktoriuje, kad matytųsi kaip laiške */
+    #editor-visual h2 {
+        color: #0f172a;
+        font-weight: 700;
+        margin-top: 0;
+    }
+    #editor-visual a {
+        color: #2563eb;
+        text-decoration: underline;
     }
     #editor-visual blockquote {
-        border-left: 4px solid #4f46e5;
+        border-left: 4px solid #2563eb;
         margin-left: 0;
         padding-left: 16px;
-        color: #6b7280;
-        background: #f9fafb;
-        padding: 12px 16px;
-        border-radius: 0 8px 8px 0;
+        color: #64748b;
+        background: #f8fafc;
+        padding: 16px;
+        border-radius: 0 12px 12px 0;
+        font-style: italic;
     }
-    #editor-visual img {
-        max-width: 100%;
-        height: auto;
-        border-radius: 8px;
+    
+    /* Formos elementai */
+    .form-label {
+        display: block; 
+        margin-bottom: 8px; 
+        font-weight: 600; 
+        color: #374151;
+        font-size: 14px;
     }
+    .form-input, .form-select {
+        width: 100%; 
+        padding: 10px 12px; 
+        border-radius: 8px; 
+        border: 1px solid #d1d5db; 
+        background-color: #fff; 
+        font-size: 14px;
+        font-family: inherit;
+        transition: border-color 0.2s;
+    }
+    .form-input:focus, .form-select:focus {
+        border-color: #2563eb;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
     /* Select grupavimas */
-    optgroup { font-weight: 700; color: #4f46e5; }
+    optgroup { font-weight: 700; color: #2563eb; }
 </style>
 
-<div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
-        <h3>📧 Siųsti laišką</h3>
+<div class="card" style="border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid #e5e7eb;">
+        <h3 style="margin:0; color:#111827;">📧 Siųsti laišką</h3>
     </div>
 
-    <form action="admin.php?view=emails" method="POST" class="table-form" onsubmit="syncContent(); return confirm('Ar tikrai norite siųsti šį laišką?');">
+    <form action="admin.php?view=emails" method="POST" onsubmit="syncContent(); return confirm('Ar tikrai norite siųsti šį laišką?');">
         <?php echo csrfField(); ?>
         
         <input type="hidden" name="action" value="send_email">
         
-        <div class="grid grid-2">
+        <div class="grid grid-2" style="gap: 20px;">
             <div>
-                <label style="display:block; margin-bottom:8px; font-weight:600; color:#374151;">Gavėjas</label>
-                <select name="recipient_id" required style="width:100%; padding:10px; border-radius:8px; border:1px solid #d1d5db; background-color: #fff; font-size:14px;">
+                <label class="form-label">Gavėjas</label>
+                <select name="recipient_id" required class="form-select">
                     <option value="">-- Pasirinkite gavėją --</option>
                     
-                    <option value="all" style="font-weight:bold; color:#4f46e5;">📢 SIŲSTI VISIEMS KLIENTAMS (<?php echo count($users); ?>)</option>
+                    <option value="all" style="font-weight:bold; color:#2563eb;">📢 SIŲSTI VISIEMS KLIENTAMS (<?php echo count($users); ?>)</option>
                     <option disabled>--------------------------------</option>
                     
                     <?php foreach ($users as $u): ?>
@@ -100,8 +138,8 @@ $users = $stmt->fetchAll();
             </div>
 
             <div>
-                <label style="display:block; margin-bottom:8px; font-weight:600; color:#374151;">Šablonas (greitas užpildymas)</label>
-                <select id="templateSelector" style="width:100%; padding:10px; border-radius:8px; border:1px solid #d1d5db; background:#f9fafb; font-size:14px;">
+                <label class="form-label">Šablonas (greitas užpildymas)</label>
+                <select id="templateSelector" class="form-select" style="background-color:#f8fafc;">
                     <option value="">-- Pasirinkite šabloną --</option>
                     
                     <optgroup label="✨ Bendra komunikacija">
@@ -141,13 +179,13 @@ $users = $stmt->fetchAll();
             </div>
         </div>
 
-        <div style="margin-top:16px;">
-            <label style="display:block; margin-bottom:8px; font-weight:600; color:#374151;">Laiško tema</label>
-            <input type="text" name="subject" id="emailSubject" required placeholder="pvz.: Savaitgalio išpardavimas!" style="width:100%; padding:10px; border-radius:8px; border:1px solid #d1d5db;">
+        <div style="margin-top:20px;">
+            <label class="form-label">Laiško tema</label>
+            <input type="text" name="subject" id="emailSubject" required placeholder="pvz.: Savaitgalio išpardavimas!" class="form-input">
         </div>
 
-        <div style="margin-top:16px;">
-            <label style="display:block; margin-bottom:8px; font-weight:600; color:#374151;">Laiško turinis</label>
+        <div style="margin-top:20px;">
+            <label class="form-label">Laiško turinis</label>
             
             <textarea name="message" id="hiddenMessage" style="display:none;"></textarea>
 
@@ -157,29 +195,29 @@ $users = $stmt->fetchAll();
                     <button type="button" class="editor-btn" onclick="execCmd('italic')" title="Pasviras"><i>I</i></button>
                     <button type="button" class="editor-btn" onclick="execCmd('underline')" title="Pabraukti"><u>U</u></button>
                     <button type="button" class="editor-btn" onclick="execCmd('strikeThrough')" title="Perbraukti"><s>S</s></button>
-                    <div style="width:1px; height:20px; background:#d1d5db; margin:0 5px;"></div>
+                    <div style="width:1px; height:20px; background:#e5e7eb; margin:0 5px;"></div>
                     <button type="button" class="editor-btn" onclick="execCmd('justifyLeft')" title="Kairė">⬅️</button>
                     <button type="button" class="editor-btn" onclick="execCmd('justifyCenter')" title="Centras">↔️</button>
-                    <div style="width:1px; height:20px; background:#d1d5db; margin:0 5px;"></div>
+                    <div style="width:1px; height:20px; background:#e5e7eb; margin:0 5px;"></div>
                     <button type="button" class="editor-btn" onclick="execCmd('insertUnorderedList')" title="Sąrašas su taškais">• Sąrašas</button>
                     <button type="button" class="editor-btn" onclick="execCmd('insertOrderedList')" title="Numeruotas sąrašas">1. Sąrašas</button>
-                    <div style="width:1px; height:20px; background:#d1d5db; margin:0 5px;"></div>
+                    <div style="width:1px; height:20px; background:#e5e7eb; margin:0 5px;"></div>
                     <button type="button" class="editor-btn" onclick="createLink()" title="Įterpti nuorodą">🔗</button>
                     <button type="button" class="editor-btn" onclick="execCmd('unlink')" title="Panaikinti nuorodą">❌🔗</button>
-                    <div style="width:1px; height:20px; background:#d1d5db; margin:0 5px;"></div>
+                    <div style="width:1px; height:20px; background:#e5e7eb; margin:0 5px;"></div>
                     <button type="button" class="editor-btn" onclick="execCmd('removeFormat')" title="Išvalyti formatavimą">🧹</button>
                 </div>
                 
                 <div id="editor-visual" contenteditable="true"></div>
             </div>
 
-            <p class="text-muted" style="font-size:13px; margin-top:8px; color:#6b7280;">
-                💡 <b>Patarimas:</b> Jūsų tekstas bus automatiškai įdėtas į standartinį „Cukrinukas“ dizaino rėmelį su logotipu.
+            <p class="text-muted" style="font-size:13px; margin-top:8px; color:#6b7280; display:flex; align-items:center; gap:6px;">
+                <span>💡</span> <b>Patarimas:</b> Jūsų tekstas bus automatiškai įdėtas į naująjį „Cukrinukas“ dizaino šabloną (su logotipu ir rėmeliu).
             </p>
         </div>
 
         <div style="margin-top:24px; text-align:right;">
-            <button type="submit" class="btn" style="background:var(--primary); color:white; padding: 12px 24px; font-weight:600; border-radius:8px; border:none; cursor:pointer;">
+            <button type="submit" class="btn" style="background: #2563eb; color: white; padding: 12px 28px; font-weight: 600; border-radius: 12px; border: none; cursor: pointer; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); transition: background 0.2s;">
                 Siųsti laišką 🚀
             </button>
         </div>
@@ -208,13 +246,24 @@ function syncContent() {
 
 document.getElementById('editor-visual').addEventListener('input', syncContent);
 
-// --- Stiliai naudojami šablonuose ---
-const styleBtn = 'background-color: #4f46e5; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold; font-size: 16px; margin-top: 10px; margin-bottom: 10px;';
-const styleH2 = 'color: #111827; font-size: 24px; margin-bottom: 16px; font-weight: 700;';
-const styleP = 'color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 16px;';
-const styleHighlight = 'color: #4f46e5; font-weight: bold;';
-const styleBox = 'background-color: #f3f4f6; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin: 20px 0; text-align: center;';
-const styleCode = 'background-color: #fff; border: 2px dashed #4f46e5; color: #4f46e5; font-size: 20px; font-weight: bold; padding: 10px 20px; display: inline-block; border-radius: 4px; margin: 10px 0;';
+// --- Stiliai naudojami šablonuose (Suderinti su account.php / mailer.php) ---
+// Mygtuko stilius: --accent (#2563eb), rounded-12px, shadow
+const styleBtn = 'background-color: #2563eb; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 12px; display: inline-block; font-weight: 600; font-size: 15px; margin-top: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); font-family: "Inter", sans-serif;';
+
+// Antraštė: --text-main (#0f172a)
+const styleH2 = 'color: #0f172a; font-size: 24px; margin-bottom: 20px; font-weight: 700; letter-spacing: -0.5px;';
+
+// Tekstas: --text-muted (#475467)
+const styleP = 'color: #475467; font-size: 16px; line-height: 1.6; margin-bottom: 16px;';
+
+// Akcentas tekste: --accent (#2563eb)
+const styleHighlight = 'color: #2563eb; font-weight: bold;';
+
+// Dėžutė kodams: --bg (#f7f7fb), --border (#e4e7ec)
+const styleBox = 'background-color: #f8fafc; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; margin: 24px 0; text-align: center;';
+
+// Kodo stilius: dashed border su --accent
+const styleCode = 'background-color: #ffffff; border: 2px dashed #2563eb; color: #2563eb; font-size: 22px; font-weight: 700; padding: 12px 24px; display: inline-block; border-radius: 8px; margin: 8px 0; letter-spacing: 1px;';
 
 // --- Šablonų logika (25 vnt.) ---
 const templates = {
@@ -226,7 +275,7 @@ const templates = {
 <p style="${styleP}">Norėdami padaryti pradžią dar saldesnę, dovanojame Jums nuolaidą pirmajam apsipirkimui:</p>
 <div style="${styleBox}">
     <span style="${styleCode}">SVEIKAS10</span>
-    <p style="margin-top:10px; font-size:14px; color:#6b7280;">Nuolaidos kodas suteikia -10% visam krepšeliui.</p>
+    <p style="margin-top:12px; font-size:14px; color:#64748b;">Nuolaidos kodas suteikia -10% visam krepšeliui.</p>
 </div>
 <div style="text-align: center;">
     <a href="https://cukrinukas.lt/products" style="${styleBtn}">Pradėti apsipirkimą</a>
@@ -239,7 +288,7 @@ const templates = {
         body: `<h2 style="${styleH2}">Geros naujienos!</h2>
 <p style="${styleP}">Jūsų užsakymas buvo kruopščiai supakuotas ir perduotas kurjeriui. Jau visai netrukus galėsite mėgautis savo skanėstais.</p>
 <div style="${styleBox}">
-    <p style="${styleP}">Siunta Jus pasieks per <strong>1-3 darbo dienas</strong>.</p>
+    <p style="${styleP}; margin-bottom:0;">Siunta Jus pasieks per <strong>1-3 darbo dienas</strong>.</p>
 </div>
 <p style="${styleP}">Tikimės, kad saldumynai Jums patiks!</p>
 <p style="${styleP}"><em>Cukrinukas komanda</em></p>`
@@ -257,7 +306,7 @@ const templates = {
 <div style="text-align: center;">
     <a href="https://cukrinukas.lt" style="${styleBtn}">Griebti nuolaidą</a>
 </div>
-<p style="font-size:12px; color:#9ca3af; text-align:center; margin-top:20px;">Pasiūlymas galioja iki sekmadienio vidurnakčio.</p>`
+<p style="font-size:13px; color:#94a3b8; text-align:center; margin-top:24px;">Pasiūlymas galioja iki sekmadienio vidurnakčio.</p>`
     },
 
     // 4. CART RECOVERY
@@ -382,14 +431,14 @@ const templates = {
 </div>`
     },
 
-    // 15. BLACK FRIDAY
+    // 15. BLACK FRIDAY (Išimtis - juoda spalva, bet suapvalinimai lieka)
     black_friday: {
         subject: "⚫ BLACK FRIDAY prasideda dabar!",
         body: `<h2 style="${styleH2}; color:#000;">DIDŽIAUSIAS METŲ IŠPARDAVIMAS</h2>
 <p style="${styleP}">Tai, ko laukėte visus metus. Nuolaidos net iki <span style="color:#ef4444; font-weight:bold;">-50%</span>!</p>
 <p style="${styleP}">Prekių kiekis ribotas, tad nelaukite.</p>
 <div style="text-align: center;">
-    <a href="https://cukrinukas.lt" style="${styleBtn}; background-color:#000;">PIRKTI DABAR</a>
+    <a href="https://cukrinukas.lt" style="${styleBtn}; background-color:#000000; box-shadow:0 4px 10px rgba(0,0,0,0.3);">PIRKTI DABAR</a>
 </div>`
     },
 
