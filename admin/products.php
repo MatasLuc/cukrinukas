@@ -134,12 +134,10 @@ foreach ($allCats as $c) {
     .rich-editor-wrapper { border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; background: #fff; }
     .editor-toolbar { background: #f3f4f6; border-bottom: 1px solid #d1d5db; padding: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
     
-    /* FIX: Button styles update for toolbar */
     .editor-btn { border: 1px solid transparent; background: transparent; cursor: pointer; padding: 4px 6px; border-radius: 4px; font-size: 14px; color: #374151; font-weight: 500; }
     .editor-btn:hover { background: #e5e7eb; border-color: #d1d5db; }
     
     .editor-content { min-height: 150px; padding: 12px; outline: none; overflow-y: auto; font-size: 14px; line-height: 1.5; }
-    /* FIX: List styles inside editor */
     .editor-content ul, .editor-content ol { padding-left: 20px; margin-left: 10px; list-style-position: inside; }
     .editor-content ul { list-style-type: disc; }
     .editor-content ol { list-style-type: decimal; }
@@ -452,14 +450,13 @@ foreach ($allCats as $c) {
     });
 
     // --- SHARED HELPERS ---
-    // FIX: Pridėtas onmousedown="event.preventDefault();" kad neišsimuštų focusas
     window.createToolbar = function(containerId) {
         const c = document.getElementById(containerId);
         if(!c) return;
         const tools = [ {c:'bold',l:'B'}, {c:'italic',l:'I'}, {c:'insertUnorderedList',l:'• List'}, {c:'createLink',l:'🔗'} ];
         let h=''; 
         tools.forEach(t=>{ 
-            // Svarbiausia dalis: onmousedown="event.preventDefault();"
+            // FIX: PreventDefault kad neprarastų fokuso
             let md = 'onmousedown="event.preventDefault();"';
             if(t.c=='createLink') h+=`<button type="button" class="editor-btn" ${md} onclick="let u=prompt('URL:');if(u)document.execCommand('${t.c}',false,u)">${t.l}</button>`;
             else h+=`<button type="button" class="editor-btn" ${md} onclick="document.execCommand('${t.c}',false,null)">${t.l}</button>`; 
@@ -493,6 +490,7 @@ foreach ($allCats as $c) {
         groupDiv.className = 'var-group';
         groupDiv.dataset.id = groupId;
         
+        // FIX: Ensure name="variations[...]" is strictly correct
         groupDiv.innerHTML = `
             <div class="var-group-header">
                 <input type="text" name="variations[${groupId}][group_name]" class="form-control" placeholder="Grupės pavadinimas (pvz. Dydis)" value="${groupName.replace(/"/g, '&quot;')}" style="width:70%; font-weight:bold;">
