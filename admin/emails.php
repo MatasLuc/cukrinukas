@@ -6,12 +6,31 @@ $stmt = $pdo->query("SELECT id, name, email FROM users ORDER BY name ASC");
 $users = $stmt->fetchAll();
 ?>
 
+<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+<script>
+  tinymce.init({
+    selector: '#emailMessage',
+    height: 500,
+    plugins: [
+      'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+      'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+      'insertdatetime', 'media', 'table', 'help', 'wordcount', 'emoticons'
+    ],
+    toolbar: 'undo redo | formatselect | ' +
+    'bold italic backcolor | alignleft aligncenter ' +
+    'alignright alignjustify | bullist numlist outdent indent | ' +
+    'removeformat | emoticons | help',
+    content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; }',
+    language: 'lt' // Jei reikia lietuvių k., bet veiks ir EN
+  });
+</script>
+
 <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
-        <h3>📧 Siųsti laišką klientui</h3>
+        <h3>📧 Siųsti laišką</h3>
     </div>
 
-    <form action="admin.php?view=emails" method="POST" class="table-form">
+    <form action="admin.php?view=emails" method="POST" class="table-form" onsubmit="return confirm('Ar tikrai norite siųsti šį laišką?');">
         <?php echo csrfField(); ?>
         
         <input type="hidden" name="action" value="send_email">
@@ -19,8 +38,12 @@ $users = $stmt->fetchAll();
         <div class="grid grid-2">
             <div>
                 <label style="display:block; margin-bottom:8px; font-weight:600;">Gavėjas</label>
-                <select name="recipient_id" required style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd;">
-                    <option value="">-- Pasirinkite klientą --</option>
+                <select name="recipient_id" required style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd; background-color: #fff;">
+                    <option value="">-- Pasirinkite gavėją --</option>
+                    
+                    <option value="all" style="font-weight:bold; color:var(--primary);">📢 SIŲSTI VISIEMS KLIENTAMS (<?php echo count($users); ?>)</option>
+                    <option disabled>--------------------------------</option>
+                    
                     <?php foreach ($users as $u): ?>
                         <option value="<?php echo $u['id']; ?>">
                             <?php echo htmlspecialchars($u['name']); ?> (<?php echo htmlspecialchars($u['email']); ?>)
@@ -44,19 +67,19 @@ $users = $stmt->fetchAll();
 
         <div style="margin-top:16px;">
             <label style="display:block; margin-bottom:8px; font-weight:600;">Laiško tema</label>
-            <input type="text" name="subject" id="emailSubject" required placeholder="Įveskite laiško temą..." style="width:100%;">
+            <input type="text" name="subject" id="emailSubject" required placeholder="pvz.: Savaitgalio išpardavimas!" style="width:100%;">
         </div>
 
         <div style="margin-top:16px;">
-            <label style="display:block; margin-bottom:8px; font-weight:600;">Laiško turinis (HTML)</label>
-            <textarea name="message" id="emailMessage" rows="10" required placeholder="Rašykite čia... Galite naudoti HTML žymes kaip <b>paryškinta</b>, <br> nauja eilutė ir pan." style="width:100%; font-family:monospace;"></textarea>
+            <label style="display:block; margin-bottom:8px; font-weight:600;">Laiško turinis</label>
+            <textarea name="message" id="emailMessage" placeholder="Rašykite savo laišką čia..."></textarea>
             <p class="text-muted" style="font-size:12px; margin-top:4px;">
-                Pastaba: Laiškas bus automatiškai įdėtas į standartinį „Cukrinukas“ dizaino rėmelį.
+                Jūsų tekstas bus automatiškai įdėtas į standartinį „Cukrinukas“ dizaino rėmelį su logotipu.
             </p>
         </div>
 
         <div style="margin-top:24px; text-align:right;">
-            <button type="submit" class="btn" style="background:var(--primary); color:white;">
+            <button type="submit" class="btn" style="background:var(--primary); color:white; padding: 12px 24px;">
                 Siųsti laišką 🚀
             </button>
         </div>
@@ -69,22 +92,27 @@ const templates = {
         subject: "Specialus pasiūlymas tik Jums! 🍭",
         body: `<p>Sveiki!</p>
 <p>Norime pranešti, kad šią savaitę <b>Cukrinukas.lt</b> parduotuvėje vyksta ypatinga akcija.</p>
-<p>Pasinaudokite proga įsigyti savo mėgstamiausių saldumynų su <strong>20% nuolaida</strong>! Tiesiog atsiskaitymo metu naudokite kodą:</p>
-<h3 style="text-align:center; color:#4f46e5;">SALDU20</h3>
+<p>Pasinaudokite proga įsigyti savo mėgstamiausių saldumynų su <span style="color: #e03e2d;"><strong>20% nuolaida</strong></span>! Tiesiog atsiskaitymo metu naudokite kodą:</p>
+<h2 style="text-align: center;"><span style="background-color: #f1c40f; padding: 5px 15px; border-radius: 5px;">SALDU20</span></h2>
+<p>Pasiūlymas galioja iki sekmadienio.</p>
 <p>Laukiame Jūsų sugrįžtant!</p>`
     },
     order_shipped: {
         subject: "Jūsų užsakymas jau pakeliui! 🚚",
         body: `<p>Sveiki,</p>
 <p>Turime puikių žinių! Jūsų užsakymas buvo sėkmingai supakuotas ir perduotas kurjeriui.</p>
-<p>Siuntą turėtumėte gauti per 1-3 darbo dienas.</p>
-<p>Ačiū, kad perkate pas mus!</p>`
+<p>Siuntą turėtumėte gauti per <strong>1-3 darbo dienas</strong>.</p>
+<hr />
+<p>Tikimės, kad saldumynai Jums patiks!</p>
+<p><em>Cukrinukas komanda</em></p>`
     },
     birthday: {
         subject: "Su gimtadieniu! 🎂 Dovana Jums",
-        body: `<p>Sveikiname su gimtadieniu!</p>
+        body: `<div style="text-align: center;">
+<h2>Sveikiname su gimtadieniu! 🥳</h2>
 <p>Šia ypatinga proga norime Jums padovanoti nedidelę staigmeną – <strong>nemokamą pristatymą</strong> kitam Jūsų užsakymui.</p>
-<p>Linkime saldžių ir džiugių metų!</p>`
+<p>Linkime saldžių ir džiugių metų!</p>
+</div>`
     },
     feedback: {
         subject: "Kaip mums sekėsi? ⭐",
@@ -102,11 +130,18 @@ const templates = {
     }
 };
 
+// JavaScript atnaujintas, kad veiktų su TinyMCE
 document.getElementById('templateSelector').addEventListener('change', function() {
     const key = this.value;
     if (templates[key]) {
         document.getElementById('emailSubject').value = templates[key].subject;
-        document.getElementById('emailMessage').value = templates[key].body;
+        // Naudojame TinyMCE API turiniui nustatyti
+        if (tinymce.get('emailMessage')) {
+            tinymce.get('emailMessage').setContent(templates[key].body);
+        } else {
+            // Fallback, jei netyčia redaktorius dar neužsikrovė
+            document.getElementById('emailMessage').value = templates[key].body;
+        }
     }
 });
 </script>
