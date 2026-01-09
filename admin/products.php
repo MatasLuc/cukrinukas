@@ -456,7 +456,6 @@ foreach ($allCats as $c) {
         const tools = [ {c:'bold',l:'B'}, {c:'italic',l:'I'}, {c:'insertUnorderedList',l:'• List'}, {c:'createLink',l:'🔗'} ];
         let h=''; 
         tools.forEach(t=>{ 
-            // FIX: PreventDefault kad neprarastų fokuso
             let md = 'onmousedown="event.preventDefault();"';
             if(t.c=='createLink') h+=`<button type="button" class="editor-btn" ${md} onclick="let u=prompt('URL:');if(u)document.execCommand('${t.c}',false,u)">${t.l}</button>`;
             else h+=`<button type="button" class="editor-btn" ${md} onclick="document.execCommand('${t.c}',false,null)">${t.l}</button>`; 
@@ -481,6 +480,9 @@ foreach ($allCats as $c) {
         if(window.createToolbar) window.createToolbar('tb_'+uid);
     }
 
+    // Globalus kintamasis saugoti esamoms nuotraukoms redagavimo metu
+    window.currentProductAllImages = [];
+
     // --- VARIATIONS LOGIC (GROUPED) ---
     window.addVariationGroup = function(groupName = '', items = []) {
         const wrapper = document.getElementById('variationsWrapper');
@@ -490,14 +492,13 @@ foreach ($allCats as $c) {
         groupDiv.className = 'var-group';
         groupDiv.dataset.id = groupId;
         
-        // FIX: Ensure name="variations[...]" is strictly correct
         groupDiv.innerHTML = `
             <div class="var-group-header">
                 <input type="text" name="variations[${groupId}][group_name]" class="form-control" placeholder="Grupės pavadinimas (pvz. Dydis)" value="${groupName.replace(/"/g, '&quot;')}" style="width:70%; font-weight:bold;">
                 <button type="button" class="del-btn" onclick="this.closest('.var-group').remove()">Ištrinti grupę</button>
             </div>
             <div class="var-group-body" id="group_body_${groupId}">
-                </div>
+            </div>
             <div style="padding:0 15px 15px 15px; text-align:right;">
                 <button type="button" class="btn secondary" style="font-size:11px;" onclick="addVariationRow('${groupId}')">+ Pridėti reikšmę</button>
             </div>
@@ -505,16 +506,27 @@ foreach ($allCats as $c) {
         wrapper.appendChild(groupDiv);
 
         if(items && items.length > 0) {
-            items.forEach(item => addVariationRow(groupId, item.name, item.price_delta, item.quantity));
+            // Čia perduodame ir image_id (paskutinis parametras)
+            items.forEach(item => addVariationRow(groupId, item.name, item.price_delta, item.quantity, item.image_id));
         } else {
             addVariationRow(groupId);
         }
     }
 
-    window.addVariationRow = function(groupId, name='', price='', qty='') {
+    window.addVariationRow = function(groupId, name='', price='', qty='', imageId='') {
         const body = document.getElementById('group_body_' + groupId);
         const rowId = Date.now() + Math.floor(Math.random()*1000);
         
+        // Sugeneruojame nuotraukų pasirinkimą
+        let imgOptions = '<option value="">-- Be nuotraukos --</option>';
+        if (window.currentProductAllImages && window.currentProductAllImages.length > 0) {
+            window.currentProductAllImages.forEach(img => {
+                const selected = (img.id == imageId) ? 'selected' : '';
+                const fName = img.path.split('/').pop(); 
+                imgOptions += `<option value="${img.id}" ${selected}>Foto: ${fName}</option>`;
+            });
+        }
+
         const row = document.createElement('div');
         row.className = 'var-row';
         row.innerHTML = `
@@ -526,6 +538,11 @@ foreach ($allCats as $c) {
             </div>
              <div style="flex:1;">
                 <input type="number" name="variations[${groupId}][items][${rowId}][qty]" class="form-control" placeholder="Kiekis" value="${qty}">
+            </div>
+            <div style="flex:1.5;">
+                 <select name="variations[${groupId}][items][${rowId}][image_id]" class="form-control" style="font-size:12px;">
+                    ${imgOptions}
+                 </select>
             </div>
             <button type="button" class="del-btn" onclick="this.parentElement.remove()">&times;</button>
         `;
@@ -580,6 +597,9 @@ foreach ($allCats as $c) {
     // --- EDIT & RESET LOGIC ---
     window.editProduct = function(data) {
         resetForm(false); 
+        
+        // Išsaugome nuotraukas globaliai
+        window.currentProductAllImages = data.all_images || [];
         
         // 1. Basic Info
         document.getElementById('productId').value = data.id;
@@ -665,6 +685,8 @@ foreach ($allCats as $c) {
     window.resetForm = function(scroll = true) {
         document.getElementById('mainProductForm').reset();
         document.getElementById('productId').value = '';
+        window.currentProductAllImages = []; // Resetuojam nuotraukas
+
         document.getElementById('descEditor').innerHTML = '';
         document.getElementById('attributesContainer').innerHTML = '';
         addRichAttrRow(); 
