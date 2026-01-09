@@ -133,9 +133,17 @@ foreach ($allCats as $c) {
     .cat-child { margin-left: 20px; border-left: 2px solid #eee; padding-left: 8px; }
     .rich-editor-wrapper { border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; background: #fff; }
     .editor-toolbar { background: #f3f4f6; border-bottom: 1px solid #d1d5db; padding: 6px; display: flex; gap: 4px; flex-wrap: wrap; }
-    .editor-btn { border: 1px solid transparent; background: transparent; cursor: pointer; padding: 4px 6px; border-radius: 4px; font-size: 14px; color: #374151; }
+    
+    /* FIX: Button styles update for toolbar */
+    .editor-btn { border: 1px solid transparent; background: transparent; cursor: pointer; padding: 4px 6px; border-radius: 4px; font-size: 14px; color: #374151; font-weight: 500; }
     .editor-btn:hover { background: #e5e7eb; border-color: #d1d5db; }
+    
     .editor-content { min-height: 150px; padding: 12px; outline: none; overflow-y: auto; font-size: 14px; line-height: 1.5; }
+    /* FIX: List styles inside editor */
+    .editor-content ul, .editor-content ol { padding-left: 20px; margin-left: 10px; list-style-position: inside; }
+    .editor-content ul { list-style-type: disc; }
+    .editor-content ol { list-style-type: decimal; }
+    
     .mini-editor .editor-content { min-height: 60px; }
     .attr-row { display: grid; grid-template-columns: 200px 1fr 40px; gap: 10px; margin-bottom: 12px; align-items: start; background: #fdfdfd; padding: 10px; border: 1px solid #eee; border-radius: 6px; }
     .bulk-actions { display: none; align-items: center; gap: 10px; background: #eff6ff; padding: 8px 16px; border-radius: 8px; border: 1px solid #dbeafe; margin-left: 16px; }
@@ -444,14 +452,17 @@ foreach ($allCats as $c) {
     });
 
     // --- SHARED HELPERS ---
+    // FIX: Pridėtas onmousedown="event.preventDefault();" kad neišsimuštų focusas
     window.createToolbar = function(containerId) {
         const c = document.getElementById(containerId);
         if(!c) return;
         const tools = [ {c:'bold',l:'B'}, {c:'italic',l:'I'}, {c:'insertUnorderedList',l:'• List'}, {c:'createLink',l:'🔗'} ];
         let h=''; 
         tools.forEach(t=>{ 
-            if(t.c=='createLink') h+=`<span class="editor-btn" onclick="let u=prompt('URL:');if(u)document.execCommand('${t.c}',false,u)">${t.l}</span>`;
-            else h+=`<span class="editor-btn" onclick="document.execCommand('${t.c}',false,null)">${t.l}</span>`; 
+            // Svarbiausia dalis: onmousedown="event.preventDefault();"
+            let md = 'onmousedown="event.preventDefault();"';
+            if(t.c=='createLink') h+=`<button type="button" class="editor-btn" ${md} onclick="let u=prompt('URL:');if(u)document.execCommand('${t.c}',false,u)">${t.l}</button>`;
+            else h+=`<button type="button" class="editor-btn" ${md} onclick="document.execCommand('${t.c}',false,null)">${t.l}</button>`; 
         });
         c.innerHTML = h;
     }
@@ -532,7 +543,6 @@ foreach ($allCats as $c) {
         if(content) content.classList.add('active');
         
         const btns = document.querySelectorAll('.tab-btn');
-        // Indexai: Basic=0, Specs=1, Seo=2
         if(id=='basic' && btns[0]) btns[0].classList.add('active');
         if(id=='specs' && btns[1]) btns[1].classList.add('active');
         if(id=='seo' && btns[2]) btns[2].classList.add('active');
