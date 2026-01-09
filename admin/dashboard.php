@@ -14,24 +14,28 @@ $latestOrders = [];
 $lowStockItems = []; // Talpins ir prekes, ir variacijas
 $chartDataRaw = [];
 
+// Apibrėžiame būsenas, kurios laikomos "sėkmingu pardavimu" statistikai
+// Svarbu įtraukti 'apmokėta', nes užsakymas gali būti dar neišsiųstas, bet pinigai gauti.
+$paidStatusesSQL = "'apmokėta', 'apdorojama', 'išsiųsta', 'įvykdyta'";
+
 try {
     // --- VARTOTOJAI ---
     $userCountHero = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn() ?: 0;
 
-    // --- UŽSAKYMAI (TIK ĮVYKDYTI) ---
+    // --- UŽSAKYMAI (TIK APMOKĖTI/SĖKMINGI) ---
     // Viso pardavimai
-    $totalSalesHero = $pdo->query("SELECT SUM(total) FROM orders WHERE status = 'įvykdyta'")->fetchColumn() ?: 0;
+    $totalSalesHero = $pdo->query("SELECT SUM(total) FROM orders WHERE status IN ($paidStatusesSQL)")->fetchColumn() ?: 0;
     
-    // Viso užsakymų skaičius (įvykdytų)
-    $ordersCountHero = $pdo->query("SELECT COUNT(*) FROM orders WHERE status = 'įvykdyta'")->fetchColumn() ?: 0;
+    // Viso užsakymų skaičius
+    $ordersCountHero = $pdo->query("SELECT COUNT(*) FROM orders WHERE status IN ($paidStatusesSQL)")->fetchColumn() ?: 0;
     
     // Vidutinis krepšelis
-    $averageOrderHero = $pdo->query("SELECT AVG(total) FROM orders WHERE status = 'įvykdyta'")->fetchColumn() ?: 0;
+    $averageOrderHero = $pdo->query("SELECT AVG(total) FROM orders WHERE status IN ($paidStatusesSQL)")->fetchColumn() ?: 0;
 
     // Šio mėnesio pardavimai
     $currentMonthSales = $pdo->query("
         SELECT SUM(total) FROM orders 
-        WHERE status = 'įvykdyta' 
+        WHERE status IN ($paidStatusesSQL) 
         AND MONTH(created_at) = MONTH(CURRENT_DATE()) 
         AND YEAR(created_at) = YEAR(CURRENT_DATE())
     ")->fetchColumn() ?: 0;
@@ -39,7 +43,7 @@ try {
     // Praėjusio mėnesio pardavimai
     $lastMonthSales = $pdo->query("
         SELECT SUM(total) FROM orders 
-        WHERE status = 'įvykdyta' 
+        WHERE status IN ($paidStatusesSQL) 
         AND MONTH(created_at) = MONTH(CURRENT_DATE() - INTERVAL 1 MONTH) 
         AND YEAR(created_at) = YEAR(CURRENT_DATE() - INTERVAL 1 MONTH)
     ")->fetchColumn() ?: 0;
@@ -51,55 +55,54 @@ try {
         $salesGrowth = 100;
     }
 
-    // --- NAUJAUSI UŽSAKYMAI (Rodome visus ne atšauktus, kad matytumėte, kas vyksta) ---
+    // --- NAUJAUSI UŽSAKYMAI (Rodome visus, kad matytumėte ir laukiančius, ir atšauktus) ---
     $latestOrders = $pdo->query("
         SELECT id, customer_name, total, status, created_at 
         FROM orders 
-        WHERE status != 'atšaukta' 
+        WHERE status != 'atmesta' 
         ORDER BY created_at DESC 
         LIMIT 6
     ")->fetchAll();
 
-    // --- MAŽAS LIKUTIS (PREKĖS IR VARIACIJOS <= 1) ---
-    // Variacijos rodomos TIK jei įjungtas 'track_stock = 1'
+    // --- MAŽAS LIKUTIS (PREKĖS IR VARIACIJOS <= 2) ---
+    // Padidinau ribą iki 2, kad anksčiau pamatytumėte.
     $lowStockQuery = "
         (SELECT p.id, p.title, p.quantity, p.image_url, 'simple' as type 
          FROM products p 
-         WHERE p.quantity <= 1)
+         WHERE p.quantity <= 2)
         UNION ALL
         (SELECT p.id, CONCAT(p.title, ' (', pv.name, ')') as title, pv.quantity, p.image_url, 'variation' as type 
          FROM product_variations pv 
          JOIN products p ON pv.product_id = p.id 
-         WHERE pv.quantity <= 1 AND pv.track_stock = 1)
+         WHERE pv.quantity <= 2 AND pv.track_stock = 1)
         ORDER BY quantity ASC 
         LIMIT 10
     ";
     $lowStockItems = $pdo->query($lowStockQuery)->fetchAll();
 
-    // --- TOP PREKĖS (Pagal pardavimus iš įvykdytų užsakymų) ---
+    // --- TOP PREKĖS (Pagal pardavimus iš sėkmingų užsakymų) ---
     $topProducts = $pdo->query("
         SELECT p.id, p.title, p.image_url, SUM(oi.quantity) as sold_count
         FROM order_items oi
         JOIN products p ON oi.product_id = p.id
         JOIN orders o ON oi.order_id = o.id
-        WHERE o.status = 'įvykdyta'
+        WHERE o.status IN ($paidStatusesSQL)
         GROUP BY p.id
         ORDER BY sold_count DESC
         LIMIT 5
     ")->fetchAll();
 
-    // --- GRAFIKAS (7 DIENOS, TIK ĮVYKDYTI) ---
+    // --- GRAFIKAS (7 DIENOS) ---
     $chartDataRaw = $pdo->query("
         SELECT DATE(created_at) as date, SUM(total) as total 
         FROM orders 
         WHERE created_at >= DATE(NOW()) - INTERVAL 7 DAY 
-        AND status = 'įvykdyta'
+        AND status IN ($paidStatusesSQL)
         GROUP BY DATE(created_at)
     ")->fetchAll(PDO::FETCH_KEY_PAIR);
 
 } catch (Exception $e) {
-    // Jei vis dar yra klaidų, parodome jas
-    $errors[] = "Dashboard Error: " . $e->getMessage();
+    echo '<div class="alert error">Dashboard Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
 }
 
 // Grafiko duomenų paruošimas
@@ -120,6 +123,7 @@ if ($maxVal == 0) $maxVal = 1;
         background: #fff; border-radius: 12px; padding: 20px;
         border: 1px solid #e5e7eb; position: relative;
         display: flex; flex-direction: column; justify-content: space-between;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     .stat-title { color: #6b7280; font-size: 13px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; }
     .stat-value { font-size: 28px; font-weight: 700; color: #111827; }
@@ -127,12 +131,15 @@ if ($maxVal == 0) $maxVal = 1;
     .trend-up { color: #059669; }
     .trend-down { color: #dc2626; }
     
-    .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-    .status-laukiama { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+    /* Statusai atitinkantys orders.php */
+    .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; display:inline-block; }
+    
+    .status-laukiama.apmokėjimo { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+    .status-apmokėta { background: #ecfdf5; color: #047857; border: 1px solid #d1fae5; }
     .status-apdorojama { background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; }
     .status-išsiųsta { background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }
     .status-įvykdyta { background: #ecfdf5; color: #047857; border: 1px solid #d1fae5; }
-    .status-atšaukta { background: #fef2f2; color: #b91c1c; border: 1px solid #fee2e2; }
+    .status-atšaukta, .status-atmesta { background: #fef2f2; color: #b91c1c; border: 1px solid #fee2e2; }
 
     .chart-container {
         display: flex; align-items: flex-end; justify-content: space-between;
@@ -149,9 +156,10 @@ if ($maxVal == 0) $maxVal = 1;
     .bar:hover { background: #6366f1; }
     .bar:hover::after {
         content: attr(data-val) ' €';
-        position: absolute; top: -25px; left: 50%; transform: translateX(-50%);
-        background: #1f2937; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 11px;
+        position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
+        background: #1f2937; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11px;
         white-space: nowrap; pointer-events: none; z-index: 10;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
     }
     .bar-label { margin-top: 8px; font-size: 11px; color: #6b7280; }
     
@@ -159,13 +167,13 @@ if ($maxVal == 0) $maxVal = 1;
         display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f3f4f6;
     }
     .product-list-item:last-child { border-bottom: none; }
-    .list-img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; background: #f3f4f6; }
+    .list-img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; background: #f3f4f6; border: 1px solid #eee; }
 </style>
 
 <div class="grid grid-4" style="margin-bottom: 24px;">
     <div class="stat-card">
         <div>
-            <div class="stat-title">Šio mėnesio pardavimai (Įvykdyta)</div>
+            <div class="stat-title">Šio mėnesio pardavimai</div>
             <div class="stat-value"><?php echo number_format($currentMonthSales, 2); ?> €</div>
         </div>
         <div class="stat-trend <?php echo $salesGrowth >= 0 ? 'trend-up' : 'trend-down'; ?>">
@@ -176,11 +184,11 @@ if ($maxVal == 0) $maxVal = 1;
 
     <div class="stat-card">
         <div>
-            <div class="stat-title">Įvykdyti užsakymai</div>
+            <div class="stat-title">Sėkmingi užsakymai</div>
             <div class="stat-value"><?php echo (int)$ordersCountHero; ?></div>
         </div>
         <div class="stat-trend trend-up">
-            <span style="color:#9ca3af; font-weight:400;">Sėkmingi pardavimai</span>
+            <span style="color:#9ca3af; font-weight:400;">Viso (apmokėti+)</span>
         </div>
     </div>
 
@@ -200,7 +208,7 @@ if ($maxVal == 0) $maxVal = 1;
             <div class="stat-value"><?php echo number_format($averageOrderHero, 2); ?> €</div>
         </div>
         <div class="stat-trend">
-            <span style="color:#9ca3af; font-weight:400;">Pagal įvykdytus užsakymus</span>
+            <span style="color:#9ca3af; font-weight:400;">Pagal sėkmingus užsakymus</span>
         </div>
     </div>
 </div>
@@ -208,7 +216,7 @@ if ($maxVal == 0) $maxVal = 1;
 <div class="grid grid-2" style="margin-bottom: 24px;">
     <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3>Pardavimai per 7 dienas (Įvykdyta)</h3>
+            <h3>Pardavimai per 7 dienas</h3>
             <span style="font-size:12px; color:#6b7280;">Savaitės apžvalga</span>
         </div>
         <div class="chart-container">
@@ -225,7 +233,7 @@ if ($maxVal == 0) $maxVal = 1;
 
     <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3>⚠️ Mažas likutis (≤ 1 vnt.)</h3>
+            <h3>⚠️ Mažas likutis (≤ 2 vnt.)</h3>
             <a href="?view=products" class="btn secondary" style="font-size:11px; padding:4px 8px;">Visos prekės</a>
         </div>
         <?php if ($lowStockItems): ?>
@@ -242,7 +250,7 @@ if ($maxVal == 0) $maxVal = 1;
                 <?php endforeach; ?>
             </div>
         <?php else: ?>
-            <div style="padding:20px; text-align:center; color:#10b981;">Visų prekių likučiai pakankami! ✅</div>
+            <div style="padding:20px; text-align:center; color:#10b981; font-weight:500;">Visų prekių likučiai pakankami! ✅</div>
         <?php endif; ?>
     </div>
 </div>
@@ -256,12 +264,14 @@ if ($maxVal == 0) $maxVal = 1;
         <table style="font-size:13px;">
             <thead><tr><th>ID</th><th>Klientas</th><th>Suma</th><th>Statusas</th></tr></thead>
             <tbody>
-              <?php foreach ($latestOrders as $o): ?>
+              <?php foreach ($latestOrders as $o): 
+                  $statusClass = 'status-' . str_replace(' ', '.', mb_strtolower($o['status']));
+              ?>
                 <tr>
                   <td>#<?php echo (int)$o['id']; ?></td>
                   <td><?php echo htmlspecialchars($o['customer_name']); ?></td>
                   <td><?php echo number_format((float)$o['total'], 2); ?> €</td>
-                  <td><span class="status-badge status-<?php echo htmlspecialchars($o['status']); ?>"><?php echo ucfirst($o['status']); ?></span></td>
+                  <td><span class="status-badge <?php echo $statusClass; ?>"><?php echo ucfirst($o['status']); ?></span></td>
                 </tr>
               <?php endforeach; ?>
               <?php if (!$latestOrders): ?>
