@@ -246,6 +246,10 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
         text-align: right;
         flex: 1;
     }
+    
+    /* Jei specifikacija turi HTML elementų (pvz. ul, p), kad jie atrodytų tvarkingai */
+    .spec-value p { margin: 0; }
+    .spec-value ul { margin: 0; padding-left: 20px; text-align: left; display: inline-block; }
 
     @media (max-width: 600px) {
         .spec-item {
@@ -265,6 +269,7 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
             text-align: left;
             color: var(--text-main);
             font-size: 15px;
+            width: 100%;
         }
     }
 
@@ -399,7 +404,7 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
                         <?php foreach ($attributes as $attr): ?>
                             <div class="spec-item">
                                 <span class="spec-label"><?php echo htmlspecialchars($attr['label']); ?></span>
-                                <span class="spec-value"><?php echo htmlspecialchars($attr['value']); ?></span>
+                                <div class="spec-value"><?php echo $attr['value']; ?></div>
                             </div>
                         <?php endforeach; ?>
                     </div>
