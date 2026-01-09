@@ -18,7 +18,7 @@ ensureAdminAccount($pdo);
 $freeShippingIds = getFreeShippingProductIds($pdo);
 
 $id = (int) ($_GET['id'] ?? 0);
-$error = ''; // Klaidų pranešimams
+$error = ''; 
 
 // Pagrindinė produkto užklausa
 $stmt = $pdo->prepare('SELECT p.*, c.name AS category_name, c.slug AS category_slug FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.id = ? LIMIT 1');
@@ -41,9 +41,9 @@ $attributesStmt = $pdo->prepare('SELECT label, value FROM product_attributes WHE
 $attributesStmt->execute([$id]);
 $attributes = $attributesStmt->fetchAll();
 
-// Variacijos (su likučiais)
+// Variacijos
 $variationsStmt = $pdo->prepare('
-    SELECT pv.id, pv.name, pv.price_delta, pv.group_name, pv.quantity, pv.image_id, pi.path as variation_image
+    SELECT pv.*, pi.path as variation_image
     FROM product_variations pv
     LEFT JOIN product_images pi ON pv.image_id = pi.id
     WHERE pv.product_id = ? 
@@ -52,22 +52,29 @@ $variationsStmt = $pdo->prepare('
 $variationsStmt->execute([$id]);
 $variations = $variationsStmt->fetchAll();
 
-// Variacijų grupavimas ir bendro likučio skaičiavimas
+// Variacijų grupavimas ir bendros būsenos nustatymas
 $groupedVariations = [];
 $variationMap = [];
-$totalVariationStock = 0;
+$hasAnyStock = false; // Ar bent viena variacija prieinama?
 
-foreach ($variations as $var) {
-    $group = $var['group_name'] ?: 'Pasirinkimas';
-    $groupedVariations[$group][] = $var;
-    $variationMap[(int)$var['id']] = $var;
-    $totalVariationStock += (int)$var['quantity'];
+if (!empty($variations)) {
+    foreach ($variations as $var) {
+        $group = $var['group_name'] ?: 'Pasirinkimas';
+        $groupedVariations[$group][] = $var;
+        $variationMap[(int)$var['id']] = $var;
+        
+        // Logika: Jei NESEKA likučio (track_stock=0) ARBA likutis > 0, vadinasi prekė prieinama.
+        if ((int)$var['track_stock'] === 0 || (int)$var['quantity'] > 0) {
+            $hasAnyStock = true;
+        }
+    }
+} else {
+    // Jei nėra variacijų, žiūrime pagrindinį produkto likutį
+    // Paprastoms prekėms dažniausiai tiesiog žiūrimas quantity > 0
+    // Jei norite, kad ir paprastos prekės būtų "neribotos", reikėtų papildomo stulpelio products lentelėje,
+    // bet pagal setup.php products lentelė neturi track_stock, tad kliaujamės quantity.
+    $hasAnyStock = ($product['quantity'] > 0);
 }
-
-// LOGIKA: Jei yra variacijų, pagrindinis likutis yra variacijų suma. 
-// Jei variacijų nėra, naudojame produkto 'quantity' stulpelį.
-$realStock = (!empty($variations)) ? $totalVariationStock : (int)$product['quantity'];
-$isOutOfStock = ($realStock <= 0);
 
 // Susijusios prekės
 $relStmt = $pdo->prepare('SELECT pr.related_product_id, p.title, p.image_url, p.sale_price, p.price, p.subtitle FROM product_related pr JOIN products p ON p.id = pr.related_product_id WHERE pr.product_id = ? LIMIT 4');
@@ -76,7 +83,7 @@ $related = $relStmt->fetchAll();
 
 $isFreeShippingGift = in_array($id, $freeShippingIds, true);
 
-// POST logika
+// POST logika (Įdėjimas į krepšelį)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     validateCsrfToken();
     
@@ -91,40 +98,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    // Į krepšelį
     $qty = max(1, (int) ($_POST['quantity'] ?? 1));
-    
-    // Variacijų apdorojimas
     $postedVariations = $_POST['variations'] ?? [];
     $cartVariations = [];
-    $isValidStock = true;
+    $canAddToCart = true;
     
     // Jei senas formatas
     if (isset($_POST['variation_id']) && !empty($_POST['variation_id'])) {
         $postedVariations['default'] = $_POST['variation_id'];
     }
 
-    // 1. Variacijų LIKUČIO TIKRINIMAS (Backend Validation)
+    // 1. Variacijų TIKRINIMAS (Backend Validation)
     if (!empty($groupedVariations)) {
         // Tikriname ar visos privalomos grupės pasirinktos
         foreach ($groupedVariations as $grpName => $vars) {
             if (empty($postedVariations[$grpName])) {
                 $error = "Pasirinkite: " . htmlspecialchars($grpName);
-                $isValidStock = false;
+                $canAddToCart = false;
                 break;
             }
         }
 
-        if ($isValidStock) {
+        if ($canAddToCart) {
             foreach ($postedVariations as $group => $varId) {
                 $varId = (int)$varId;
                 if ($varId && isset($variationMap[$varId])) {
                     $sel = $variationMap[$varId];
                     
-                    // Tikriname konkrečios variacijos likutį
-                    if ((int)$sel['quantity'] < $qty) {
-                        $error = "Nepakankamas likutis pasirinkimui: " . htmlspecialchars($sel['name']) . " (Liko: {$sel['quantity']})";
-                        $isValidStock = false;
+                    // LIKUČIO TIKRINIMAS
+                    // Jei track_stock == 1, privalome tikrinti kiekį.
+                    // Jei track_stock == 0, leidžiame pirkti bet kiek.
+                    if ((int)$sel['track_stock'] === 1 && (int)$sel['quantity'] < $qty) {
+                        $error = "Atsiprašome, pasirinkimo '" . htmlspecialchars($sel['name']) . "' šiuo metu neturime pakankamai.";
+                        $canAddToCart = false;
                         break;
                     }
 
@@ -138,15 +144,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } else {
-        // Jei variacijų nėra, tikriname pagrindinį prekės likutį
+        // Paprasta prekė (be variacijų)
         if ((int)$product['quantity'] < $qty) {
-            $error = "Nepakankamas prekės likutis (Liko: {$product['quantity']})";
-            $isValidStock = false;
+            $error = "Atsiprašome, prekė išparduota arba neturime pageidaujamo kiekio.";
+            $canAddToCart = false;
         }
     }
 
-    if ($isValidStock) {
-        // Rūšiuojame variacijas raktui
+    if ($canAddToCart) {
         usort($cartVariations, function($a, $b) {
             return $a['id'] <=> $b['id'];
         });
@@ -188,7 +193,6 @@ $meta = [
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <?php echo headerStyles(); ?>
   <style>
-    /* ... stiliai lieka tie patys ... */
     :root {
       --bg: #f8fafc;
       --card-bg: #ffffff;
@@ -312,12 +316,14 @@ $meta = [
         color: var(--accent);
         box-shadow: 0 0 0 1px var(--accent);
     }
+    
     /* Stilius išparduotoms variacijoms */
     .var-chip.out-of-stock {
         opacity: 0.6;
         background: #f1f5f9;
         border-style: dashed;
         cursor: not-allowed;
+        color: #94a3b8;
     }
     .var-chip.out-of-stock:hover {
         border-color: var(--border);
@@ -440,8 +446,8 @@ $meta = [
                 </div>
                 
                 <div id="stock-status" style="font-size:13px; font-weight:600;">
-                    <?php if ($realStock > 0): ?>
-                        <span style="color:var(--success)">● Turime sandėlyje (<?php echo $realStock; ?> vnt.)</span>
+                    <?php if ($hasAnyStock): ?>
+                        <span style="color:var(--success)">● Turime sandėlyje</span>
                     <?php else: ?>
                         <span style="color:var(--danger)">● Išparduota</span>
                     <?php endif; ?>
@@ -457,13 +463,18 @@ $meta = [
                             
                             <div class="var-options">
                                 <?php foreach ($vars as $var): 
+                                    $trackStock = (int)$var['track_stock'];
                                     $varQty = (int)$var['quantity'];
-                                    $isVarOutOfStock = $varQty <= 0;
+                                    
+                                    // Jei sekam likutį IR kiekis <= 0 -> išparduota.
+                                    // Jei track_stock = 0 -> laikome, kad yra.
+                                    $isVarOutOfStock = ($trackStock === 1 && $varQty <= 0);
                                 ?>
                                     <div class="var-chip <?php echo $isVarOutOfStock ? 'out-of-stock' : ''; ?>" 
                                          data-group="<?php echo md5($groupName); ?>" 
                                          data-id="<?php echo (int)$var['id']; ?>"
                                          data-delta="<?php echo (float)$var['price_delta']; ?>"
+                                         data-track-stock="<?php echo $trackStock; ?>"
                                          data-quantity="<?php echo $varQty; ?>"
                                          data-image="<?php echo htmlspecialchars($var['variation_image'] ?? ''); ?>"
                                          onclick="selectVariation(this)">
@@ -487,11 +498,11 @@ $meta = [
             <?php endif; ?>
 
             <div class="action-row">
-                <input type="number" id="qtyInput" name="quantity" value="1" min="1" max="<?php echo max(1, $realStock); ?>" class="qty-input">
+                <input type="number" id="qtyInput" name="quantity" value="1" min="1" class="qty-input">
                 
-                <button type="submit" id="addToCartBtn" class="btn-add" <?php echo ($realStock <= 0) ? 'disabled' : ''; ?>>
-                    <?php echo ($realStock <= 0) ? 'Išparduota' : 'Į krepšelį'; ?>
-                    <?php if($realStock > 0): ?>
+                <button type="submit" id="addToCartBtn" class="btn-add" <?php echo ($hasAnyStock) ? '' : 'disabled'; ?>>
+                    <?php echo ($hasAnyStock) ? 'Į krepšelį' : 'Išparduota'; ?>
+                    <?php if($hasAnyStock): ?>
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                     <?php endif; ?>
                 </button>
@@ -545,7 +556,9 @@ $meta = [
 
     const baseOriginal = parseFloat('<?php echo (float)($product['price'] ?? 0); ?>');
     const baseSale = <?php echo $product['sale_price'] !== null ? 'parseFloat(' . json_encode((float)$product['sale_price']) . ')' : 'null'; ?>;
-    const initialTotalStock = <?php echo $realStock; ?>;
+    
+    // Čia tik pradinė reikšmė (jei nėra variacijų)
+    const initialHasStock = <?php echo json_encode($hasAnyStock); ?>;
     
     const globalDiscount = {
         type: '<?php echo $globalDiscount['type'] ?? 'none'; ?>',
@@ -589,52 +602,64 @@ $meta = [
     }
 
     function selectVariation(el) {
-        // Jei variacija išparduota, neleidžiame spausti (jei norite leisti pasirinkti bet neleisti pirkti, galima pašalinti šį return)
-        /* if (el.classList.contains('out-of-stock')) return; */
-
         const groupHash = el.dataset.group;
         const varId = el.dataset.id;
         const delta = parseFloat(el.dataset.delta || 0);
         const imageSrc = el.dataset.image;
+        
+        // Nauji duomenys
+        const trackStock = parseInt(el.dataset.trackStock || 0); // 0 arba 1
         const stockQty = parseInt(el.dataset.quantity || 0);
 
-        // UI atnaujinimas
         document.querySelectorAll(`.var-chip[data-group="${groupHash}"]`).forEach(c => c.classList.remove('active'));
         el.classList.add('active');
 
         document.getElementById('input-' + groupHash).value = varId;
         selectedDeltas[groupHash] = delta;
         
-        // Pakeičiame pagrindinę nuotrauką
         if (imageSrc && imageSrc !== '') {
             document.getElementById('mainImg').src = imageSrc;
         }
 
         updatePrice();
-        updateStockUI(stockQty);
+        
+        // Atnaujinam mygtuką ir statusą
+        updateStockUI(trackStock, stockQty);
     }
 
-    function updateStockUI(qty) {
+    function updateStockUI(trackStock, qty) {
         const statusDiv = document.getElementById('stock-status');
         const btn = document.getElementById('addToCartBtn');
         const qtyInput = document.getElementById('qtyInput');
 
-        if (qty > 0) {
-            statusDiv.innerHTML = `<span style="color:var(--success)">● Turime sandėlyje (${qty} vnt.)</span>`;
+        // Logika:
+        // Jei trackStock === 0, tai yra neribota ("Turime sandėlyje")
+        // Jei trackStock === 1, tikriname ar qty > 0
+        
+        const isUnlimited = (trackStock === 0);
+        const inStock = isUnlimited || (qty > 0);
+
+        if (inStock) {
+            statusDiv.innerHTML = `<span style="color:var(--success)">● Turime sandėlyje</span>`;
             btn.disabled = false;
             btn.textContent = 'Į krepšelį';
             btn.style.cursor = 'pointer';
             
-            qtyInput.max = qty;
-            if (parseInt(qtyInput.value) > qty) {
-                qtyInput.value = qty;
+            // Jei neribota, leidžiam daug, jei ribota - max = likutis
+            if (isUnlimited) {
+                qtyInput.removeAttribute('max');
+            } else {
+                qtyInput.max = qty;
+                if (parseInt(qtyInput.value) > qty) {
+                    qtyInput.value = qty;
+                }
             }
         } else {
-            statusDiv.innerHTML = `<span style="color:var(--danger)">● Pasirinkimo neturime</span>`;
+            statusDiv.innerHTML = `<span style="color:var(--danger)">● Išparduota</span>`;
             btn.disabled = true;
             btn.textContent = 'Išparduota';
             btn.style.cursor = 'not-allowed';
-            qtyInput.max = 0;
+            qtyInput.max = 0; // Kad negalėtų didinti
         }
     }
   </script>
