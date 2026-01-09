@@ -127,6 +127,38 @@ foreach ($allCats as $c) {
     .var-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: center; }
     .var-row input { margin: 0; }
     
+    /* CUSTOM IMAGE SELECTOR (NAUJAS STILIUS) */
+    .cis-wrapper { position: relative; width: 100%; }
+    .cis-trigger { 
+        border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 8px; 
+        min-height: 38px; display: flex; align-items: center; justify-content: flex-start; 
+        cursor: pointer; background: #fff; gap: 8px;
+    }
+    .cis-trigger:hover { border-color: #9ca3af; background: #f9fafb; }
+    .cis-trigger img { width: 32px; height: 32px; object-fit: cover; border-radius: 4px; border: 1px solid #eee; }
+    .cis-trigger span { font-size: 13px; color: #4b5563; }
+    
+    .cis-dropdown {
+        display: none; position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px;
+        background: #fff; border: 1px solid #d1d5db; border-radius: 6px; 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 100; 
+        padding: 8px; max-height: 250px; overflow-y: auto; 
+        grid-template-columns: repeat(auto-fill, minmax(45px, 1fr)); gap: 6px;
+    }
+    .cis-dropdown.open { display: grid; }
+    .cis-item { 
+        cursor: pointer; border: 2px solid transparent; border-radius: 6px; overflow: hidden; height: 45px; position: relative;
+    }
+    .cis-item:hover { border-color: #6366f1; opacity: 0.9; }
+    .cis-item.selected { border-color: #4f46e5; box-shadow: 0 0 0 2px #e0e7ff; }
+    .cis-item img { width: 100%; height: 100%; object-fit: cover; }
+    
+    .cis-remove { 
+        grid-column: 1 / -1; text-align: center; font-size: 12px; color: #ef4444; font-weight: 500;
+        padding: 6px; cursor: pointer; border-top: 1px solid #eee; margin-top: 4px; 
+    }
+    .cis-remove:hover { background: #fef2f2; }
+
     /* Kiti stiliai */
     .cat-box { border: 1px solid #d1d5db; border-radius: 6px; padding: 10px; max-height: 200px; overflow-y: auto; background: #fff; }
     .cat-item { display: block; margin-bottom: 6px; cursor: pointer; font-size: 14px; }
@@ -447,6 +479,13 @@ foreach ($allCats as $c) {
             window.createToolbar('descToolbar');
         }
         addRichAttrRow();
+        
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if(!e.target.closest('.cis-wrapper')) {
+                document.querySelectorAll('.cis-dropdown').forEach(d => d.classList.remove('open'));
+            }
+        });
     });
 
     // --- SHARED HELPERS ---
@@ -506,43 +545,99 @@ foreach ($allCats as $c) {
         wrapper.appendChild(groupDiv);
 
         if(items && items.length > 0) {
-            // Čia perduodame ir image_id (paskutinis parametras)
             items.forEach(item => addVariationRow(groupId, item.name, item.price_delta, item.quantity, item.image_id));
         } else {
             addVariationRow(groupId);
         }
     }
 
+    // --- CUSTOM IMAGE DROPDOWN LOGIC ---
+    window.toggleCisDropdown = function(trigger) {
+        const dropdown = trigger.nextElementSibling;
+        const isOpen = dropdown.classList.contains('open');
+        // Close others
+        document.querySelectorAll('.cis-dropdown').forEach(d => d.classList.remove('open'));
+        if(!isOpen) dropdown.classList.add('open');
+    }
+
+    window.selectCisImage = function(item, id, path) {
+        const wrapper = item.closest('.cis-wrapper');
+        const input = wrapper.querySelector('input[type=hidden]');
+        const trigger = wrapper.querySelector('.cis-trigger');
+        
+        input.value = id;
+        
+        // Update trigger visuals
+        if(id && path) {
+            trigger.innerHTML = `<img src="${path}"><span>Pakeisti</span>`;
+        } else {
+            trigger.innerHTML = `<span>Pasirinkti foto</span>`;
+        }
+        
+        // Update selected state in dropdown
+        wrapper.querySelectorAll('.cis-item').forEach(i => i.classList.remove('selected'));
+        if(item.classList.contains('cis-item')) {
+            item.classList.add('selected');
+        }
+        
+        wrapper.querySelector('.cis-dropdown').classList.remove('open');
+    }
+
     window.addVariationRow = function(groupId, name='', price='', qty='', imageId='') {
         const body = document.getElementById('group_body_' + groupId);
         const rowId = Date.now() + Math.floor(Math.random()*1000);
         
-        // Sugeneruojame nuotraukų pasirinkimą
-        let imgOptions = '<option value="">-- Be nuotraukos --</option>';
+        // Find current image src if exists
+        let currentImgSrc = '';
+        if (imageId && window.currentProductAllImages) {
+            const found = window.currentProductAllImages.find(i => i.id == imageId);
+            if(found) currentImgSrc = found.path;
+        }
+
+        // Build Trigger HTML
+        let triggerHtml = '';
+        if (currentImgSrc) {
+            triggerHtml = `<img src="${currentImgSrc}"><span>Pakeisti</span>`;
+        } else {
+            triggerHtml = `<span>Pasirinkti foto</span>`;
+        }
+
+        // Build Dropdown Items
+        let dropdownItems = '';
         if (window.currentProductAllImages && window.currentProductAllImages.length > 0) {
             window.currentProductAllImages.forEach(img => {
-                const selected = (img.id == imageId) ? 'selected' : '';
-                const fName = img.path.split('/').pop(); 
-                imgOptions += `<option value="${img.id}" ${selected}>Foto: ${fName}</option>`;
+                const isSel = (img.id == imageId) ? 'selected' : '';
+                dropdownItems += `
+                    <div class="cis-item ${isSel}" onclick="selectCisImage(this, '${img.id}', '${img.path}')" title="Pasirinkti">
+                        <img src="${img.path}">
+                    </div>
+                `;
             });
+            dropdownItems += `<div class="cis-remove" onclick="selectCisImage(this, '', '')">Pašalinti nuotrauką</div>`;
+        } else {
+            dropdownItems = `<div style="padding:10px; font-size:11px; color:#999; text-align:center; grid-column:1/-1;">Nėra įkeltų nuotraukų. Išsaugokite prekę su nuotraukomis.</div>`;
         }
 
         const row = document.createElement('div');
         row.className = 'var-row';
         row.innerHTML = `
             <div style="flex:2;">
-                <input type="text" name="variations[${groupId}][items][${rowId}][name]" class="form-control" placeholder="Reikšmė (pvz. S)" value="${(name||'').replace(/"/g, '&quot;')}" required>
+                <input type="text" name="variations[${groupId}][items][${rowId}][name]" class="form-control" placeholder="Reikšmė" value="${(name||'').replace(/"/g, '&quot;')}" required>
             </div>
             <div style="flex:1;">
-                <input type="number" step="0.01" name="variations[${groupId}][items][${rowId}][price]" class="form-control" placeholder="Kaina +/-" value="${price}">
+                <input type="number" step="0.01" name="variations[${groupId}][items][${rowId}][price]" class="form-control" placeholder="+/- €" value="${price}">
             </div>
              <div style="flex:1;">
-                <input type="number" name="variations[${groupId}][items][${rowId}][qty]" class="form-control" placeholder="Kiekis" value="${qty}">
+                <input type="number" name="variations[${groupId}][items][${rowId}][qty]" class="form-control" placeholder="Vnt." value="${qty}">
             </div>
             <div style="flex:1.5;">
-                 <select name="variations[${groupId}][items][${rowId}][image_id]" class="form-control" style="font-size:12px;">
-                    ${imgOptions}
-                 </select>
+                 <div class="cis-wrapper">
+                    <input type="hidden" name="variations[${groupId}][items][${rowId}][image_id]" class="cis-input" value="${imageId}">
+                    <div class="cis-trigger" onclick="toggleCisDropdown(this)">${triggerHtml}</div>
+                    <div class="cis-dropdown">
+                        ${dropdownItems}
+                    </div>
+                 </div>
             </div>
             <button type="button" class="del-btn" onclick="this.parentElement.remove()">&times;</button>
         `;
