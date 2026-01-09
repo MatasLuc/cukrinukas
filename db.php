@@ -1145,41 +1145,62 @@ function getCartData(PDO $pdo, array $cartSession, array $variationSelections = 
         ];
     }
 
-    $ids = array_keys($cartSession);
-    $placeholders = implode(',', array_fill(0, count($ids), '?'));
-    $stmt = $pdo->prepare("SELECT id, title, price, sale_price, image_url, category_id FROM products WHERE id IN ($placeholders)");
-    $stmt->execute($ids);
-    $rows = $stmt->fetchAll();
+    // 1. Surenkame unikalius produktų ID
+    $productIdsToFetch = [];
+    foreach (array_keys($cartSession) as $key) {
+        $parts = explode('_', $key);
+        $pid = (int)$parts[0];
+        if ($pid > 0) {
+            $productIdsToFetch[$pid] = true;
+        }
+    }
+
+    // 2. Užkrauname produktus
+    $fetchedProducts = [];
+    if (!empty($productIdsToFetch)) {
+        $placeholders = implode(',', array_fill(0, count($productIdsToFetch), '?'));
+        $stmt = $pdo->prepare("SELECT id, title, price, sale_price, image_url, category_id FROM products WHERE id IN ($placeholders)");
+        $stmt->execute(array_keys($productIdsToFetch));
+        while ($row = $stmt->fetch()) {
+            $fetchedProducts[$row['id']] = $row;
+        }
+    }
 
     $globalDiscount = getGlobalDiscount($pdo);
     $categoryDiscounts = getCategoryDiscounts($pdo);
 
-    foreach ($rows as $row) {
-        $qty = (int) ($cartSession[$row['id']] ?? 1);
+    // 3. Iteruojame per sesijos raktus (kad atskirtume variacijas)
+    foreach ($cartSession as $key => $qty) {
+        $parts = explode('_', $key);
+        $pid = (int)$parts[0];
         
-        // Atnaujinta logika: variacijų masyvas
-        $varSelection = $variationSelections[$row['id']] ?? [];
+        if (!isset($fetchedProducts[$pid])) continue;
+        $product = $fetchedProducts[$pid];
+        $qty = (int)$qty;
         
-        // Jei tai senas formatas (vienas objektas), paverčiam į masyvą
-        if (isset($varSelection['id'])) {
-            $varSelection = [$varSelection];
+        // Prijungiame variacijas
+        $currentVariations = $variationSelections[$key] ?? [];
+        // Jei senas formatas (objektas), verčiam į masyvą
+        if (!empty($currentVariations) && !isset($currentVariations[0])) {
+            $currentVariations = [$currentVariations];
         }
         
-        $totalDelta = 0;
-        if (is_array($varSelection)) {
-            foreach ($varSelection as $v) {
-                $totalDelta += (float)($v['delta'] ?? 0);
-            }
+        // Skaičiuojame kainą su variacijomis
+        $variationDelta = 0;
+        foreach ($currentVariations as $cv) {
+            $variationDelta += (float)($cv['delta'] ?? 0);
         }
-
-        $baseUnit = ($row['sale_price'] !== null ? (float)$row['sale_price'] : (float)$row['price']) + $totalDelta;
-        $baseOriginal = (float)$row['price'] + $totalDelta;
+        
+        // Bazinės kainos
+        $basePrice = (float)$product['price'] + $variationDelta;
+        $salePrice = ($product['sale_price'] !== null) ? ((float)$product['sale_price'] + $variationDelta) : null;
+        
+        // Pritaikome nuolaidas
+        $baseUnit = ($salePrice !== null) ? $salePrice : $basePrice;
+        $baseOriginal = $basePrice; // Originali kaina be nuolaidos
         
         $afterGlobal = applyGlobalDiscount($baseUnit, $globalDiscount);
-        $catDiscount = null;
-        if (isset($row['category_id'])) {
-            $catDiscount = $categoryDiscounts[(int)$row['category_id']] ?? null;
-        }
+        $catDiscount = $categoryDiscounts[$product['category_id']] ?? null;
         $finalUnit = applyCategoryDiscount($afterGlobal, $catDiscount);
 
         $baseLine = $qty * $baseOriginal;
@@ -1192,20 +1213,19 @@ function getCartData(PDO $pdo, array $cartSession, array $variationSelections = 
         $count += $qty;
         
         $items[] = [
-            'id' => $row['id'],
-            'title' => $row['title'],
+            'id' => $pid,
+            'cart_key' => $key, // Naudinga unikalumui
+            'title' => $product['title'],
             'price' => $finalUnit,
             'original_unit' => $baseOriginal,
-            'image_url' => $row['image_url'],
+            'image_url' => $product['image_url'],
             'quantity' => $qty,
             'line_total' => $finalLine,
             'line_base' => $baseLine,
-            'category_id' => $row['category_id'],
-            // Grąžiname visą variacijų masyvą kaip 'variation_features', 
-            // bet paliekame 'variation' suderinamumui (pirmas elementas)
-            'variation_features' => $varSelection,
-            'variation' => !empty($varSelection) ? $varSelection[0] : null,
-            'free_shipping_gift' => in_array((int)$row['id'], $freeShippingIds, true),
+            'category_id' => $product['category_id'],
+            'variation' => $currentVariations, // Grąžiname kaip 'variation'
+            'variation_features' => $currentVariations, // Ir kaip 'variation_features' (backup)
+            'free_shipping_gift' => in_array((int)$pid, $freeShippingIds, true),
         ];
     }
 
