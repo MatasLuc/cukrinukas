@@ -18,6 +18,7 @@ ensureAdminAccount($pdo);
 $freeShippingIds = getFreeShippingProductIds($pdo);
 
 $id = (int) ($_GET['id'] ?? 0);
+$error = ''; // Klaidų pranešimams
 
 // Pagrindinė produkto užklausa
 $stmt = $pdo->prepare('SELECT p.*, c.name AS category_name, c.slug AS category_slug FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE p.id = ? LIMIT 1');
@@ -40,7 +41,7 @@ $attributesStmt = $pdo->prepare('SELECT label, value FROM product_attributes WHE
 $attributesStmt->execute([$id]);
 $attributes = $attributesStmt->fetchAll();
 
-// Variacijos (JOIN su nuotraukomis)
+// Variacijos (su likučiais)
 $variationsStmt = $pdo->prepare('
     SELECT pv.id, pv.name, pv.price_delta, pv.group_name, pv.quantity, pv.image_id, pi.path as variation_image
     FROM product_variations pv
@@ -51,14 +52,22 @@ $variationsStmt = $pdo->prepare('
 $variationsStmt->execute([$id]);
 $variations = $variationsStmt->fetchAll();
 
-// Variacijų grupavimas
+// Variacijų grupavimas ir bendro likučio skaičiavimas
 $groupedVariations = [];
 $variationMap = [];
+$totalVariationStock = 0;
+
 foreach ($variations as $var) {
-    $group = $var['group_name'] ?: 'Pasirinkimas'; // Default grupė
+    $group = $var['group_name'] ?: 'Pasirinkimas';
     $groupedVariations[$group][] = $var;
     $variationMap[(int)$var['id']] = $var;
+    $totalVariationStock += (int)$var['quantity'];
 }
+
+// LOGIKA: Jei yra variacijų, pagrindinis likutis yra variacijų suma. 
+// Jei variacijų nėra, naudojame produkto 'quantity' stulpelį.
+$realStock = (!empty($variations)) ? $totalVariationStock : (int)$product['quantity'];
+$isOutOfStock = ($realStock <= 0);
 
 // Susijusios prekės
 $relStmt = $pdo->prepare('SELECT pr.related_product_id, p.title, p.image_url, p.sale_price, p.price, p.subtitle FROM product_related pr JOIN products p ON p.id = pr.related_product_id WHERE pr.product_id = ? LIMIT 4');
@@ -85,56 +94,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Į krepšelį
     $qty = max(1, (int) ($_POST['quantity'] ?? 1));
     
-    // Variacijų apdorojimas (MULTI-SELECT)
+    // Variacijų apdorojimas
     $postedVariations = $_POST['variations'] ?? [];
     $cartVariations = [];
+    $isValidStock = true;
     
     // Jei senas formatas
     if (isset($_POST['variation_id']) && !empty($_POST['variation_id'])) {
         $postedVariations['default'] = $_POST['variation_id'];
     }
 
-    if (is_array($postedVariations)) {
-        foreach ($postedVariations as $group => $varId) {
-            $varId = (int)$varId;
-            if ($varId && isset($variationMap[$varId])) {
-                $sel = $variationMap[$varId];
-                $cartVariations[] = [
-                    'id' => $varId,
-                    'group' => $sel['group_name'],
-                    'name' => $sel['name'],
-                    'delta' => (float)$sel['price_delta'],
-                ];
+    // 1. Variacijų LIKUČIO TIKRINIMAS (Backend Validation)
+    if (!empty($groupedVariations)) {
+        // Tikriname ar visos privalomos grupės pasirinktos
+        foreach ($groupedVariations as $grpName => $vars) {
+            if (empty($postedVariations[$grpName])) {
+                $error = "Pasirinkite: " . htmlspecialchars($grpName);
+                $isValidStock = false;
+                break;
             }
+        }
+
+        if ($isValidStock) {
+            foreach ($postedVariations as $group => $varId) {
+                $varId = (int)$varId;
+                if ($varId && isset($variationMap[$varId])) {
+                    $sel = $variationMap[$varId];
+                    
+                    // Tikriname konkrečios variacijos likutį
+                    if ((int)$sel['quantity'] < $qty) {
+                        $error = "Nepakankamas likutis pasirinkimui: " . htmlspecialchars($sel['name']) . " (Liko: {$sel['quantity']})";
+                        $isValidStock = false;
+                        break;
+                    }
+
+                    $cartVariations[] = [
+                        'id' => $varId,
+                        'group' => $sel['group_name'],
+                        'name' => $sel['name'],
+                        'delta' => (float)$sel['price_delta'],
+                    ];
+                }
+            }
+        }
+    } else {
+        // Jei variacijų nėra, tikriname pagrindinį prekės likutį
+        if ((int)$product['quantity'] < $qty) {
+            $error = "Nepakankamas prekės likutis (Liko: {$product['quantity']})";
+            $isValidStock = false;
         }
     }
 
-    // Rūšiuojame variacijas, kad sukurtume unikalų raktą nepriklausomai nuo pasirinkimo tvarkos
-    usort($cartVariations, function($a, $b) {
-        return $a['id'] <=> $b['id'];
-    });
+    if ($isValidStock) {
+        // Rūšiuojame variacijas raktui
+        usort($cartVariations, function($a, $b) {
+            return $a['id'] <=> $b['id'];
+        });
 
-    // Generuojame unikalų raktą šiai kombinacijai (PrekėsID_Hash)
-    $variationSignature = !empty($cartVariations) ? md5(json_encode($cartVariations)) : 'default';
-    $cartKey = $id . '_' . $variationSignature;
+        $variationSignature = !empty($cartVariations) ? md5(json_encode($cartVariations)) : 'default';
+        $cartKey = $id . '_' . $variationSignature;
 
-    // Saugome į sesiją su nauju raktu
-    $_SESSION['cart'][$cartKey] = ($_SESSION['cart'][$cartKey] ?? 0) + $qty;
-    
-    if (!empty($cartVariations)) {
-        $_SESSION['cart_variations'][$cartKey] = $cartVariations; 
+        $_SESSION['cart'][$cartKey] = ($_SESSION['cart'][$cartKey] ?? 0) + $qty;
+        
+        if (!empty($cartVariations)) {
+            $_SESSION['cart_variations'][$cartKey] = $cartVariations; 
+        }
+
+        header('Location: /cart.php');
+        exit;
     }
-
-    // Jei vartotojas prisijungęs, galime išsaugoti ir DB (reikėtų atnaujinti saveCartItem funkciją, kad palaikytų variacijų raktus,
-    // bet kol kas paliekame bazinę logiką arba tik sesiją, jei helperiai nepakeisti)
-    if (!empty($_SESSION['user_id'])) {
-        // Pastaba: Standartinė saveCartItem funkcija gali nepalaikyti string raktų, 
-        // todėl čia galime palikti tik sesiją arba kviesti atnaujintą funkciją.
-        // Šiame pavyzdyje paliekame sesiją kaip pagrindinį šaltinį.
-    }
-
-    header('Location: /cart.php');
-    exit;
 }
 
 // Kainos
@@ -152,7 +180,6 @@ $meta = [
     'description' => mb_substr(strip_tags($product['description']), 0, 160),
     'image' => 'https://cukrinukas.lt' . $product['image_url']
 ];
-$currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['title']) . '-' . $id;
 ?>
 <!doctype html>
 <html lang="lt">
@@ -161,6 +188,7 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <?php echo headerStyles(); ?>
   <style>
+    /* ... stiliai lieka tie patys ... */
     :root {
       --bg: #f8fafc;
       --card-bg: #ffffff;
@@ -171,6 +199,7 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
       --accent-hover: #1d4ed8;
       --accent-light: #eff6ff;
       --success: #059669;
+      --danger: #ef4444;
     }
     
     * { box-sizing: border-box; }
@@ -235,7 +264,6 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
     .description { color: var(--text-muted); line-height: 1.7; font-size: 15px; }
     .description img { max-width: 100%; height: auto; border-radius: 8px; }
 
-    /* Specs List Update */
     .specs-list { display: flex; flex-direction: column; }
     .spec-item { 
         padding: 12px 0; 
@@ -245,16 +273,7 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
         color: var(--text-muted);
     }
     .spec-item:last-child { border-bottom: none; }
-    
-    .spec-value {
-        text-align: left;
-        width: 100%;
-        color: var(--text-muted);
-    }
-    
-    .spec-value p { margin: 0 0 8px 0; }
-    .spec-value p:last-child { margin: 0; }
-    .spec-value ul { margin: 0; padding-left: 20px; text-align: left; }
+    .spec-value { text-align: left; width: 100%; color: var(--text-muted); }
 
     /* Buy Box */
     .buy-box {
@@ -284,6 +303,7 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
         cursor: pointer;
         transition: all 0.2s;
         display: flex; align-items: center; gap: 6px;
+        position: relative;
     }
     .var-chip:hover { border-color: #cbd5e1; background: #f8fafc; }
     .var-chip.active {
@@ -292,6 +312,17 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
         color: var(--accent);
         box-shadow: 0 0 0 1px var(--accent);
     }
+    /* Stilius išparduotoms variacijoms */
+    .var-chip.out-of-stock {
+        opacity: 0.6;
+        background: #f1f5f9;
+        border-style: dashed;
+        cursor: not-allowed;
+    }
+    .var-chip.out-of-stock:hover {
+        border-color: var(--border);
+        background: #f1f5f9;
+    }
     .var-price { font-size: 11px; opacity: 0.8; font-weight: 400; }
 
     /* Actions */
@@ -299,6 +330,9 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
     .qty-input { width: 100%; height: 48px; text-align: center; font-size: 18px; font-weight: 600; border: 1px solid var(--border); border-radius: 10px; background: #f8fafc; }
     .btn-add { width: 100%; height: 48px; border: none; border-radius: 10px; background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .btn-add:hover { background: var(--accent-hover); }
+    .btn-add:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+    .error-msg { background: #fef2f2; color: #991b1b; padding: 12px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; border: 1px solid #fecaca; }
 
     .info-list { display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--text-muted); margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
     .info-item { display: flex; align-items: center; gap: 8px; }
@@ -312,18 +346,11 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
     .rel-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text-main); }
     .rel-price { font-weight: 700; color: var(--text-main); }
 
-    /* Mobile Responsive */
     @media (max-width: 900px) {
         .product-grid { display: flex; flex-direction: column; gap: 24px; }
         .left-col { display: contents; }
         .content-card { width: 100%; }
-        .gallery-section { order: 1; }
-        .buy-box { order: 2; position: static; margin-bottom: 20px; width: 100%; }
-        .content-desc { order: 3; }
-        .content-specs { order: 4; }
-        .related-section { order: 5; }
-        .hero { padding: 20px; margin-top: 10px; }
-        .action-row { position: sticky; bottom: 10px; background: #fff; padding: 10px; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); z-index: 20; }
+        .buy-box { width: 100%; }
     }
   </style>
 </head>
@@ -396,6 +423,10 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
         <form method="post" class="buy-box" id="productForm">
             <?php echo csrfField(); ?>
             
+            <?php if($error): ?>
+                <div class="error-msg"><?php echo htmlspecialchars($error); ?></div>
+            <?php endif; ?>
+
             <?php if (!empty($_SESSION['is_admin'])): ?>
                 <a href="/admin.php?view=products&edit=<?php echo $product['id']; ?>" style="font-size:12px; text-decoration:underline; color:red; text-align:right;">[Redaguoti prekę]</a>
             <?php endif; ?>
@@ -407,8 +438,13 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
                     </span>
                     <span id="price-current" class="price-current"><?php echo number_format($priceDisplay['current'], 2); ?> €</span>
                 </div>
-                <div style="font-size:13px; color:var(--success); font-weight:600;">
-                    <?php echo ($product['quantity'] > 0) ? '● Turime sandėlyje' : '<span style="color:#ef4444">● Išparduota</span>'; ?>
+                
+                <div id="stock-status" style="font-size:13px; font-weight:600;">
+                    <?php if ($realStock > 0): ?>
+                        <span style="color:var(--success)">● Turime sandėlyje (<?php echo $realStock; ?> vnt.)</span>
+                    <?php else: ?>
+                        <span style="color:var(--danger)">● Išparduota</span>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -420,11 +456,15 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
                             <input type="hidden" name="variations[<?php echo htmlspecialchars($groupName); ?>]" id="input-<?php echo md5($groupName); ?>" value="">
                             
                             <div class="var-options">
-                                <?php foreach ($vars as $var): ?>
-                                    <div class="var-chip" 
+                                <?php foreach ($vars as $var): 
+                                    $varQty = (int)$var['quantity'];
+                                    $isVarOutOfStock = $varQty <= 0;
+                                ?>
+                                    <div class="var-chip <?php echo $isVarOutOfStock ? 'out-of-stock' : ''; ?>" 
                                          data-group="<?php echo md5($groupName); ?>" 
                                          data-id="<?php echo (int)$var['id']; ?>"
                                          data-delta="<?php echo (float)$var['price_delta']; ?>"
+                                         data-quantity="<?php echo $varQty; ?>"
                                          data-image="<?php echo htmlspecialchars($var['variation_image'] ?? ''); ?>"
                                          onclick="selectVariation(this)">
                                         <?php echo htmlspecialchars($var['name']); ?>
@@ -447,10 +487,13 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
             <?php endif; ?>
 
             <div class="action-row">
-                <input type="number" name="quantity" value="1" min="1" class="qty-input">
-                <button type="submit" class="btn-add">
-                    Į krepšelį
+                <input type="number" id="qtyInput" name="quantity" value="1" min="1" max="<?php echo max(1, $realStock); ?>" class="qty-input">
+                
+                <button type="submit" id="addToCartBtn" class="btn-add" <?php echo ($realStock <= 0) ? 'disabled' : ''; ?>>
+                    <?php echo ($realStock <= 0) ? 'Išparduota' : 'Į krepšelį'; ?>
+                    <?php if($realStock > 0): ?>
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                    <?php endif; ?>
                 </button>
             </div>
             
@@ -502,6 +545,7 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
 
     const baseOriginal = parseFloat('<?php echo (float)($product['price'] ?? 0); ?>');
     const baseSale = <?php echo $product['sale_price'] !== null ? 'parseFloat(' . json_encode((float)$product['sale_price']) . ')' : 'null'; ?>;
+    const initialTotalStock = <?php echo $realStock; ?>;
     
     const globalDiscount = {
         type: '<?php echo $globalDiscount['type'] ?? 'none'; ?>',
@@ -545,11 +589,16 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
     }
 
     function selectVariation(el) {
+        // Jei variacija išparduota, neleidžiame spausti (jei norite leisti pasirinkti bet neleisti pirkti, galima pašalinti šį return)
+        /* if (el.classList.contains('out-of-stock')) return; */
+
         const groupHash = el.dataset.group;
         const varId = el.dataset.id;
         const delta = parseFloat(el.dataset.delta || 0);
         const imageSrc = el.dataset.image;
+        const stockQty = parseInt(el.dataset.quantity || 0);
 
+        // UI atnaujinimas
         document.querySelectorAll(`.var-chip[data-group="${groupHash}"]`).forEach(c => c.classList.remove('active'));
         el.classList.add('active');
 
@@ -562,6 +611,31 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
         }
 
         updatePrice();
+        updateStockUI(stockQty);
+    }
+
+    function updateStockUI(qty) {
+        const statusDiv = document.getElementById('stock-status');
+        const btn = document.getElementById('addToCartBtn');
+        const qtyInput = document.getElementById('qtyInput');
+
+        if (qty > 0) {
+            statusDiv.innerHTML = `<span style="color:var(--success)">● Turime sandėlyje (${qty} vnt.)</span>`;
+            btn.disabled = false;
+            btn.textContent = 'Į krepšelį';
+            btn.style.cursor = 'pointer';
+            
+            qtyInput.max = qty;
+            if (parseInt(qtyInput.value) > qty) {
+                qtyInput.value = qty;
+            }
+        } else {
+            statusDiv.innerHTML = `<span style="color:var(--danger)">● Pasirinkimo neturime</span>`;
+            btn.disabled = true;
+            btn.textContent = 'Išparduota';
+            btn.style.cursor = 'not-allowed';
+            qtyInput.max = 0;
+        }
     }
   </script>
 </body>
