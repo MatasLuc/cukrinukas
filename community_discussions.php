@@ -1,4 +1,8 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 session_start();
 require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
@@ -9,28 +13,23 @@ ensureCommunityTables($pdo);
 tryAutoLogin($pdo);
 $user = currentUser();
 
-// --- 1. LOGIKA ---
+// --- LOGIKA ---
 
-// Kategorijos
 $categories = ['Bendra', 'Receptai', 'Mityba', 'Sveikata', 'Įvairūs'];
 $catFilter = $_GET['cat'] ?? null;
 if ($catFilter && !in_array($catFilter, $categories)) $catFilter = null;
 
-// Puslapiavimas
 $page = max(1, (int)($_GET['page'] ?? 1));
 $perPage = 10;
 $offset = ($page - 1) * $perPage;
 
-// Užklausa
 $where = 'WHERE 1=1';
 $params = [];
 if ($catFilter) {
-    // Filtruojame pagal prijungtos kategorijų lentelės pavadinimą
     $where .= ' AND c.name = ?';
     $params[] = $catFilter;
 }
 
-// Skaičiuojame (su JOIN)
 $countSql = "SELECT COUNT(*) FROM community_threads t 
              LEFT JOIN community_thread_categories c ON t.category_id = c.id 
              $where";
@@ -39,9 +38,11 @@ $countStmt->execute($params);
 $totalThreads = $countStmt->fetchColumn();
 $totalPages = ceil($totalThreads / $perPage);
 
-// Pagrindinė užklausa (koreguoti lentelių pavadinimai ir pašalintas is_pinned)
+// Pagrindinė užklausa
+// SVARBU: u.name as username (nes lentelėje nėra username stulpelio)
+// SVARBU: community_comments lentelė (ne posts)
 $sql = "
-    SELECT t.*, u.username, c.name as category,
+    SELECT t.*, u.name as username, c.name as category_name,
            (SELECT COUNT(*) FROM community_comments p WHERE p.thread_id = t.id) as reply_count,
            (SELECT created_at FROM community_comments p WHERE p.thread_id = t.id ORDER BY created_at DESC LIMIT 1) as last_reply_at
     FROM community_threads t
@@ -58,7 +59,6 @@ $threads = $stmt->fetchAll();
 echo headerStyles();
 ?>
 <style>
-    /* Bendra stilistika (kaip community.php) */
     :root {
       --bg: #f7f7fb;
       --card: #ffffff;
@@ -74,7 +74,7 @@ echo headerStyles();
     
     .page { max-width: 1200px; margin:0 auto; padding:32px 20px 72px; display:flex; flex-direction:column; gap:32px; }
 
-    /* Hero Section */
+    /* Hero */
     .hero { 
         background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
         border:1px solid #dbeafe; 
@@ -99,7 +99,6 @@ echo headerStyles();
         margin-bottom: 16px;
     }
 
-    /* Hero Action Card */
     .hero-card {
         background: #fff;
         border: 1px solid rgba(255,255,255,0.8);
@@ -114,93 +113,38 @@ echo headerStyles();
     .hero-card h3 { margin: 0 0 8px; font-size: 18px; color: var(--text-main); }
     .hero-card p { margin: 0 0 16px; font-size: 13px; color: var(--text-muted); line-height: 1.4; }
 
-    /* Filters (Categories) */
-    .filter-bar {
-        display: flex;
-        gap: 10px;
-        overflow-x: auto;
-        padding-bottom: 4px;
-        align-items: center;
-    }
-    .filter-chip {
-        padding: 8px 16px;
-        border-radius: 99px;
-        background: #fff;
-        border: 1px solid var(--border);
-        color: var(--text-muted);
-        font-size: 14px;
-        font-weight: 500;
-        white-space: nowrap;
-    }
+    /* Filter */
+    .filter-bar { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; align-items: center; }
+    .filter-chip { padding: 8px 16px; border-radius: 99px; background: #fff; border: 1px solid var(--border); color: var(--text-muted); font-size: 14px; font-weight: 500; white-space: nowrap; }
     .filter-chip:hover { border-color: var(--accent); color: var(--accent); }
     .filter-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
     /* Thread List */
     .thread-list { display: flex; flex-direction: column; gap: 16px; }
-    
     .thread-card {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 20px 24px;
-        display: flex;
-        align-items: center;
-        gap: 20px;
+        background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+        padding: 20px 24px; display: flex; align-items: center; gap: 20px;
         transition: transform .2s, box-shadow .2s, border-color .2s;
     }
-    .thread-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        border-color: #cbd5e1;
-    }
-    
-    .thread-icon {
-        width: 48px; height: 48px;
-        border-radius: 12px;
-        background: #f1f5f9;
-        color: #64748b;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 20px;
-        flex-shrink: 0;
-    }
+    .thread-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-color: #cbd5e1; }
+    .thread-icon { width: 48px; height: 48px; border-radius: 12px; background: #f1f5f9; color: #64748b; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
     
     .thread-info { flex: 1; min-width: 0; }
     .thread-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
     .thread-category { color: var(--accent); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
     
-    .thread-title { 
-        margin: 0 0 6px; 
-        font-size: 18px; 
-        font-weight: 700; 
-        color: var(--text-main); 
-        line-height: 1.4;
-        display: block;
-        text-decoration: none;
-    }
+    .thread-title { margin: 0 0 6px; font-size: 18px; font-weight: 700; color: var(--text-main); line-height: 1.4; display: block; text-decoration: none; }
     .thread-title:hover { color: var(--accent); }
     
-    .thread-stats {
-        display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
-        min-width: 100px; text-align: right; font-size: 13px; color: var(--text-muted);
-    }
+    .thread-stats { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 100px; text-align: right; font-size: 13px; color: var(--text-muted); }
     .stat-count { font-weight: 600; color: var(--text-main); }
 
-    /* Buttons */
-    .btn, .btn-outline { 
-        padding:10px 20px; border-radius:10px; 
-        font-weight:600; font-size:14px;
-        cursor:pointer; text-decoration:none; 
-        display:inline-flex; align-items:center; justify-content:center;
-        transition: all .2s; width: 100%;
-    }
+    .btn, .btn-outline { padding:10px 20px; border-radius:10px; font-weight:600; font-size:14px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; transition: all .2s; width: 100%; }
     .btn { border:none; background: #0f172a; color:#fff; }
-    .btn:hover { background: #1e293b; color:#fff; transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+    .btn:hover { background: #1e293b; color:#fff; transform: translateY(-1px); }
     .btn-outline { background: #fff; color: var(--text-main); border: 1px solid var(--border); }
     
-    .empty-state {
-        text-align: center; padding: 64px 20px;
-        background: #fff; border-radius: 20px; border: 1px dashed var(--border);
-    }
+    .empty-state { text-align: center; padding: 64px 20px; background: #fff; border-radius: 20px; border: 1px dashed var(--border); }
 
     @media (max-width: 700px) {
         .hero { flex-direction: column; padding: 24px; align-items: stretch; }
@@ -256,7 +200,6 @@ echo headerStyles();
     <?php else: ?>
         <div class="thread-list">
             <?php foreach ($threads as $t): 
-                // Pašalinta is_pinned logika, nes stulpelio nėra DB
                 $replyCount = (int)$t['reply_count'];
                 $lastActivity = $t['last_reply_at'] ? $t['last_reply_at'] : $t['created_at'];
             ?>
@@ -267,7 +210,7 @@ echo headerStyles();
                 
                 <div class="thread-info">
                     <div class="thread-meta">
-                        <span class="thread-category"><?php echo htmlspecialchars($t['category'] ?: 'Bendra'); ?></span>
+                        <span class="thread-category"><?php echo htmlspecialchars($t['category_name'] ?: 'Bendra'); ?></span>
                         <span>• <?php echo htmlspecialchars($t['username'] ?: 'Nežinomas'); ?></span>
                         <span>• <?php echo date('Y-m-d', strtotime($t['created_at'])); ?></span>
                     </div>
