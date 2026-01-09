@@ -684,7 +684,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'delete_news') {
-        $id = (int)$_POST['id'] ?? 0);
+        $id = (int)($_POST['id'] ?? 0);
         if ($id) {
             $pdo->prepare('DELETE FROM news WHERE id = ?')->execute([$id]);
             redirectWithMsg('content', 'Naujiena ištrinta');
@@ -693,7 +693,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'delete_recipe') {
-        $id = (int)$_POST['id'] ?? 0);
+        $id = (int)($_POST['id'] ?? 0);
         if ($id) {
             $pdo->prepare('DELETE FROM recipes WHERE id = ?')->execute([$id]);
             redirectWithMsg('content', 'Receptas ištrintas');
