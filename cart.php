@@ -394,6 +394,18 @@ if (isset($_POST['add_promo_product'])) {
                   <?php 
                     // SEO URL generavimas krepšelio prekėms
                     $itemUrl = '/produktas/' . slugify($item['title']) . '-' . (int)$item['id']; 
+                    
+                    // Paruošiame variacijų sąrašą atvaizdavimui
+                    $itemVariations = [];
+                    if (!empty($item['variation'])) {
+                        // Jei 'variation' yra masyvų masyvas (list of variations)
+                        if (isset($item['variation'][0]) && is_array($item['variation'][0])) {
+                            $itemVariations = $item['variation'];
+                        } else {
+                            // Jei tai senas formatas ar pavienė variacija
+                            $itemVariations[] = $item['variation'];
+                        }
+                    }
                   ?>
                   <div class="cart-item">
                     <a href="<?php echo htmlspecialchars($itemUrl); ?>">
@@ -403,9 +415,18 @@ if (isset($_POST['add_promo_product'])) {
                     <div class="item-info">
                       <h3><a href="<?php echo htmlspecialchars($itemUrl); ?>"><?php echo htmlspecialchars($item['title']); ?></a></h3>
                       <div class="item-meta">
-                        <?php if (!empty($item['variation']['name'])): ?>
-                          <span>Variacija: <strong><?php echo htmlspecialchars($item['variation']['name']); ?></strong></span>
+                        <?php if ($itemVariations): ?>
+                            <?php foreach ($itemVariations as $v): ?>
+                                <?php 
+                                    $vGroup = $v['group'] ?? $v['group_name'] ?? 'Variacija';
+                                    $vName = $v['name'] ?? '';
+                                ?>
+                                <?php if($vName): ?>
+                                    <span><?php echo htmlspecialchars($vGroup); ?>: <strong><?php echo htmlspecialchars($vName); ?></strong></span>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
                         <?php endif; ?>
+                        
                         <span>Kiekis: <?php echo $item['quantity']; ?> × <?php echo number_format((float)$item['price'], 2); ?> €</span>
                         
                         <?php if (!empty($item['free_shipping_gift'])): ?>
