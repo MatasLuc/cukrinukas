@@ -4,65 +4,107 @@
 // 1. STATISTIKOS SURINKIMAS
 // ------------------------
 
-// Apskaičiuojame visus reikalingus rodiklius čia, kad nereikėtų išorinių failų
+$totalSalesHero = 0;
+$ordersCountHero = 0;
+$userCountHero = 0;
+$averageOrderHero = 0;
+$currentMonthSales = 0;
+$salesGrowth = 0;
+$latestOrders = [];
+$lowStockItems = []; // Pakeistas pavadinimas, nes talpins ir variacijas
+$chartDataRaw = [];
+
 try {
-    // Viso pardavimai (neįskaitant atšauktų)
-    $totalSalesHero = $pdo->query("SELECT SUM(total) FROM orders WHERE status != 'atšaukta'")->fetchColumn() ?: 0;
-    
-    // Viso užsakymų
-    $ordersCountHero = $pdo->query("SELECT COUNT(*) FROM orders")->fetchColumn() ?: 0;
-    
-    // Vartotojų skaičius
+    // --- VARTOTOJAI ---
     $userCountHero = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn() ?: 0;
+
+    // --- UŽSAKYMAI (TIK ĮVYKDYTI) ---
+    // Viso pardavimai
+    $totalSalesHero = $pdo->query("SELECT SUM(total) FROM orders WHERE status = 'įvykdyta'")->fetchColumn() ?: 0;
+    
+    // Viso užsakymų skaičius (įvykdytų)
+    $ordersCountHero = $pdo->query("SELECT COUNT(*) FROM orders WHERE status = 'įvykdyta'")->fetchColumn() ?: 0;
     
     // Vidutinis krepšelis
-    $averageOrderHero = $pdo->query("SELECT AVG(total) FROM orders WHERE status != 'atšaukta'")->fetchColumn() ?: 0;
+    $averageOrderHero = $pdo->query("SELECT AVG(total) FROM orders WHERE status = 'įvykdyta'")->fetchColumn() ?: 0;
 
     // Šio mėnesio pardavimai
-    $currentMonthSales = $pdo->query("SELECT SUM(total) FROM orders WHERE status != 'atšaukta' AND MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())")->fetchColumn() ?: 0;
+    $currentMonthSales = $pdo->query("
+        SELECT SUM(total) FROM orders 
+        WHERE status = 'įvykdyta' 
+        AND MONTH(created_at) = MONTH(CURRENT_DATE()) 
+        AND YEAR(created_at) = YEAR(CURRENT_DATE())
+    ")->fetchColumn() ?: 0;
     
     // Praėjusio mėnesio pardavimai
-    $lastMonthSales = $pdo->query("SELECT SUM(total) FROM orders WHERE status != 'atšaukta' AND MONTH(created_at) = MONTH(CURRENT_DATE() - INTERVAL 1 MONTH) AND YEAR(created_at) = YEAR(CURRENT_DATE() - INTERVAL 1 MONTH)")->fetchColumn() ?: 0;
+    $lastMonthSales = $pdo->query("
+        SELECT SUM(total) FROM orders 
+        WHERE status = 'įvykdyta' 
+        AND MONTH(created_at) = MONTH(CURRENT_DATE() - INTERVAL 1 MONTH) 
+        AND YEAR(created_at) = YEAR(CURRENT_DATE() - INTERVAL 1 MONTH)
+    ")->fetchColumn() ?: 0;
     
     // Augimas %
-    $salesGrowth = 0;
     if ($lastMonthSales > 0) {
         $salesGrowth = (($currentMonthSales - $lastMonthSales) / $lastMonthSales) * 100;
     } elseif ($currentMonthSales > 0) {
         $salesGrowth = 100;
     }
 
-    // Naujausi užsakymai
-    $latestOrders = $pdo->query('SELECT id, customer_name, total, status, created_at FROM orders ORDER BY created_at DESC LIMIT 6')->fetchAll();
+    // --- NAUJAUSI UŽSAKYMAI (Rodome visus ne atšauktus, bet paryškiname įvykdytus, arba pagal prašymą - tik įvykdytus) ---
+    // Jei norite matyti TIK įvykdytus sąraše: WHERE status = 'įvykdyta'
+    // Tačiau naujausių užsakymų sąraše logiška matyti ir 'laukiama', kad galėtumėte juos administruoti.
+    // Palieku rodyti visus NE ATŠAUKTUS, kad matytumėte įeinančius užsakymus, 
+    // bet statistika viršuje skaičiuojama tik nuo įvykdytų.
+    $latestOrders = $pdo->query("
+        SELECT id, customer_name, total, status, created_at 
+        FROM orders 
+        WHERE status != 'atšaukta' 
+        ORDER BY created_at DESC 
+        LIMIT 6
+    ")->fetchAll();
 
-    // Mažas likutis
-    $lowStockProducts = $pdo->query('SELECT id, title, stock_quantity, image_url FROM products WHERE stock_quantity <= 5 ORDER BY stock_quantity ASC LIMIT 5')->fetchAll();
+    // --- MAŽAS LIKUTIS (PREKĖS IR VARIACIJOS <= 1) ---
+    // Naudojame UNION, kad sujungtume paprastas prekes ir variacijas
+    // Pastaba: Pataisytas stulpelio pavadinimas iš 'stock_quantity' į 'quantity'
+    $lowStockQuery = "
+        (SELECT p.id, p.title, p.quantity, p.image_url, 'simple' as type 
+         FROM products p 
+         WHERE p.quantity <= 1)
+        UNION ALL
+        (SELECT p.id, CONCAT(p.title, ' (', pv.name, ')') as title, pv.quantity, p.image_url, 'variation' as type 
+         FROM product_variations pv 
+         JOIN products p ON pv.product_id = p.id 
+         WHERE pv.quantity <= 1)
+        ORDER BY quantity ASC 
+        LIMIT 10
+    ";
+    $lowStockItems = $pdo->query($lowStockQuery)->fetchAll();
 
-    // Top prekės
+    // --- TOP PREKĖS (Pagal pardavimus iš įvykdytų užsakymų) ---
     $topProducts = $pdo->query("
         SELECT p.id, p.title, p.image_url, SUM(oi.quantity) as sold_count
         FROM order_items oi
         JOIN products p ON oi.product_id = p.id
         JOIN orders o ON oi.order_id = o.id
-        WHERE o.status != 'atšaukta'
+        WHERE o.status = 'įvykdyta'
         GROUP BY p.id
         ORDER BY sold_count DESC
         LIMIT 5
     ")->fetchAll();
 
-    // Grafikas (7 dienos)
+    // --- GRAFIKAS (7 DIENOS, TIK ĮVYKDYTI) ---
     $chartDataRaw = $pdo->query("
         SELECT DATE(created_at) as date, SUM(total) as total 
         FROM orders 
-        WHERE created_at >= DATE(NOW()) - INTERVAL 7 DAY AND status != 'atšaukta'
+        WHERE created_at >= DATE(NOW()) - INTERVAL 7 DAY 
+        AND status = 'įvykdyta'
         GROUP BY DATE(created_at)
     ")->fetchAll(PDO::FETCH_KEY_PAIR);
 
 } catch (Exception $e) {
-    // Jei duomenų bazė tuščia ar klaida, nustatome nulius, kad puslapis nelūžtų
-    $totalSalesHero = 0; $ordersCountHero = 0; $userCountHero = 0; $averageOrderHero = 0;
-    $currentMonthSales = 0; $salesGrowth = 0;
-    $latestOrders = []; $lowStockProducts = []; $topProducts = []; $chartDataRaw = [];
+    // Jei vis dar yra klaidų, parodome jas klaidų masyve (admin.php), kad žinotumėte kas negerai
+    $errors[] = "Dashboard Error: " . $e->getMessage();
 }
 
 // Grafiko duomenų paruošimas
@@ -91,13 +133,12 @@ if ($maxVal == 0) $maxVal = 1;
     .trend-down { color: #dc2626; }
     
     .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-    .status-laukiama { background: #fff7ed; color: #c2410c; }
-    .status-apdorojama { background: #eff6ff; color: #1d4ed8; }
-    .status-išsiųsta { background: #f0fdf4; color: #15803d; }
-    .status-įvykdyta { background: #ecfdf5; color: #047857; }
-    .status-atšaukta { background: #fef2f2; color: #b91c1c; }
+    .status-laukiama { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+    .status-apdorojama { background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; }
+    .status-išsiųsta { background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }
+    .status-įvykdyta { background: #ecfdf5; color: #047857; border: 1px solid #d1fae5; }
+    .status-atšaukta { background: #fef2f2; color: #b91c1c; border: 1px solid #fee2e2; }
 
-    /* Simple CSS Chart */
     .chart-container {
         display: flex; align-items: flex-end; justify-content: space-between;
         height: 200px; margin-top: 20px; gap: 8px;
@@ -115,7 +156,7 @@ if ($maxVal == 0) $maxVal = 1;
         content: attr(data-val) ' €';
         position: absolute; top: -25px; left: 50%; transform: translateX(-50%);
         background: #1f2937; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 11px;
-        white-space: nowrap; pointer-events: none;
+        white-space: nowrap; pointer-events: none; z-index: 10;
     }
     .bar-label { margin-top: 8px; font-size: 11px; color: #6b7280; }
     
@@ -129,7 +170,7 @@ if ($maxVal == 0) $maxVal = 1;
 <div class="grid grid-4" style="margin-bottom: 24px;">
     <div class="stat-card">
         <div>
-            <div class="stat-title">Šio mėnesio pardavimai</div>
+            <div class="stat-title">Šio mėnesio pardavimai (Įvykdyta)</div>
             <div class="stat-value"><?php echo number_format($currentMonthSales, 2); ?> €</div>
         </div>
         <div class="stat-trend <?php echo $salesGrowth >= 0 ? 'trend-up' : 'trend-down'; ?>">
@@ -140,31 +181,31 @@ if ($maxVal == 0) $maxVal = 1;
 
     <div class="stat-card">
         <div>
-            <div class="stat-title">Viso užsakymų</div>
+            <div class="stat-title">Įvykdyti užsakymai</div>
             <div class="stat-value"><?php echo (int)$ordersCountHero; ?></div>
         </div>
         <div class="stat-trend trend-up">
-            <span style="color:#9ca3af; font-weight:400;">Parduotuvės aktyvumas</span>
+            <span style="color:#9ca3af; font-weight:400;">Sėkmingi pardavimai</span>
         </div>
     </div>
 
     <div class="stat-card">
         <div>
-            <div class="stat-title">Registruoti vartotojai</div>
+            <div class="stat-title">Vartotojai</div>
             <div class="stat-value"><?php echo (int)$userCountHero; ?></div>
         </div>
         <div class="stat-trend">
-            <span style="color:#9ca3af; font-weight:400;">Klientų bazė</span>
+            <span style="color:#9ca3af; font-weight:400;">Registruoti pirkėjai</span>
         </div>
     </div>
 
     <div class="stat-card">
         <div>
-            <div class="stat-title">Vidutinis užsakymas</div>
+            <div class="stat-title">Vidutinis krepšelis</div>
             <div class="stat-value"><?php echo number_format($averageOrderHero, 2); ?> €</div>
         </div>
         <div class="stat-trend">
-            <span style="color:#9ca3af; font-weight:400;">Krepšelio vertė</span>
+            <span style="color:#9ca3af; font-weight:400;">Pagal įvykdytus užsakymus</span>
         </div>
     </div>
 </div>
@@ -172,7 +213,7 @@ if ($maxVal == 0) $maxVal = 1;
 <div class="grid grid-2" style="margin-bottom: 24px;">
     <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3>Pardavimai per 7 dienas</h3>
+            <h3>Pardavimai per 7 dienas (Įvykdyta)</h3>
             <span style="font-size:12px; color:#6b7280;">Savaitės apžvalga</span>
         </div>
         <div class="chart-container">
@@ -189,17 +230,17 @@ if ($maxVal == 0) $maxVal = 1;
 
     <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3>⚠️ Mažas likutis</h3>
+            <h3>⚠️ Mažas likutis (≤ 1 vnt.)</h3>
             <a href="?view=products" class="btn secondary" style="font-size:11px; padding:4px 8px;">Visos prekės</a>
         </div>
-        <?php if ($lowStockProducts): ?>
+        <?php if ($lowStockItems): ?>
             <div style="margin-top:10px;">
-                <?php foreach ($lowStockProducts as $lp): ?>
+                <?php foreach ($lowStockItems as $lp): ?>
                 <div class="product-list-item">
                     <img src="<?php echo htmlspecialchars($lp['image_url'] ?: '/uploads/no-image.png'); ?>" class="list-img">
                     <div style="flex:1;">
                         <div style="font-weight:600; font-size:14px;"><?php echo htmlspecialchars($lp['title']); ?></div>
-                        <div style="font-size:12px; color:#ef4444; font-weight:600;">Liko tik: <?php echo $lp['stock_quantity']; ?> vnt.</div>
+                        <div style="font-size:12px; color:#ef4444; font-weight:600;">Liko tik: <?php echo $lp['quantity']; ?> vnt.</div>
                     </div>
                     <a href="?view=products&id=<?php echo $lp['id']; ?>&action=edit" class="btn" style="padding:4px 8px; font-size:11px;">Papildyti</a>
                 </div>
