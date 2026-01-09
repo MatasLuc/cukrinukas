@@ -11,7 +11,7 @@ if (file_exists(__DIR__ . '/libwebtopay/helpers.php')) {
     require_once __DIR__ . '/libwebtopay/helpers.php';
 }
 
-// Pagalbinė funkcija klaidų registravimui, jei 'logError' neegzistuoja
+// Pagalbinė funkcija klaidų registravimui
 if (!function_exists('safeLogError')) {
     function safeLogError($msg, $e = null) {
         if (function_exists('logError')) {
@@ -35,7 +35,6 @@ try {
 // Inicijuojame lenteles
 $schemaReady = true;
 try {
-    // Patikriname ir iškviečiame funkcijas tik jei jos egzistuoja
     if (function_exists('ensureProductsTable')) ensureProductsTable($pdo);
     if (function_exists('ensureOrdersTables')) ensureOrdersTables($pdo);
     if (function_exists('ensureCartTables')) ensureCartTables($pdo);
@@ -44,7 +43,6 @@ try {
     if (function_exists('ensureShippingSettings')) ensureShippingSettings($pdo);
     if (function_exists('ensureDiscountTables')) ensureDiscountTables($pdo);
     
-    // Auto login tik jei funkcija yra
     if (function_exists('tryAutoLogin')) {
         tryAutoLogin($pdo);
     }
@@ -124,14 +122,11 @@ if (empty($_POST) && !empty($_SESSION['user_id'])) {
     if ($uData) {
         $name = $uData['name'];
         $email = $uData['email'];
-        // Pastaba: 'phone' ir 'address' gali nebūti users lentelėje pagal db.php,
-        // todėl jų čia netraukiame, kad išvengtume klaidų.
     }
 }
 
 // POST apdorojimas
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // CSRF patikra
     if (function_exists('validateCsrfToken')) {
         validateCsrfToken();
     } elseif (function_exists('checkCsrf')) {
@@ -208,7 +203,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $pdo->beginTransaction();
             
-            // Įterpiame užsakymą
             $sqlOrder = 'INSERT INTO orders (user_id, customer_name, customer_email, customer_phone, customer_address, discount_amount, shipping_amount, total, status, delivery_method, delivery_details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
             $orderStmt = $pdo->prepare($sqlOrder);
             $orderStmt->execute([
@@ -217,7 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $email,
                 $phone,
                 $finalAddress,
-                0, // discount_amount
+                0,
                 $shippingAmount,
                 $totalPayable,
                 'laukiama apmokėjimo',
@@ -233,13 +227,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $pdo->commit();
 
-            // Apmokėjimas
             if (function_exists('buildPayseraParams') && class_exists('WebToPay')) {
                 $config = [];
                 if (file_exists(__DIR__ . '/libwebtopay/config.php')) {
                     $config = require __DIR__ . '/libwebtopay/config.php';
                 }
-                // Fallback jei config failo nėra
                 if (empty($config)) {
                      $config = [
                         'projectid' => 0,
@@ -250,7 +242,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $paymentParams = buildPayseraParams(['id' => $orderId, 'total' => $totalPayable], $config);
                 
-                // Išvalome krepšelį
                 $_SESSION['cart'] = [];
                 $_SESSION['cart_variations'] = [];
                 if (!empty($_SESSION['user_id']) && function_exists('clearUserCart')) {
@@ -260,7 +251,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 WebToPay::redirectToPayment($paymentParams);
                 exit;
             } else {
-                // Jei nėra apmokėjimo integracijos, tiesiog nukreipiame į užsakymų sąrašą
                 $_SESSION['cart'] = [];
                 $_SESSION['cart_variations'] = [];
                  if (!empty($_SESSION['user_id']) && function_exists('clearUserCart')) {
@@ -285,13 +275,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $shippingAmount = $freeShippingFlag ? 0 : ($deliveryMethod === 'locker' ? $lockerPrice : $courierPrice);
 $payable = max(0, $subtotal + $shippingAmount);
 
-// Paštomato logikos atstatymas (pre-fill)
+// --- PAKEITIMAS: Nebeužpildome automatiškai paštomato, jei jo nėra POST užklausoj ---
 if ($lockerProvider === '' && !empty($lockerNetworks)) {
     $lockerProvider = array_key_first($lockerNetworks);
 }
-if ($lockerLocation === '' && $lockerProvider && !empty($lockerNetworks[$lockerProvider])) {
-    $lockerLocation = (string)($lockerNetworks[$lockerProvider][0]['id'] ?? '');
-}
+// Čia buvo kodas, kuris automatiškai imdavo [0] elementą. Jis pašalintas.
 
 $selectedLockerData = null;
 if ($lockerProvider && $lockerLocation !== '' && !empty($lockerNetworks[$lockerProvider])) {
@@ -434,7 +422,7 @@ if ($selectedLockerData) {
             <div id="courier-fields" style="display: <?php echo $deliveryMethod === 'courier' ? 'block' : 'none'; ?>;">
                 <div class="form-group">
                     <label for="address">Pristatymo adresas</label>
-                    <textarea id="address" name="address" placeholder="Gatvė, namo nr., miestas, pašto kodas" <?php echo $deliveryMethod === 'courier' ? 'required' : ''; ?>><?php echo htmlspecialchars($address); ?></textarea>
+                    <textarea id="address" name="address" placeholder="Gatvė, namo nr., miestas, pašto kodas"><?php echo htmlspecialchars($address); ?></textarea>
                 </div>
             </div>
 
@@ -451,7 +439,7 @@ if ($selectedLockerData) {
                 <div class="form-group">
                     <label for="locker-location-input">Paštomato paieška</label>
                     <div class="locker-combobox">
-                        <input id="locker-location-input" type="search" placeholder="Pradėkite vesti miestą ar adresą..." value="<?php echo htmlspecialchars($lockerDisplay); ?>" autocomplete="off">
+                        <input id="locker-location-input" type="search" placeholder="Pasirinkite paštomatą..." value="<?php echo htmlspecialchars($lockerDisplay); ?>" autocomplete="off">
                         <input type="hidden" id="locker-location" name="locker_location" value="<?php echo htmlspecialchars($lockerLocation); ?>">
                         <div id="locker-location-results" class="locker-results"></div>
                     </div>
@@ -513,14 +501,20 @@ if ($selectedLockerData) {
 
   <script>
     (function() {
+      const form = document.getElementById('checkout-form');
       const courierFields = document.getElementById('courier-fields');
       const lockerFields = document.getElementById('locker-fields');
+      
+      // Form fields
+      const addressInput = document.getElementById('address');
+      const lockerProviderSelect = document.getElementById('locker-provider');
+      const lockerLocationHidden = document.getElementById('locker-location');
+      const lockerRequestInput = document.getElementById('locker-request');
+      const lockerLocationInput = document.getElementById('locker-location-input');
+
       const methodRadios = document.querySelectorAll('input[name="delivery_method"]');
       const chipCourier = document.getElementById('chip-courier');
       const chipLocker = document.getElementById('chip-locker');
-      const providerSelect = document.getElementById('locker-provider');
-      const locationInput = document.getElementById('locker-location-input');
-      const locationHidden = document.getElementById('locker-location');
       const resultsBox = document.getElementById('locker-location-results');
       const shippingSummary = document.getElementById('shipping-summary');
       const payableTotal = document.getElementById('payable-total');
@@ -548,7 +542,7 @@ if ($selectedLockerData) {
 
       function getFilteredLocations(provider) {
         const locations = lockerOptions[provider] || [];
-        const query = (locationInput?.value || '').trim().toLowerCase();
+        const query = (lockerLocationInput?.value || '').trim().toLowerCase();
         if (!query) return locations;
         return locations.filter(function(loc) {
           return [loc.title, loc.address, loc.note].filter(Boolean).some(function(field) { return String(field).toLowerCase().includes(query); });
@@ -577,8 +571,8 @@ if ($selectedLockerData) {
           option.textContent = formatLockerLabel(loc);
           option.addEventListener('mousedown', function(event) {
             event.preventDefault();
-            if (locationInput) locationInput.value = formatLockerLabel(loc);
-            if (locationHidden) locationHidden.value = String(loc.id ?? '');
+            if (lockerLocationInput) lockerLocationInput.value = formatLockerLabel(loc);
+            if (lockerLocationHidden) lockerLocationHidden.value = String(loc.id ?? '');
             hideResults();
           });
           resultsBox.appendChild(option);
@@ -589,8 +583,18 @@ if ($selectedLockerData) {
       function hideResults() { if (resultsBox) resultsBox.style.display = 'none'; }
 
       function toggleSections(method) {
+        // Rodyti/slėpti blokus
         if (courierFields) courierFields.style.display = method === 'courier' ? 'block' : 'none';
         if (lockerFields) lockerFields.style.display = method === 'locker' ? 'block' : 'none';
+        
+        // PAKEITIMAS: Valdyti 'required' atributus, kad naršyklė neblokuotų paslėptų laukų
+        if (method === 'courier') {
+            if (addressInput) addressInput.setAttribute('required', 'required');
+            if (lockerProviderSelect) lockerProviderSelect.removeAttribute('required');
+        } else {
+            if (addressInput) addressInput.removeAttribute('required');
+            if (lockerProviderSelect) lockerProviderSelect.setAttribute('required', 'required');
+        }
       }
 
       methodRadios.forEach(function(radio) {
@@ -601,19 +605,45 @@ if ($selectedLockerData) {
         });
       });
 
-      providerSelect?.addEventListener('change', function(event) {
-        if (locationInput) locationInput.value = '';
-        if (locationHidden) locationHidden.value = '';
+      lockerProviderSelect?.addEventListener('change', function(event) {
+        if (lockerLocationInput) lockerLocationInput.value = '';
+        if (lockerLocationHidden) lockerLocationHidden.value = '';
         renderLocations(event.target.value);
       });
 
-      locationInput?.addEventListener('input', function() {
-        if (locationHidden) locationHidden.value = '';
-        renderLocations(providerSelect?.value || '');
+      lockerLocationInput?.addEventListener('input', function() {
+        if (lockerLocationHidden) lockerLocationHidden.value = '';
+        renderLocations(lockerProviderSelect?.value || '');
       });
 
-      locationInput?.addEventListener('focus', function() { renderLocations(providerSelect?.value || ''); });
-      locationInput?.addEventListener('blur', function() { setTimeout(hideResults, 120); });
+      lockerLocationInput?.addEventListener('focus', function() { renderLocations(lockerProviderSelect?.value || ''); });
+      lockerLocationInput?.addEventListener('blur', function() { setTimeout(hideResults, 120); });
+
+      // PAKEITIMAS: Tikriname validaciją paspaudus mygtuką, kad vartotojas žinotų kodėl neveikia
+      const payButton = document.querySelector('.btn-pay');
+      if (payButton && form) {
+          payButton.addEventListener('click', function(e) {
+              const currentMethod = document.querySelector('input[name="delivery_method"]:checked')?.value;
+              
+              // Jei naršyklės standartinė validacija nepraeina
+              if (!form.checkValidity()) {
+                  // Leisti naršyklei parodyti standartinius error burbulus
+                  return; 
+              }
+
+              // Papildoma validacija paštomatams
+              if (currentMethod === 'locker') {
+                  const hasLockerId = lockerLocationHidden.value && lockerLocationHidden.value !== '0';
+                  const hasRequest = lockerRequestInput.value.trim() !== '';
+                  
+                  if (!hasLockerId && !hasRequest) {
+                      e.preventDefault();
+                      alert('Prašome pasirinkti paštomatą iš sąrašo arba įrašyti pageidavimą.');
+                      lockerLocationInput.focus();
+                  }
+              }
+          });
+      }
 
       const initialMethod = document.querySelector('input[name="delivery_method"]:checked')?.value || 'courier';
       toggleSections(initialMethod);
