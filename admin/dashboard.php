@@ -11,7 +11,7 @@ $averageOrderHero = 0;
 $currentMonthSales = 0;
 $salesGrowth = 0;
 $latestOrders = [];
-$lowStockItems = []; // Pakeistas pavadinimas, nes talpins ir variacijas
+$lowStockItems = []; // Talpins ir prekes, ir variacijas
 $chartDataRaw = [];
 
 try {
@@ -51,11 +51,7 @@ try {
         $salesGrowth = 100;
     }
 
-    // --- NAUJAUSI UŽSAKYMAI (Rodome visus ne atšauktus, bet paryškiname įvykdytus, arba pagal prašymą - tik įvykdytus) ---
-    // Jei norite matyti TIK įvykdytus sąraše: WHERE status = 'įvykdyta'
-    // Tačiau naujausių užsakymų sąraše logiška matyti ir 'laukiama', kad galėtumėte juos administruoti.
-    // Palieku rodyti visus NE ATŠAUKTUS, kad matytumėte įeinančius užsakymus, 
-    // bet statistika viršuje skaičiuojama tik nuo įvykdytų.
+    // --- NAUJAUSI UŽSAKYMAI (Rodome visus ne atšauktus, kad matytumėte, kas vyksta) ---
     $latestOrders = $pdo->query("
         SELECT id, customer_name, total, status, created_at 
         FROM orders 
@@ -65,8 +61,7 @@ try {
     ")->fetchAll();
 
     // --- MAŽAS LIKUTIS (PREKĖS IR VARIACIJOS <= 1) ---
-    // Naudojame UNION, kad sujungtume paprastas prekes ir variacijas
-    // Pastaba: Pataisytas stulpelio pavadinimas iš 'stock_quantity' į 'quantity'
+    // Variacijos rodomos TIK jei įjungtas 'track_stock = 1'
     $lowStockQuery = "
         (SELECT p.id, p.title, p.quantity, p.image_url, 'simple' as type 
          FROM products p 
@@ -75,7 +70,7 @@ try {
         (SELECT p.id, CONCAT(p.title, ' (', pv.name, ')') as title, pv.quantity, p.image_url, 'variation' as type 
          FROM product_variations pv 
          JOIN products p ON pv.product_id = p.id 
-         WHERE pv.quantity <= 1)
+         WHERE pv.quantity <= 1 AND pv.track_stock = 1)
         ORDER BY quantity ASC 
         LIMIT 10
     ";
@@ -103,7 +98,7 @@ try {
     ")->fetchAll(PDO::FETCH_KEY_PAIR);
 
 } catch (Exception $e) {
-    // Jei vis dar yra klaidų, parodome jas klaidų masyve (admin.php), kad žinotumėte kas negerai
+    // Jei vis dar yra klaidų, parodome jas
     $errors[] = "Dashboard Error: " . $e->getMessage();
 }
 
