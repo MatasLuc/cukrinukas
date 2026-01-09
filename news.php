@@ -57,6 +57,9 @@ $allNews = $stmt->fetchAll();
 
 $isLoggedIn = isset($_SESSION['user_id']);
 $isAdmin = !empty($_SESSION['is_admin']);
+
+// Skaičiuojame bendrą naujienų kiekį statistikai
+$totalNewsCount = count($allNews);
 ?>
 <!doctype html>
 <html lang="lt">
@@ -66,216 +69,272 @@ $isAdmin = !empty($_SESSION['is_admin']);
   <title>Naujienos | Cukrinukas</title>
   <?php echo headerStyles(); ?>
   <style>
-    /* Pakeista --accent į mėlyną */
     :root {
       --bg: #f7f7fb;
       --card: #ffffff;
       --border: #e4e7ec;
-      --text: #0f172a;
-      --muted: #475467;
-      --accent: #2563eb; 
+      --text-main: #0f172a;
+      --text-muted: #475467;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --focus-ring: rgba(37, 99, 235, 0.2);
     }
     * { box-sizing: border-box; }
-    body { margin:0; background: var(--bg); color: var(--text); }
-    a { text-decoration: none; color: inherit; }
-    .page { max-width: 1200px; margin: 0 auto; padding: 32px 20px 72px; display:grid; gap:28px; }
+    body { margin:0; background: var(--bg); color: var(--text-main); font-family: 'Inter', sans-serif; }
+    a { color:inherit; text-decoration:none; transition: color .2s; }
     
-    /* Hero kaip products.php, mėlynas gradientas */
-    .hero { background: linear-gradient(135deg, #eff6ff, #dbeafe); border-radius: 28px; padding: 26px 26px 30px; border:1px solid #e5e7eb; box-shadow:0 18px 48px rgba(0,0,0,0.08); display:grid; grid-template-columns: 1.4fr 0.6fr; gap:22px; align-items:center; }
-    .hero__pill { display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid #e4e7ec; padding:10px 14px; border-radius:999px; font-weight:700; box-shadow:0 6px 20px rgba(0,0,0,0.05); }
-    .hero h1 { margin:10px 0 8px; font-size: clamp(26px, 4vw, 36px); letter-spacing:-0.02em; }
-    .hero p { margin:0; color: var(--muted); line-height:1.6; }
-    .hero__actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
-    
-    /* --- MYGTUKAI (Stilius iš products.php) --- */
-    .btn-large { 
-        padding: 11px 24px; 
-        border-radius: 12px; 
-        border: 1px solid #1d4ed8; 
-        background: #fff; 
-        color: #1d4ed8; 
-        font-weight: 600; 
-        transition: all .2s; 
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .btn-large:hover { background: #1d4ed8; color: #fff; transform: translateY(-1px); }
+    /* Layout struktūra pagal orders.php */
+    .page { max-width: 1200px; margin:0 auto; padding:32px 20px 72px; display:flex; flex-direction:column; gap:28px; }
 
-    /* --- KATEGORIJOS (Stilius iš products.php 'chip') --- */
-    .chips { display:flex; flex-wrap:wrap; gap:12px; align-items: flex-start; }
-    .chip {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 8px 16px; border-radius: 99px;
-      background: #fff; border: 1px solid var(--border);
-      font-weight: 600; color: var(--muted); cursor: pointer; transition: all .2s;
-      white-space: nowrap; user-select: none; position: relative; z-index: 20;
+    /* Hero Section - Matching Orders/Account style */
+    .hero { 
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        border:1px solid #dbeafe; 
+        border-radius:24px; 
+        padding:32px; 
+        display:flex; 
+        align-items:center; 
+        justify-content:space-between; 
+        gap:24px; 
+        flex-wrap:wrap; 
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
-    .chip:hover, .chip.active {
-      border-color: var(--accent); color: var(--accent); background: #f0f9ff;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+    .hero h1 { margin:0 0 8px; font-size:28px; color:#1e3a8a; letter-spacing:-0.5px; }
+    .hero p { margin:0; color:#1e40af; line-height:1.5; max-width:520px; font-size:15px; }
+    
+    .pill { 
+        display:inline-flex; align-items:center; gap:8px; 
+        padding:6px 12px; border-radius:999px; 
+        background:#fff; border:1px solid #bfdbfe; 
+        font-weight:600; font-size:13px; color:#1e40af; 
+        margin-bottom: 12px;
     }
 
-    .page__head { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
-    .page__title { margin:0; font-size:28px; letter-spacing:-0.01em; }
+    .stat-card { 
+        background:#fff; border:1px solid rgba(255,255,255,0.6); 
+        padding:16px 20px; border-radius:16px; 
+        min-width:160px; text-align:right;
+        box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1);
+    }
+    .stat-card strong { display:block; font-size:20px; color:#1e3a8a; margin-bottom: 4px; }
+    .stat-card span { color: #64748b; font-size:13px; font-weight: 500; }
+
+    /* Main Grid Layout */
+    .layout { display:grid; grid-template-columns: 1fr 300px; gap:24px; align-items:start; }
+    @media(max-width: 900px){ .layout { grid-template-columns:1fr; } }
+
+    /* Section Headers */
+    .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom: 16px; }
+    .section-header h2 { margin:0; font-size:20px; color: var(--text-main); font-weight: 700; }
+    .section-header span { font-size: 13px; color: var(--text-muted); font-weight: 500; background: #e2e8f0; padding: 2px 8px; border-radius: 12px; }
+
+    /* News Grid */
+    .news-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:20px; }
     
-    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:18px; }
-    .card { background: var(--card); border-radius:20px; overflow:hidden; border:1px solid var(--border); box-shadow:0 14px 32px rgba(0,0,0,0.08); display:grid; grid-template-rows:auto 1fr; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
-    .card:hover { transform: translateY(-3px); box-shadow:0 18px 46px rgba(0,0,0,0.12); border-color: rgba(37, 99, 235, 0.35); }
-    .card img { width: 100%; height: 190px; object-fit: cover; display: block; }
-    .card__body { padding: 16px 18px 20px; display: grid; gap: 10px; }
-    .card__title { margin: 0; font-size: 20px; letter-spacing:-0.01em; }
-    .card__meta { font-size: 13px; color: var(--muted); }
-    
-    .card__excerpt { 
-        margin: 0; 
-        color: #111827; 
-        line-height: 1.55;
-        display: -webkit-box;
-        -webkit-line-clamp: 5;
-        -webkit-box-orient: vertical;
+    /* Card Styling (Unified) */
+    .card { 
+        background:var(--card); 
+        border:1px solid var(--border); 
+        border-radius:20px; 
         overflow: hidden;
-        text-overflow: ellipsis;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        transition: transform .2s, box-shadow .2s;
+        display: flex; flex-direction: column;
+        height: 100%;
     }
+    .card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border-color: #cbd5e1; }
+
+    .card img { width: 100%; height: 200px; object-fit: cover; border-bottom: 1px solid var(--border); }
     
-    /* --- VEIKSMO MYGTUKAI KORTELĖSE (Stilius iš products.php) --- */
-    /* Mygtukas "Skaityti" - atrodo kaip action-btn, bet platesnis tekstui */
-    .btn-text-action {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0 16px;
-        height: 42px;
-        border-radius: 12px;
-        background: #fff;
-        border: 1px solid var(--border);
-        color: #1f2937;
-        font-weight: 600;
-        font-size: 14px;
-        transition: all .2s;
-    }
-    .btn-text-action:hover {
-        border-color: var(--accent);
-        color: var(--accent);
-        transform: translateY(-2px);
+    .card-body { padding: 20px; display: flex; flex-direction: column; gap: 12px; flex-grow: 1; }
+    
+    .card-meta { font-size: 12px; color: var(--text-muted); display:flex; gap:10px; align-items:center; }
+    .card-title { margin: 0; font-size: 18px; line-height: 1.4; color: var(--text-main); font-weight: 700; }
+    .card-excerpt { 
+        margin: 0; color: var(--text-muted); font-size: 14px; line-height: 1.5; 
+        display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+        flex-grow: 1;
     }
 
-    /* Širdelė - identiška products.php action-btn */
-    .action-btn {
-        width: 42px;
-        height: 42px;
-        border-radius: 12px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    .card-footer { 
+        padding-top: 16px; margin-top: auto; border-top: 1px solid var(--border); 
+        display: flex; justify-content: space-between; align-items: center; 
+    }
+
+    /* Sidebar Card Specifics */
+    .sidebar-card { padding: 24px; margin-bottom: 24px; }
+    .sidebar-card h3 { margin:0 0 16px; font-size:16px; color: var(--text-main); font-weight: 700; }
+    .sidebar-menu { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
+    .sidebar-menu a { 
+        display:flex; align-items:center; justify-content: space-between;
+        padding:10px 12px; border-radius:10px; 
+        color: var(--text-muted); font-size:14px; font-weight:500;
         transition: all .2s;
-        background: #fff;
+    }
+    .sidebar-menu a:hover { background: #f8fafc; color: var(--text-main); }
+    .sidebar-menu a.active { background: #eff6ff; color: var(--accent); font-weight: 600; }
+    .count-badge { background: #e2e8f0; color: #475467; font-size: 11px; padding: 2px 8px; border-radius: 99px; }
+    .active .count-badge { background: #bfdbfe; color: #1e40af; }
+
+    /* Buttons */
+    .btn-text { font-size: 14px; font-weight: 600; color: var(--accent); }
+    .btn-text:hover { color: var(--accent-hover); text-decoration: underline; }
+    
+    .action-btn {
+        width: 36px; height: 36px;
+        border-radius: 10px;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        transition: all .2s;
+        background: #f8fafc;
         border: 1px solid var(--border);
-        color: #1f2937;
-        font-size: 18px; /* Šiek tiek didesnė širdelė */
+        color: #94a3b8;
+        font-size: 18px;
+        line-height: 1;
     }
     .action-btn:hover {
-        border-color: var(--accent);
-        color: var(--accent);
-        transform: translateY(-2px);
+        border-color: #fca5a5;
+        color: #ef4444;
+        background: #fef2f2;
     }
-      
+
+    .empty-state {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 64px 20px;
+        background: #fff;
+        border-radius: 20px;
+        border: 1px dashed var(--border);
+    }
+    
+    @media (max-width: 600px) {
+        .hero { padding: 24px; }
+        .layout { grid-template-columns: 1fr; }
+        .news-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
   <?php renderHeader($pdo, 'news'); ?>
 
-  <main class="page">
+  <div class="page">
     <section class="hero">
       <div>
-        <div class="hero__pill"><?php echo htmlspecialchars($siteContent['news_hero_pill'] ?? '📰 Mūsų naujienos'); ?></div>
-        <h1><?php echo htmlspecialchars($siteContent['news_hero_title'] ?? 'Šviežiausios naujienos ir patarimai'); ?></h1>
-        <p><?php echo htmlspecialchars($siteContent['news_hero_body'] ?? 'Aktualijos apie diabetą, kasdienę priežiūrą ir mūsų parduotuvės atnaujinimus.'); ?></p>
-        <div class="hero__actions">
-          <a class="btn-large" href="<?php echo htmlspecialchars($siteContent['news_hero_cta_url'] ?? '#news'); ?>"><?php echo htmlspecialchars($siteContent['news_hero_cta_label'] ?? 'Skaityti'); ?></a>
-          <?php if ($isAdmin): ?>
-            <a class="btn-large" href="/news_create.php">+ Pridėti naujieną</a>
-            <a class="btn-large" href="/admin.php?view=content">Valdyti turinį</a>
-          <?php endif; ?>
-        </div>
+        <div class="pill"><?php echo htmlspecialchars($siteContent['news_hero_pill'] ?? '📰 Naujienos'); ?></div>
+        <h1><?php echo htmlspecialchars($siteContent['news_hero_title'] ?? 'Aktualijos ir patarimai'); ?></h1>
+        <p><?php echo htmlspecialchars($siteContent['news_hero_body'] ?? 'Sužinokite naujausią informaciją, skaitykite patarimus ir sekite bendruomenės gyvenimą.'); ?></p>
+      </div>
+      <div class="stat-card">
+        <strong><?php echo $totalNewsCount; ?></strong>
+        <span>Iš viso straipsnių</span>
       </div>
     </section>
 
-    <div class="page__head" id="news">
+    <div class="layout">
       <div>
-        <h2 class="page__title">Naujienos</h2>
-      </div>
-    </div>
+        <div class="section-header">
+           <h2><?php echo $selectedCatId ? 'Kategorijos įrašai' : 'Naujausi įrašai'; ?></h2>
+           <span><?php echo count($allNews); ?></span>
+        </div>
 
-    <?php if (!empty($activeCategories)): ?>
-    <div class="chips">
-        <a href="/news.php" class="chip <?php echo $selectedCatId === null ? 'active' : ''; ?>">
-            Visos naujienos
-        </a>
-        <?php foreach ($activeCategories as $cat): ?>
-            <a href="/news.php?cat=<?php echo $cat['id']; ?>" class="chip <?php echo $selectedCatId === $cat['id'] ? 'active' : ''; ?>">
-                <?php echo htmlspecialchars($cat['name']); ?>
-            </a>
-        <?php endforeach; ?>
-    </div>
-    <?php endif; ?>
-
-    <div class="grid">
-      <?php if (empty($allNews)): ?>
-        <p style="grid-column: 1/-1; text-align:center; padding: 40px; color: var(--muted);">Šioje kategorijoje naujienų kol kas nėra.</p>
-      <?php else: ?>
-        <?php foreach ($allNews as $news): 
-            // SEO nuoroda
-            $newsUrl = '/naujiena/' . slugify($news['title']) . '-' . (int)$news['id'];
-        ?>
-            <article class="card">
-            <a href="<?php echo htmlspecialchars($newsUrl); ?>">
-                <img src="<?php echo htmlspecialchars($news['image_url']); ?>" alt="<?php echo htmlspecialchars($news['title']); ?>">
-            </a>
-            <div class="card__body">
-                <div style="display:flex;align-items:center;gap:10px;justify-content:space-between;">
-                    <h2 class="card__title"><a href="<?php echo htmlspecialchars($newsUrl); ?>" style="text-decoration:none; color:inherit;"><?php echo htmlspecialchars($news['title']); ?></a></h2>
-                </div>
-                <p class="card__meta"><?php echo date('Y-m-d', strtotime($news['created_at'])); ?></p>
-                
-                <p class="card__excerpt">
-                    <?php 
-                        $excerpt = trim($news['summary'] ?? '');
-                        if (!$excerpt) {
-                            $excerpt = strip_tags($news['body']);
-                        }
-                        if (mb_strlen($excerpt) > 400) {
-                            $excerpt = mb_substr($excerpt, 0, 400) . '...';
-                        }
-                        echo htmlspecialchars($excerpt);
-                    ?>
-                </p>
-                
-                <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; margin-top:auto;">
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        <a class="btn-text-action" href="<?php echo htmlspecialchars($newsUrl);?>">Skaityti</a>
-                        <?php if ($isLoggedIn): ?>
-                            <form method="post" style="margin:0;">
-                                <?php echo csrfField(); ?>
-                                <input type="hidden" name="news_id" value="<?php echo (int)$news['id']; ?>">
-                                <button class="action-btn" type="submit" aria-label="Išsaugoti">♥</button>
-                            </form>
-                        <?php else: ?>
-                            <a class="action-btn" href="/login.php" style="text-decoration:none;">♥</a>
-                        <?php endif; ?>
-                    </div>
-                    <?php if ($isAdmin): ?>
-                    <a style="font-weight:600; color:#475467; font-size:13px;" href="/news_edit.php?id=<?php echo (int)$news['id']; ?>">Redaguoti</a>
-                    <?php endif; ?>
-                </div>
+        <?php if (empty($allNews)): ?>
+            <div class="empty-state">
+                <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;">📭</div>
+                <h3 style="margin: 0 0 8px; font-size: 18px;">Įrašų nerasta</h3>
+                <p style="color: var(--text-muted); margin: 0 0 24px; font-size: 15px;">Šioje kategorijoje naujienų kol kas nėra.</p>
+                <a class="btn-text" href="/news.php">Grįžti į visas naujienas</a>
             </div>
-            </article>
-            <?php endforeach; ?>
+        <?php else: ?>
+            <div class="news-grid">
+                <?php foreach ($allNews as $news): 
+                    $newsUrl = '/naujiena/' . slugify($news['title']) . '-' . (int)$news['id'];
+                ?>
+                <article class="card">
+                    <a href="<?php echo htmlspecialchars($newsUrl); ?>">
+                        <img src="<?php echo htmlspecialchars($news['image_url']); ?>" alt="<?php echo htmlspecialchars($news['title']); ?>">
+                    </a>
+                    <div class="card-body">
+                        <div class="card-meta">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                            <?php echo date('Y-m-d', strtotime($news['created_at'])); ?>
+                        </div>
+                        <h3 class="card-title">
+                            <a href="<?php echo htmlspecialchars($newsUrl); ?>"><?php echo htmlspecialchars($news['title']); ?></a>
+                        </h3>
+                        <div class="card-excerpt">
+                            <?php 
+                                $excerpt = trim($news['summary'] ?? '');
+                                if (!$excerpt) $excerpt = strip_tags($news['body']);
+                                if (mb_strlen($excerpt) > 120) $excerpt = mb_substr($excerpt, 0, 120) . '...';
+                                echo htmlspecialchars($excerpt);
+                            ?>
+                        </div>
+                        <div class="card-footer">
+                            <a class="btn-text" href="<?php echo htmlspecialchars($newsUrl);?>">Skaityti toliau →</a>
+                            
+                            <?php if ($isLoggedIn): ?>
+                                <form method="post" style="margin:0;">
+                                    <?php echo csrfField(); ?>
+                                    <input type="hidden" name="news_id" value="<?php echo (int)$news['id']; ?>">
+                                    <button class="action-btn" type="submit" title="Išsaugoti">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                                    </button>
+                                </form>
+                            <?php else: ?>
+                                <a class="action-btn" href="/login.php" title="Prisijunkite">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </article>
+                <?php endforeach; ?>
+            </div>
         <?php endif; ?>
+      </div>
+
+      <aside>
+          <div class="card sidebar-card">
+              <h3>Kategorijos</h3>
+              <nav class="sidebar-menu">
+                  <a href="/news.php" class="<?php echo $selectedCatId === null ? 'active' : ''; ?>">
+                      <span>Visos naujienos</span>
+                  </a>
+                  <?php foreach ($activeCategories as $cat): ?>
+                      <a href="/news.php?cat=<?php echo $cat['id']; ?>" class="<?php echo $selectedCatId === $cat['id'] ? 'active' : ''; ?>">
+                          <span><?php echo htmlspecialchars($cat['name']); ?></span>
+                          <span class="count-badge"><?php echo (int)$cat['count']; ?></span>
+                      </a>
+                  <?php endforeach; ?>
+              </nav>
+          </div>
+
+          <?php if ($isAdmin): ?>
+          <div class="card sidebar-card" style="border: 1px dashed var(--accent);">
+              <h3 style="color:var(--accent);">Administravimas</h3>
+              <nav class="sidebar-menu">
+                  <a href="/news_create.php">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                      Pridėti naujieną
+                  </a>
+                  <a href="/admin.php?view=content">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                      Valdyti turinį
+                  </a>
+              </nav>
+          </div>
+          <?php endif; ?>
+
+          <div class="card sidebar-card" style="background: #f8fafc; border: 1px solid var(--border);">
+              <h3>Turite idėjų?</h3>
+              <p style="font-size:13px; color:var(--text-muted); line-height:1.5; margin-bottom:12px;">
+                  Norite pasidalinti savo istorija ar pasiūlyti temą straipsniui? Parašykite mums!
+              </p>
+              <a href="/contact.php" style="font-size:13px; font-weight:600; color:var(--accent);">Susisiekti su redakcija →</a>
+          </div>
+      </aside>
     </div>
-  </main>
+  </div>
 
   <?php renderFooter($pdo); ?>
 </body>
