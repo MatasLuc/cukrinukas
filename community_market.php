@@ -1,16 +1,20 @@
 <?php
+// Įjungiame klaidų rodymą laikinai, kad matytumėte, jei kas nors dar negerai
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 session_start();
 require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
 
 $pdo = getPdo();
 ensureUsersTable($pdo);
-ensureCommunityTables($pdo);
+ensureCommunityTables($pdo); // Užtikrina, kad lentelės egzistuoja
 tryAutoLogin($pdo);
 $user = currentUser();
 
 // --- LOGIKA ---
-// Pastaba: Duomenų bazėje naudojame kategorijų lentelę, todėl filtruojame pagal kategorijos pavadinimą.
 $types = ['Siūlau', 'Ieškau', 'Dovanoju'];
 $typeFilter = $_GET['type'] ?? null;
 if ($typeFilter && !in_array($typeFilter, $types)) $typeFilter = null;
@@ -19,7 +23,7 @@ $where = "WHERE m.status = 'active'";
 $params = [];
 
 if ($typeFilter) {
-    // Filtruojame pagal prijungtos kategorijų lentelės pavadinimą
+    // Filtruojame pagal kategorijos pavadinimą iš prijungtos lentelės
     $where .= " AND c.name = ?";
     $params[] = $typeFilter;
 }
@@ -28,7 +32,7 @@ $page = max(1, (int)($_GET['page'] ?? 1));
 $perPage = 12;
 $offset = ($page - 1) * $perPage;
 
-// Skaičiuojame bendrą kiekį (su JOIN, jei filtruojama)
+// Skaičiuojame kiekį
 $countSql = "SELECT COUNT(*) 
              FROM community_listings m 
              LEFT JOIN community_listing_categories c ON m.category_id = c.id 
@@ -39,9 +43,9 @@ $totalItems = $countStmt->fetchColumn();
 $totalPages = ceil($totalItems / $perPage);
 
 // Pagrindinė užklausa
-// 'type' gauname iš kategorijų lentelės (c.name)
+// SVARBU: Naudojame u.name, nes u.username lentelėje users neegzistuoja
 $sql = "
-    SELECT m.*, u.username, c.name as type
+    SELECT m.*, u.name as username, c.name as type_name
     FROM community_listings m
     LEFT JOIN users u ON m.user_id = u.id
     LEFT JOIN community_listing_categories c ON m.category_id = c.id
@@ -62,7 +66,7 @@ echo headerStyles();
       --border: #e4e7ec;
       --text-main: #0f172a;
       --text-muted: #475467;
-      --accent: #16a34a; /* Žalia spalva turgui */
+      --accent: #16a34a;
       --accent-hover: #15803d;
     }
     * { box-sizing: border-box; }
@@ -71,9 +75,9 @@ echo headerStyles();
     
     .page { max-width: 1200px; margin:0 auto; padding:32px 20px 72px; display:flex; flex-direction:column; gap:32px; }
 
-    /* Hero Section */
+    /* Hero */
     .hero { 
-        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); /* Žalias gradientas */
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
         border:1px solid #dcfce7; 
         border-radius:24px; 
         padding:40px; 
@@ -96,7 +100,6 @@ echo headerStyles();
         margin-bottom: 16px;
     }
 
-    /* Hero Action Card */
     .hero-card {
         background: #fff;
         border: 1px solid rgba(255,255,255,0.8);
@@ -122,13 +125,12 @@ echo headerStyles();
     .filter-chip:hover { border-color: var(--accent); color: var(--accent); }
     .filter-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-    /* Market Grid */
+    /* Grid */
     .market-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 24px;
     }
-
     .item-card {
         background: var(--card);
         border: 1px solid var(--border);
@@ -143,7 +145,6 @@ echo headerStyles();
         box-shadow: 0 10px 20px -5px rgba(0,0,0,0.1);
         border-color: #cbd5e1;
     }
-
     .item-image {
         height: 200px; width: 100%;
         background: #f1f5f9;
@@ -153,7 +154,6 @@ echo headerStyles();
         border-bottom: 1px solid var(--border);
     }
     .item-image img { width: 100%; height: 100%; object-fit: cover; }
-
     .item-body { padding: 20px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
     
     .item-badge {
@@ -164,12 +164,12 @@ echo headerStyles();
     .badge-siulau { background: #dcfce7; color: #166534; }
     .badge-ieskau { background: #dbeafe; color: #1e40af; }
     .badge-dovanoju { background: #fef9c3; color: #854d0e; }
+    .badge-kita { background: #f1f5f9; color: #475467; }
 
     .item-title { font-size: 18px; font-weight: 700; margin: 0; color: var(--text-main); line-height: 1.3; }
     .item-price { font-size: 18px; font-weight: 700; color: var(--accent); margin-top: auto; padding-top: 12px; }
     .item-meta { font-size: 13px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
 
-    /* Buttons */
     .btn { 
         padding:10px 20px; border-radius:10px; border:none;
         background: #16a34a; color:#fff; font-weight:600; font-size:14px;
@@ -181,7 +181,6 @@ echo headerStyles();
         padding:8px 12px; border-radius:8px; border: 1px solid var(--border);
         background: #fff; color: var(--text-main); text-decoration: none; display: inline-block;
     }
-
     .empty-state {
         grid-column: 1 / -1;
         text-align: center; padding: 64px 20px;
@@ -242,8 +241,16 @@ echo headerStyles();
     <?php else: ?>
         <div class="market-grid">
             <?php foreach ($items as $item): 
-                $typeName = $item['type'] ?: 'Kita';
-                $badgeClass = 'badge-' . strtolower(str_replace(['ą','č','ę','ė','į','š','ų','ū','ž'], ['a','c','e','e','i','s','u','u','z'], $typeName));
+                // Apsauga, jei type_name būtų NULL
+                $typeName = !empty($item['type_name']) ? $item['type_name'] : 'Kita';
+                $safeType = strtolower(str_replace(
+                    ['ą','č','ę','ė','į','š','ų','ū','ž'], 
+                    ['a','c','e','e','i','s','u','u','z'], 
+                    $typeName
+                ));
+                $badgeClass = 'badge-' . $safeType;
+                // Jei klasės nėra CSS'e, naudos default (per fallback, arba tiesiog neturės stiliaus)
+                
                 $itemUrl = '/community_listing.php?id=' . $item['id'];
             ?>
             <article class="item-card">
@@ -255,7 +262,7 @@ echo headerStyles();
                     <?php endif; ?>
                 </a>
                 <div class="item-body">
-                    <span class="item-badge <?php echo $badgeClass; ?>">
+                    <span class="item-badge <?php echo htmlspecialchars($badgeClass); ?>">
                         <?php echo htmlspecialchars($typeName); ?>
                     </span>
                     <a href="<?php echo $itemUrl; ?>" class="item-title">
