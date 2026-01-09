@@ -40,8 +40,14 @@ $attributesStmt = $pdo->prepare('SELECT label, value FROM product_attributes WHE
 $attributesStmt->execute([$id]);
 $attributes = $attributesStmt->fetchAll();
 
-// Variacijos
-$variationsStmt = $pdo->prepare('SELECT id, name, price_delta, group_name, quantity FROM product_variations WHERE product_id = ? ORDER BY group_name ASC, id ASC');
+// Variacijos (JOIN su nuotraukomis)
+$variationsStmt = $pdo->prepare('
+    SELECT pv.id, pv.name, pv.price_delta, pv.group_name, pv.quantity, pv.image_id, pi.path as variation_image
+    FROM product_variations pv
+    LEFT JOIN product_images pi ON pv.image_id = pi.id
+    WHERE pv.product_id = ? 
+    ORDER BY pv.group_name ASC, pv.id ASC
+');
 $variationsStmt->execute([$id]);
 $variations = $variationsStmt->fetchAll();
 
@@ -396,6 +402,7 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
                                          data-group="<?php echo md5($groupName); ?>" 
                                          data-id="<?php echo (int)$var['id']; ?>"
                                          data-delta="<?php echo (float)$var['price_delta']; ?>"
+                                         data-image="<?php echo htmlspecialchars($var['variation_image'] ?? ''); ?>"
                                          onclick="selectVariation(this)">
                                         <?php echo htmlspecialchars($var['name']); ?>
                                         <?php if ((float)$var['price_delta'] != 0): ?>
@@ -492,6 +499,7 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
     }
 
     const selectedDeltas = {}; 
+    const originalMainImage = document.getElementById('mainImg') ? document.getElementById('mainImg').src : '';
 
     function updatePrice() {
         let totalDelta = 0;
@@ -517,12 +525,19 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
         const groupHash = el.dataset.group;
         const varId = el.dataset.id;
         const delta = parseFloat(el.dataset.delta || 0);
+        const imageSrc = el.dataset.image;
 
         document.querySelectorAll(`.var-chip[data-group="${groupHash}"]`).forEach(c => c.classList.remove('active'));
         el.classList.add('active');
 
         document.getElementById('input-' + groupHash).value = varId;
         selectedDeltas[groupHash] = delta;
+        
+        // Pakeičiame pagrindinę nuotrauką
+        if (imageSrc && imageSrc !== '') {
+            document.getElementById('mainImg').src = imageSrc;
+        }
+
         updatePrice();
     }
   </script>
