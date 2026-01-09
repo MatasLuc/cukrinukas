@@ -226,11 +226,47 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
     .spec-item { 
         padding: 12px 0; 
         border-bottom: 1px solid var(--border); 
-        color: var(--text-main); 
         font-size: 14px; 
         line-height: 1.6;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 20px;
     }
     .spec-item:last-child { border-bottom: none; }
+    
+    .spec-label {
+        font-weight: 600;
+        color: var(--text-main);
+        flex: 0 0 40%;
+    }
+    
+    .spec-value {
+        color: var(--text-muted);
+        text-align: right;
+        flex: 1;
+    }
+
+    @media (max-width: 600px) {
+        .spec-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+        }
+        .spec-label {
+            flex: none;
+            width: 100%;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #94a3b8;
+        }
+        .spec-value {
+            text-align: left;
+            color: var(--text-main);
+            font-size: 15px;
+        }
+    }
 
     /* Buy Box */
     .buy-box {
@@ -362,7 +398,8 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
                     <div class="specs-list">
                         <?php foreach ($attributes as $attr): ?>
                             <div class="spec-item">
-                                <?php echo $attr['value']; ?>
+                                <span class="spec-label"><?php echo htmlspecialchars($attr['label']); ?></span>
+                                <span class="spec-value"><?php echo htmlspecialchars($attr['value']); ?></span>
                             </div>
                         <?php endforeach; ?>
                     </div>
