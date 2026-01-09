@@ -40,6 +40,9 @@ function headerStyles(?int $overrideShadow = null): string {
   --header-border: #e6e6ef;
 }
 
+/* SVARBU: Globalus box-sizing pataisymas, kad padding neiškreiptų pločio */
+*, *::before, *::after { box-sizing: border-box; }
+
 body { margin: 0; background: var(--surface); color: var(--text-color); font-family: var(--font-family); font-weight: var(--font-weight-regular); }
 * { font-family: var(--font-family); }
 
