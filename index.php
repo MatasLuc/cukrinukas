@@ -2,6 +2,7 @@
 session_start();
 require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
+require_once __DIR__ . '/helpers.php'; // Būtina slugify funkcijai
 
 $headerShadowIntensity = 70;
 $GLOBALS['headerShadowIntensity'] = $headerShadowIntensity;
@@ -473,20 +474,24 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
 
       <div class="store-grid">
         <?php foreach ($featuredProducts as $product): ?>
-          <?php $priceDisplay = buildPriceDisplay($product, $globalDiscount, $categoryDiscounts); ?>
+          <?php 
+            $priceDisplay = buildPriceDisplay($product, $globalDiscount, $categoryDiscounts); 
+            // SEO URL
+            $productUrl = '/produktas/' . slugify($product['title']) . '-' . (int)$product['id'];
+          ?>
           <article class="product-card">
             <div style="position:relative;">
                 <?php if (!empty($product['ribbon_text'])): ?>
                     <div style="position:absolute; top:12px; left:12px; background:var(--accent); color:#fff; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:700; z-index:2;"><?php echo htmlspecialchars($product['ribbon_text']); ?></div>
                 <?php endif; ?>
-                <a href="/product.php?id=<?php echo (int)$product['id']; ?>">
+                <a href="<?php echo htmlspecialchars($productUrl); ?>">
                   <img src="<?php echo htmlspecialchars($product['primary_image'] ?: $product['image_url']); ?>" alt="<?php echo htmlspecialchars($product['title']); ?>">
                 </a>
             </div>
             
             <div class="product-card__body">
               <div class="badge"><?php echo htmlspecialchars($product['category_name'] ?? ''); ?></div>
-              <h3 class="product-card__title"><a href="/product.php?id=<?php echo (int)$product['id']; ?>"><?php echo htmlspecialchars($product['title']); ?></a></h3>
+              <h3 class="product-card__title"><a href="<?php echo htmlspecialchars($productUrl); ?>"><?php echo htmlspecialchars($product['title']); ?></a></h3>
               
               <div class="product-card__price-row">
                 <div>
@@ -542,8 +547,12 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
             </div>
             <div class="fs-grid">
               <?php foreach ($freeShippingOffers as $offer): ?>
-                <?php $priceDisplay = buildPriceDisplay($offer, $globalDiscount, $categoryDiscounts); ?>
-                <a href="/product.php?id=<?php echo (int)$offer['product_id']; ?>" class="fs-card">
+                <?php 
+                    $priceDisplay = buildPriceDisplay($offer, $globalDiscount, $categoryDiscounts); 
+                    // SEO URL
+                    $offerUrl = '/produktas/' . slugify($offer['title']) . '-' . (int)$offer['product_id'];
+                ?>
+                <a href="<?php echo htmlspecialchars($offerUrl); ?>" class="fs-card">
                     <img src="<?php echo htmlspecialchars($offer['primary_image'] ?: $offer['image_url']); ?>" alt="">
                     <div>
                         <h4><?php echo htmlspecialchars($offer['title']); ?></h4>
@@ -580,7 +589,11 @@ $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' view
       </div>
       <div class="news-grid">
         <?php foreach ($featuredNews as $news): ?>
-          <a href="/news_view.php?id=<?php echo (int)$news['id']; ?>" class="news-card">
+          <?php
+            // SEO URL Naujienoms
+            $newsUrl = '/naujiena/' . slugify($news['title']) . '-' . (int)$news['id'];
+          ?>
+          <a href="<?php echo htmlspecialchars($newsUrl); ?>" class="news-card">
             <img src="<?php echo htmlspecialchars($news['image_url']); ?>" alt="<?php echo htmlspecialchars($news['title']); ?>">
             <div class="news-body">
               <span class="news-date"><?php echo date('Y-m-d', strtotime($news['created_at'])); ?></span>
