@@ -81,11 +81,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $_SESSION['cart'][$id] = ($_SESSION['cart'][$id] ?? 0) + $qty;
 
     // Variacijų apdorojimas (MULTI-SELECT)
-    // Tikimės gauti masyvą $_POST['variations'] = ['Dydis' => var_id, 'Spalva' => var_id]
     $postedVariations = $_POST['variations'] ?? [];
     $cartVariations = [];
     
-    // Jei senas formatas (pavienis ID)
+    // Jei senas formatas
     if (isset($_POST['variation_id']) && !empty($_POST['variation_id'])) {
         $postedVariations['default'] = $_POST['variation_id'];
     }
@@ -95,9 +94,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $varId = (int)$varId;
             if ($varId && isset($variationMap[$varId])) {
                 $sel = $variationMap[$varId];
-                // Formuojame struktūrą. Pastaba: cart.php turės mokėti priimti masyvą.
-                // Šiuo metu pritaikome taip, kad veiktų su paprasta logika arba būtų galima plėsti.
-                // Saugome visus pasirinkimus į sesiją.
                 $cartVariations[] = [
                     'id' => $varId,
                     'group' => $sel['group_name'],
@@ -108,9 +104,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Išsaugome į sesiją. 
-    // DĖMESIO: Jei jūsų cart.php tikisi vieno varianto, jis naudos tik pirmą arba paskutinį. 
-    // Ši struktūra paruošta "Advanced" krepšeliui.
     if (!empty($cartVariations)) {
         $_SESSION['cart_variations'][$id] = $cartVariations; 
     } else {
@@ -154,7 +147,7 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
       --border: #e2e8f0;
       --text-main: #0f172a;
       --text-muted: #64748b;
-      --accent: #2563eb; /* Mėlyna iš orders.php */
+      --accent: #2563eb;
       --accent-hover: #1d4ed8;
       --accent-light: #eff6ff;
       --success: #059669;
@@ -166,7 +159,7 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
     
     .page-container { max-width: 1200px; margin: 0 auto; padding: 0 20px 60px; }
 
-    /* Hero Section (Stilius pagal orders.php) */
+    /* Hero */
     .hero {
         background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
         border: 1px solid #bfdbfe;
@@ -183,17 +176,12 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
     .breadcrumbs span { color: #93c5fd; }
     
     .hero h1 { margin: 0; font-size: 32px; color: #1e3a8a; letter-spacing: -0.02em; line-height: 1.2; }
-    .hero .category-pill {
-        display: inline-flex; background: #fff; color: #2563eb; 
-        padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;
-        border: 1px solid #bfdbfe; text-transform: uppercase; letter-spacing: 0.05em;
-        width: fit-content;
-    }
 
-    /* Layout Grid */
+    /* Layout */
     .product-grid { display: grid; grid-template-columns: 1fr 400px; gap: 32px; align-items: start; }
+    .left-col { display: flex; flex-direction: column; gap: 24px; }
     
-    /* Left Column */
+    /* Gallery */
     .gallery-section { display: flex; flex-direction: column; gap: 16px; }
     .main-image-wrap { 
         position: relative; border-radius: 16px; overflow: hidden; 
@@ -208,7 +196,6 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
         font-weight: 700; font-size: 13px; 
         box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
     }
-    
     .thumbs { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
     .thumb { 
         width: 70px; height: 70px; flex-shrink: 0; border-radius: 8px; 
@@ -218,22 +205,37 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
     .thumb:hover { transform: translateY(-2px); }
     .thumb.active { border-color: var(--accent); }
 
+    /* Cards */
     .content-card {
         background: var(--card-bg); border: 1px solid var(--border);
-        border-radius: 16px; padding: 24px; margin-top: 24px;
+        border-radius: 16px; padding: 24px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     .content-card h3 { margin: 0 0 16px 0; font-size: 18px; color: var(--text-main); border-bottom: 1px solid var(--border); padding-bottom: 12px; }
     .description { color: var(--text-muted); line-height: 1.7; font-size: 15px; }
     .description img { max-width: 100%; height: auto; border-radius: 8px; }
 
+    /* Specs Table Update */
     .specs-table { width: 100%; border-collapse: collapse; }
-    .specs-table td { padding: 12px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .specs-table td { padding: 10px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
     .specs-table tr:last-child td { border-bottom: none; }
-    .spec-label { width: 40%; color: var(--text-main); font-weight: 600; font-size: 14px; }
-    .spec-value { color: var(--text-muted); font-size: 14px; }
+    
+    .spec-label { 
+        width: 1px; /* Sutraukia iki minimalaus pločio */
+        white-space: nowrap; /* Neleidžia laužyti teksto */
+        padding-right: 24px; 
+        color: var(--text-muted); /* Neryški spalva */
+        font-weight: 500; 
+        font-size: 14px;
+    }
+    .spec-value { 
+        color: var(--text-main); /* Ryškesnis tekstas */
+        font-weight: 500; 
+        font-size: 14px; 
+        width: 100%;
+    }
 
-    /* Right Column (Buy Box) */
+    /* Buy Box */
     .buy-box {
         background: var(--card-bg); border: 1px solid var(--border);
         border-radius: 16px; padding: 24px;
@@ -246,7 +248,7 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
     .price-current { font-size: 36px; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em; }
     .price-old { font-size: 18px; color: #94a3b8; text-decoration: line-through; }
     
-    /* Variation Groups */
+    /* Variations */
     .var-group { margin-bottom: 16px; }
     .var-label { font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 8px; display: block; text-transform: uppercase; letter-spacing: 0.03em; }
     .var-options { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -273,16 +275,8 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
 
     /* Actions */
     .action-row { display: grid; grid-template-columns: 80px 1fr; gap: 12px; margin-top: 8px; }
-    .qty-input { 
-        width: 100%; height: 48px; text-align: center; font-size: 18px; font-weight: 600;
-        border: 1px solid var(--border); border-radius: 10px; background: #f8fafc;
-    }
-    .btn-add {
-        width: 100%; height: 48px; border: none; border-radius: 10px;
-        background: var(--accent); color: #fff;
-        font-size: 16px; font-weight: 600; cursor: pointer;
-        transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
-    }
+    .qty-input { width: 100%; height: 48px; text-align: center; font-size: 18px; font-weight: 600; border: 1px solid var(--border); border-radius: 10px; background: #f8fafc; }
+    .btn-add { width: 100%; height: 48px; border: none; border-radius: 10px; background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .btn-add:hover { background: var(--accent-hover); }
 
     .info-list { display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--text-muted); margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
@@ -297,11 +291,26 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
     .rel-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text-main); }
     .rel-price { font-weight: 700; color: var(--text-main); }
 
-    /* Mobile */
+    /* Mobile Responsive */
     @media (max-width: 900px) {
-        .product-grid { grid-template-columns: 1fr; gap: 24px; }
+        .product-grid { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 24px; 
+        }
+        
+        .left-col { 
+            display: contents; /* Išpakuoja vaikus (gallery, desc, specs) į pagrindinį grid */
+        }
+        
+        /* Eilės tvarka */
+        .gallery-section { order: 1; }
+        .buy-box { order: 2; position: static; margin-bottom: 20px; }
+        .content-desc { order: 3; }
+        .content-specs { order: 4; }
+        .related-section { order: 5; }
+
         .hero { padding: 20px; margin-top: 10px; }
-        .buy-box { position: static; }
         .action-row { position: sticky; bottom: 10px; background: #fff; padding: 10px; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); z-index: 20; }
     }
   </style>
@@ -321,10 +330,6 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
                 </a>
             <?php endif; ?>
         </div>
-        
-        <?php if (!empty($product['category_name'])): ?>
-            <div class="category-pill"><?php echo htmlspecialchars($product['category_name']); ?></div>
-        <?php endif; ?>
 
         <h1><?php echo htmlspecialchars($product['title']); ?></h1>
         <?php if (!empty($product['subtitle'])): ?>
@@ -354,7 +359,7 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
             </div>
 
             <?php if (!empty($product['description'])): ?>
-                <div class="content-card">
+                <div class="content-card content-desc">
                     <h3>Aprašymas</h3>
                     <div class="description">
                         <?php echo $product['description']; ?>
@@ -363,7 +368,7 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
             <?php endif; ?>
 
             <?php if ($attributes): ?>
-                <div class="content-card">
+                <div class="content-card content-specs">
                     <h3>Techninė specifikacija</h3>
                     <table class="specs-table">
                         <?php foreach ($attributes as $attr): ?>
@@ -477,18 +482,15 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
   <?php renderFooter($pdo); ?>
 
   <script>
-    // Nuotraukų keitimas
     function changeImage(thumb) {
         document.getElementById('mainImg').src = thumb.src;
         document.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
         thumb.classList.add('active');
     }
 
-    // Kainų logika
     const baseOriginal = parseFloat('<?php echo (float)($product['price'] ?? 0); ?>');
     const baseSale = <?php echo $product['sale_price'] !== null ? 'parseFloat(' . json_encode((float)$product['sale_price']) . ')' : 'null'; ?>;
     
-    // Nuolaidų duomenys
     const globalDiscount = {
         type: '<?php echo $globalDiscount['type'] ?? 'none'; ?>',
         value: parseFloat('<?php echo (float)($globalDiscount['value'] ?? 0); ?>')
@@ -507,11 +509,9 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
         return Math.max(0, final);
     }
 
-    // Saugome pasirinktas deltas pagal grupes
     const selectedDeltas = {}; 
 
     function updatePrice() {
-        // Susumuojame visas deltas
         let totalDelta = 0;
         Object.values(selectedDeltas).forEach(d => totalDelta += d);
 
@@ -536,20 +536,11 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
         const varId = el.dataset.id;
         const delta = parseFloat(el.dataset.delta || 0);
 
-        // 1. UI atnaujinimas (Active klasė)
-        // Nuimame active nuo visų šios grupės elementų
         document.querySelectorAll(`.var-chip[data-group="${groupHash}"]`).forEach(c => c.classList.remove('active'));
-        // Uždedame ant paspausto
         el.classList.add('active');
 
-        // 2. Duomenų atnaujinimas
-        // Įrašome ID į paslėptą input lauką
         document.getElementById('input-' + groupHash).value = varId;
-        
-        // Išsaugome deltą kainos skaičiavimui
         selectedDeltas[groupHash] = delta;
-
-        // 3. Perskaičiuojame kainą
         updatePrice();
     }
   </script>
