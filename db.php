@@ -49,7 +49,6 @@ function ensureUsersTable(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
 
-    // Pridedame stulpelius, jei jų nėra (suderinamumas su senomis versijomis)
     $columns = $pdo->query('SHOW COLUMNS FROM users')->fetchAll(PDO::FETCH_COLUMN);
     
     $addIfMissing = [
@@ -108,11 +107,9 @@ function saveUploadedFile(array $file, array $allowedMimeMap, string $prefix = '
     }
 
     $uploadDir = ensureUploadsDir();
-    // Generuojame failo pavadinimą. Naudojame .webp, nes konvertuosime.
     $targetName = uniqid($prefix, true) . '.webp';
     $destination = $uploadDir . '/' . $targetName;
 
-    // Bandome optimizuoti ir sumažinti
     if (in_array($mime, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'])) {
         try {
             $image = null;
@@ -124,7 +121,6 @@ function saveUploadedFile(array $file, array $allowedMimeMap, string $prefix = '
             }
 
             if ($image) {
-                // 1. Sumažiname, jei plotis didesnis nei 1200px
                 $width = imagesx($image);
                 $height = imagesy($image);
                 $maxWidth = 1200;
@@ -133,28 +129,22 @@ function saveUploadedFile(array $file, array $allowedMimeMap, string $prefix = '
                     $newWidth = $maxWidth;
                     $newHeight = floor($height * ($maxWidth / $width));
                     $newImage = imagecreatetruecolor($newWidth, $newHeight);
-                    
-                    // Išlaikome skaidrumą (PNG/WebP)
                     imagealphablending($newImage, false);
                     imagesavealpha($newImage, true);
-                    
                     imagecopyresampled($newImage, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
                     imagedestroy($image);
                     $image = $newImage;
                 }
 
-                // 2. Išsaugome kaip WebP su 80% kokybe (sutaupo ~60-80% vietos)
                 imagewebp($image, $destination, 80);
                 imagedestroy($image);
                 return '/uploads/' . $targetName;
             }
         } catch (Throwable $e) {
-            // Jei optimizavimas nepavyko, tęsiame su originaliu failu (fallback)
+            // Fallback
         }
     }
 
-    // Jei optimizavimas nepavyko arba tai ne paveikslėlis, tiesiog perkeliame originalų failą
-    // Pastaba: grąžiname originalų plėtinį
     $extension = $allowedMimeMap[$mime];
     $targetNameOriginal = uniqid($prefix, true) . '.' . $extension;
     $destinationOriginal = $uploadDir . '/' . $targetNameOriginal;
@@ -209,7 +199,6 @@ function ensureNewsCategoriesTable(PDO $pdo): void {
     );
 }
 
-// NAUJA: Ryšių lentelė
 function ensureNewsCategoryRelationsTable(PDO $pdo): void {
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS news_category_relations (
@@ -239,7 +228,6 @@ function ensureNewsTable(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
 
-    // Sukuriame ryšių lentelę
     ensureNewsCategoryRelationsTable($pdo);
 
     $columns = $pdo->query("SHOW COLUMNS FROM news")->fetchAll(PDO::FETCH_COLUMN);
@@ -253,18 +241,13 @@ function ensureNewsTable(PDO $pdo): void {
     if (!in_array('author', $columns, true)) {
         $pdo->exec('ALTER TABLE news ADD COLUMN author VARCHAR(100) DEFAULT NULL AFTER summary');
     }
-    
-    // Jei senas stulpelis 'category_id' dar egzistuoja (iš senos versijos), galime jį palikti 
-    // dėl suderinamumo arba leisti jam egzistuoti kaip NULL. Čia jo netriname.
     if (!in_array('category_id', $columns, true)) {
-        // Galime pridėti dėl viso pikto, jei kažkur senas kodas dar kreipiasi, 
-        // bet naujame kode jo nebenaudojame.
         $pdo->exec('ALTER TABLE news ADD COLUMN category_id INT NULL AFTER id');
     }
 }
 
 // -------------------------------------------------------------------------
-// RECEPTŲ FUNKCIJOS (ATNAUJINTA)
+// RECEPTŲ FUNKCIJOS
 // -------------------------------------------------------------------------
 
 function ensureRecipeCategoriesTable(PDO $pdo): void {
@@ -306,7 +289,6 @@ function ensureRecipesTable(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
     
-    // Sukuriame ryšių lentelę
     ensureRecipeCategoryRelationsTable($pdo);
 
     $columns = $pdo->query("SHOW COLUMNS FROM recipes")->fetchAll(PDO::FETCH_COLUMN);
@@ -441,9 +423,7 @@ function ensureCommunityTables(PDO $pdo): void {
 }
 
 function ensureDirectMessages(PDO $pdo): void {
-    // Ensure prerequisite users table exists before creating the messaging table
     ensureUsersTable($pdo);
-
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS direct_messages (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -562,7 +542,6 @@ function ensureProductsTable(PDO $pdo): void {
     ensureProductImagesTable($pdo);
     ensureProductRelations($pdo);
 
-    // Progressive column additions for existing deployments
     $columns = $pdo->query("SHOW COLUMNS FROM products")->fetchAll();
     $names = array_column($columns, 'Field');
     if (!in_array('subtitle', $names, true)) {
@@ -990,7 +969,6 @@ function ensureProductRelations(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
 
-    // Sukuriame arba atnaujiname product_variations
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS product_variations (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -999,18 +977,21 @@ function ensureProductRelations(PDO $pdo): void {
             name VARCHAR(180) NOT NULL,
             price_delta DECIMAL(10,2) NOT NULL DEFAULT 0,
             quantity INT NOT NULL DEFAULT 0,
+            image_id INT DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
 
-    // Atnaujinimai egzistuojančioms lentelėms (ALTER TABLE)
     $columns = $pdo->query("SHOW COLUMNS FROM product_variations")->fetchAll(PDO::FETCH_COLUMN);
     if (!in_array('group_name', $columns, true)) {
         $pdo->exec("ALTER TABLE product_variations ADD COLUMN group_name VARCHAR(255) NULL DEFAULT '' AFTER product_id");
     }
     if (!in_array('quantity', $columns, true)) {
         $pdo->exec("ALTER TABLE product_variations ADD COLUMN quantity INT NOT NULL DEFAULT 0 AFTER price_delta");
+    }
+    if (!in_array('image_id', $columns, true)) {
+        $pdo->exec("ALTER TABLE product_variations ADD COLUMN image_id INT DEFAULT NULL AFTER quantity");
     }
 }
 
@@ -1319,7 +1300,6 @@ function getNavigationTree(PDO $pdo): array {
 }
 
 function ensureOrdersTables(PDO $pdo): void {
-    // Ensure referenced tables exist before creating foreign keys.
     ensureUsersTable($pdo);
     ensureProductsTable($pdo);
 
@@ -1707,9 +1687,6 @@ function ensurePasswordResetsTable(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
 }
-// -------------------------------------------------------------------------
-// RECEPTŲ VERTINIMO FUNKCIJOS (NAUJA)
-// -------------------------------------------------------------------------
 
 function ensureRecipeRatingsTable(PDO $pdo): void {
     $pdo->exec(
@@ -1747,7 +1724,6 @@ function getUserRecipeRating(PDO $pdo, int $userId, int $recipeId): int {
 
 function rateRecipe(PDO $pdo, int $userId, int $recipeId, int $rating): void {
     ensureRecipeRatingsTable($pdo);
-    // Užtikriname, kad reitingas tarp 1 ir 5
     $rating = max(1, min(5, $rating));
     
     $stmt = $pdo->prepare('
