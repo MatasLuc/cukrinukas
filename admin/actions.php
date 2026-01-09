@@ -700,5 +700,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         redirectWithMsg('content', 'Klaida trinant', 'error');
     }
+    // --- LAIŠKŲ SIUNTIMAS ---
+    if ($action === 'send_email') {
+        require_once __DIR__ . '/../mailer.php'; // Įtraukiame mailerį
+
+        $recipientId = (int)($_POST['recipient_id'] ?? 0);
+        $subject = trim($_POST['subject'] ?? '');
+        $content = trim($_POST['message'] ?? '');
+
+        if (!$recipientId || !$subject || !$content) {
+            redirectWithMsg('emails', 'Užpildykite visus laukus (gavėjas, tema, žinutė)', 'error');
+        }
+
+        // Gauname vartotojo el. paštą
+        $stmt = $pdo->prepare("SELECT email, name FROM users WHERE id = ?");
+        $stmt->execute([$recipientId]);
+        $user = $stmt->fetch();
+
+        if ($user) {
+            // Panaudojame gražų šabloną iš mailer.php
+            $htmlBody = getEmailTemplate($subject, $content, 'https://cukrinukas.lt', 'Apsilankyti parduotuvėje');
+            
+            $sent = sendEmail($user['email'], $subject, $htmlBody);
+            
+            if ($sent) {
+                redirectWithMsg('emails', "Laiškas sėkmingai išsiųstas klientui {$user['name']}!");
+            } else {
+                redirectWithMsg('emails', 'Nepavyko išsiųsti laiško. Patikrinkite serverio/SMTP nustatymus.', 'error');
+            }
+        } else {
+            redirectWithMsg('emails', 'Vartotojas nerastas', 'error');
+        }
+    }
 }
 ?>
