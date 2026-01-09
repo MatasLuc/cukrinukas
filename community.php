@@ -22,231 +22,245 @@ if (!empty($_SESSION['flash_error'])) {
 }
 
 echo headerStyles();
-renderHeader($pdo, 'community');
 ?>
 <style>
-/* Perkelti kintamieji ir stiliai iš products.php, kad viskas sutaptų */
-:root { --bg: #f7f7fb; --card: #ffffff; --border: #e4e7ec; --text: #1f2937; --muted: #52606d; --accent: #2563eb; }
-* { box-sizing: border-box; }
-body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
-a { color:inherit; text-decoration:none; }
+    :root {
+      --bg: #f7f7fb;
+      --card: #ffffff;
+      --border: #e4e7ec;
+      --text-main: #0f172a;
+      --text-muted: #475467;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --focus-ring: rgba(37, 99, 235, 0.2);
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background: var(--bg); color: var(--text-main); font-family: 'Inter', sans-serif; }
+    a { color:inherit; text-decoration:none; transition: color .2s; }
+    
+    /* Layout struktūra */
+    .page { max-width: 1200px; margin:0 auto; padding:32px 20px 72px; display:flex; flex-direction:column; gap:28px; }
 
-/* Puslapio konteineris kaip products.php (max-width: 1200px) */
-.page { 
-    max-width: 1200px; 
-    margin: 0 auto; 
-    padding: 32px 20px 72px; 
-    display: grid; 
-    gap: 28px; 
-}
+    /* Hero Section */
+    .hero { 
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        border:1px solid #dbeafe; 
+        border-radius:24px; 
+        padding:32px; 
+        display:flex; 
+        align-items:center; 
+        justify-content:space-between; 
+        gap:24px; 
+        flex-wrap:wrap; 
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .hero h1 { margin:0 0 8px; font-size:28px; color:#1e3a8a; letter-spacing:-0.5px; }
+    .hero p { margin:0; color:#1e40af; line-height:1.5; max-width:520px; font-size:15px; }
+    
+    .pill { 
+        display:inline-flex; align-items:center; gap:8px; 
+        padding:6px 12px; border-radius:999px; 
+        background:#fff; border:1px solid #bfdbfe; 
+        font-weight:600; font-size:13px; color:#1e40af; 
+        margin-bottom: 12px;
+    }
 
-/* Hero sekcija kaip products.php */
-.hero {
-  padding: 26px; 
-  border-radius: 28px; 
-  background: linear-gradient(135deg, #eff6ff, #dbeafe); /* Mėlynas gradientas */
-  border: 1px solid #e5e7eb; 
-  box-shadow: 0 18px 48px rgba(0,0,0,0.08);
-  /* Vidinis išdėstymas lieka lankstus, kad tilptų turinys */
-}
+    .stat-card { 
+        background:#fff; border:1px solid rgba(255,255,255,0.6); 
+        padding:16px 20px; border-radius:16px; 
+        min-width:160px; text-align:right;
+        box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1);
+    }
+    .stat-card strong { display:block; font-size:20px; color:#1e3a8a; margin-bottom: 4px; }
+    .stat-card span { color: #64748b; font-size:13px; font-weight: 500; }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
-}
+    /* Main Grid Layout */
+    .layout { display:grid; grid-template-columns: 1fr 320px; gap:24px; align-items:start; }
+    @media(max-width: 900px){ .layout { grid-template-columns:1fr; } }
 
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 24px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  transition: transform .2s, border-color .2s;
-}
-.card:hover {
-    transform: translateY(-4px);
-    border-color: var(--accent);
-}
+    /* Cards */
+    .card { 
+        background:var(--card); 
+        border:1px solid var(--border); 
+        border-radius:20px; 
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        transition: transform .2s, box-shadow .2s;
+        height: 100%;
+        display: flex; flex-direction: column;
+    }
+    .card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border-color: #cbd5e1; }
+    
+    .card-body { padding: 24px; flex-grow: 1; display: flex; flex-direction: column; gap: 12px; }
+    
+    /* Navigation Link Cards */
+    .nav-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:20px; margin-bottom: 24px; }
+    
+    .nav-card-icon {
+        width: 48px; height: 48px; 
+        background: #eff6ff; border-radius: 12px; 
+        display: flex; align-items: center; justify-content: center; 
+        font-size: 24px; margin-bottom: 16px;
+    }
 
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: #1f2937;
-  color: #fff;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  font-size: 13px;
-}
+    .rule-list { margin: 0; padding-left: 20px; color: var(--text-muted); line-height: 1.6; font-size: 14px; }
+    .rule-list li { margin-bottom: 8px; }
 
-.rule-list { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.6; }
+    /* Sidebar */
+    .sidebar-card { padding: 24px; margin-bottom: 24px; }
+    .sidebar-card h3 { margin:0 0 16px; font-size:16px; color: var(--text-main); font-weight: 700; }
 
-.links {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 18px;
-}
+    /* Buttons */
+    .btn, .btn-outline { 
+        padding:10px 20px; border-radius:10px; 
+        font-weight:600; font-size:14px;
+        cursor:pointer; text-decoration:none; 
+        display:inline-flex; align-items:center; justify-content:center;
+        transition: all .2s; width: 100%;
+    }
+    .btn { border:none; background: #0f172a; color:#fff; }
+    .btn:hover { background: #1e293b; color:#fff; transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+    
+    .btn-outline { background: #fff; color: var(--text-main); border: 1px solid var(--border); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); background: #f8fafc; }
 
-/* Nuorodų kortelės - stilius supaprastintas, be radial-gradient */
-.link-card {
-  background: #fff;
-  color: var(--text);
-  border-radius: 20px;
-  padding: 22px;
-  border: 1px solid var(--border);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  transition: transform .2s, border-color .2s;
-}
-.link-card:hover {
-    transform: translateY(-4px);
-    border-color: var(--accent);
-}
+    /* Messages */
+    .notice { padding:12px 16px; border-radius:10px; margin-bottom:20px; font-size:14px; display:flex; gap:10px; align-items:center; }
+    .success { background: #ecfdf5; border: 1px solid #d1fae5; color: #065f46; }
+    .error { background: #fef2f2; border: 1px solid #fee2e2; color: #991b1b; }
 
-.link-card a {
-  color: var(--text);
-  text-decoration: none;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: #f3f4f6;
-  border: 1px solid transparent;
-  transition: all .2s;
-  width: fit-content;
-}
-.link-card a:hover {
-    background: #e5e7eb;
-}
-
-.pill { 
-    display:inline-flex; 
-    align-items:center; 
-    gap:8px; 
-    padding:6px 12px; 
-    background:#fff; 
-    border-radius:999px; 
-    border:1px solid var(--border);
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--muted);
-}
-
-/* Mygtukai */
-.btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 18px; border-radius: 12px; background: #1f2937; color: #fff; border: 1px solid #1f2937; font-weight: 600; cursor: pointer; text-decoration: none; transition: opacity 0.2s; }
-.btn:hover { opacity: 0.9; }
-.btn-secondary { background: #fff; color: #1f2937; border-color: var(--border); }
-.btn-secondary:hover { background: #f9fafb; }
+    @media (max-width: 600px) {
+        .hero { padding: 24px; }
+        .layout { grid-template-columns: 1fr; }
+        .nav-grid { grid-template-columns: 1fr; }
+    }
 </style>
+
+<?php renderHeader($pdo, 'community'); ?>
 
 <div class="page">
   <section class="hero">
-    <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:center;justify-content:space-between;">
-      <div style="max-width:600px;display:flex;flex-direction:column;gap:14px;">
-        <div><span class="badge">Bendruomenė</span></div>
-        <h1 style="margin:0; font-size: clamp(26px, 4vw, 36px); color:#0f172a;">Pasikalbėkime, dalinkimės ir kurkime kartu</h1>
-        <p style="margin:0; font-size:16px; color:var(--muted); line-height:1.6;">
-          Čia susitinka žmonės, kurie nori diskutuoti, padėti vieni kitiems ir sąžiningai prekiauti tarpusavyje.
-          Įsikvėpk, pasidalink patirtimi ir atrask naujų kontaktų.
-        </p>
-        <div style="display:flex;flex-wrap:wrap;gap:8px; margin-top:4px;">
-          <span class="pill">💬 Diskusijos</span>
-          <span class="pill">🤝 Sąžiningi mainai</span>
-          <span class="pill">🛡️ Draugiška moderacija</span>
-        </div>
-      </div>
-      
-      <div class="card" style="min-width:280px; max-width:320px; border-color: #dbeafe; background: rgba(255,255,255,0.8);">
-        <h3 style="margin-top:0; font-size:18px;">Prisijunk prie mūsų</h3>
-        <p style="margin:0 0 16px; font-size:14px; color:var(--muted); line-height:1.5;">Prisijunkite prie paskyros ir pasirinkite jus dominantčią erdvę.</p>
-        <div style="display:flex; flex-direction:column; gap:10px;">
-          <?php if ($user['id']): ?>
-            <a class="btn" href="/community_discussions.php" style="width:100%;">Eiti į diskusijas</a>
-          <?php else: ?>
-            <a class="btn" href="/login.php" style="width:100%;">Prisijunkite</a>
-            <div style="text-align:center; font-size:13px; color:var(--muted);">
-                Neturite paskyros? <a href="/register.php" style="color:var(--accent); font-weight:600;">Registruotis</a>
+    <div>
+      <div class="pill">👥 Bendruomenė</div>
+      <h1>Pasikalbėkime ir dalinkimės</h1>
+      <p>Čia susitinka žmonės diskutuoti, padėti vieni kitiems ir sąžiningai prekiauti tarpusavyje.</p>
+    </div>
+    <div class="stat-card">
+      <strong>2</strong>
+      <span>Pagrindinės erdvės</span>
+    </div>
+  </section>
+
+  <?php if ($messages || $errors): ?>
+    <div>
+        <?php foreach ($messages as $msg): ?>
+            <div class="notice success">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                <?php echo htmlspecialchars($msg); ?>
             </div>
-          <?php endif; ?>
-          <a class="btn btn-secondary" href="/community_market.php" style="width:100%;">Peržiūrėti turgų</a>
-        </div>
-      </div>
+        <?php endforeach; ?>
+        <?php foreach ($errors as $err): ?>
+            <div class="notice error">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                <?php echo htmlspecialchars($err); ?>
+            </div>
+        <?php endforeach; ?>
     </div>
-  </section>
+  <?php endif; ?>
 
-  <?php foreach ($messages as $msg): ?>
-    <div style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; padding:12px 16px; border-radius:12px;">
-      &check; <?php echo htmlspecialchars($msg); ?>
-    </div>
-  <?php endforeach; ?>
-  <?php foreach ($errors as $err): ?>
-    <div style="background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:12px 16px; border-radius:12px;">
-      &times; <?php echo htmlspecialchars($err); ?>
-    </div>
-  <?php endforeach; ?>
-
-  <section class="links">
-    <div class="link-card">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div style="background:#eff6ff; width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:24px;">💬</div>
-        <div>
-          <div style="font-weight:700; font-size:18px;">Diskusijos</div>
-          <div style="color:var(--muted); font-size:14px;">Klausimai, patarimai ir bendruomenės pulsas.</div>
+  <div class="layout">
+    <div>
+        <div class="nav-grid">
+            <a href="/community_discussions.php" class="card" style="text-decoration:none;">
+                <div class="card-body">
+                    <div class="nav-card-icon" style="color: var(--accent);">💬</div>
+                    <h3 style="margin:0 0 8px; color:var(--text-main); font-size:18px;">Diskusijos</h3>
+                    <p style="margin:0; color:var(--text-muted); font-size:14px; line-height:1.5;">
+                        Klausimai, patarimai ir bendruomenės pulsas. Prisijunk prie pokalbių.
+                    </p>
+                    <div style="margin-top:auto; padding-top:16px; color:var(--accent); font-weight:600; font-size:14px;">
+                        Eiti į diskusijas →
+                    </div>
+                </div>
+            </a>
+            
+            <a href="/community_market.php" class="card" style="text-decoration:none;">
+                <div class="card-body">
+                    <div class="nav-card-icon" style="color: #16a34a; background: #f0fdf4;">🛍️</div>
+                    <h3 style="margin:0 0 8px; color:var(--text-main); font-size:18px;">Bendruomenės turgus</h3>
+                    <p style="margin:0; color:var(--text-muted); font-size:14px; line-height:1.5;">
+                        Pasiūlymai ir užklausos tarp narių. Rask arba parduok.
+                    </p>
+                    <div style="margin-top:auto; padding-top:16px; color:var(--accent); font-weight:600; font-size:14px;">
+                        Peržiūrėti turgų →
+                    </div>
+                </div>
+            </a>
         </div>
-      </div>
-      <div style="margin-top:auto;">
-        <a href="/community_discussions.php">Eiti į diskusijas →</a>
-      </div>
-    </div>
-    <div class="link-card">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div style="background:#f0fdf4; width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:24px;">🛍️</div>
-        <div>
-          <div style="font-weight:700; font-size:18px;">Bendruomenės turgus</div>
-          <div style="color:var(--muted); font-size:14px;">Pasiūlymai ir užklausos tarp narių.</div>
-        </div>
-      </div>
-      <div style="margin-top:auto;">
-        <a href="/community_market.php">Peržiūrėti turgų →</a>
-      </div>
-    </div>
-  </section>
 
-  <section class="grid">
-    <div class="card">
-      <h3 style="margin-top:0;">Ką gali?</h3>
-      <ul class="rule-list">
-        <li>Kurti temas ir dalintis patarimais ar klausimais.</li>
-        <li>Prisijungti prie diskusijų, balsuoti „patinka“, skatinti vieni kitus.</li>
-        <li>Siūlyti ar ieškoti prekių Bendruomenės turguje.</li>
-        <li>Siųsti užklausas ir susisiekti su kitais nariais dėl skelbimų.</li>
-      </ul>
+        <div class="nav-grid">
+            <div class="card">
+                <div class="card-body">
+                    <h3 style="margin-top:0; font-size:16px;">Ką gali?</h3>
+                    <ul class="rule-list">
+                        <li>Kurti temas ir dalintis patarimais ar klausimais.</li>
+                        <li>Prisijungti prie diskusijų, balsuoti „patinka“.</li>
+                        <li>Siūlyti ar ieškoti prekių Bendruomenės turguje.</li>
+                        <li>Siųsti užklausas kitiems nariams.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-body">
+                    <h3 style="margin-top:0; font-size:16px;">Ko negalima?</h3>
+                    <ul class="rule-list">
+                        <li>Reklamuoti nesusijusių paslaugų.</li>
+                        <li>Naudoti neapykantos kalbos ar įžeidinėti.</li>
+                        <li>Apgaudinėti dėl kainos, būklės ar nuosavybės.</li>
+                        <li>Dalintis asmeniniais duomenimis be leidimo.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="card">
-      <h3 style="margin-top:0;">Ko negalima?</h3>
-      <ul class="rule-list">
-        <li>Reklamuoti nesusijusių paslaugų ar skelbimų ne turgaus skiltyje.</li>
-        <li>Naudoti neapykantos kalbos, įžeidinėti ar kelti turinio be sutikimo.</li>
-        <li>Apgaudinėti dėl kainos, būklės ar nuosavybės.</li>
-        <li>Dalintis asmeniniais duomenimis be aiškaus leidimo.</li>
-      </ul>
-    </div>
-    <div class="card" style="background: linear-gradient(135deg, #f8fafc, #fff);">
-      <h3 style="margin-top:0;">Kultūra ir saugumas</h3>
-      <p style="margin:0;color:var(--muted); line-height:1.6;">Moderatoriai gali pašalinti netinkamą turinį ir apriboti prieigą pažeidėjams. Jei pastebite pažeidimų, informuokite administraciją.</p>
-      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
-        <span class="pill" style="background:#fff7ed; border-color:#fed7aa; color:#9a3412;">🧡 Draugiškas tonas</span>
-        <span class="pill" style="background:#f0fdf4; border-color:#bbf7d0; color:#166534;">🌱 Pagalba naujokams</span>
-      </div>
-    </div>
-  </section>
+
+    <aside>
+        <div class="card sidebar-card">
+            <h3>Prisijunk prie mūsų</h3>
+            <p style="margin:0 0 16px; font-size:13px; color:var(--text-muted); line-height:1.5;">
+                Prisijunkite prie paskyros ir pasirinkite jus dominantčią erdvę.
+            </p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <?php if ($user['id']): ?>
+                    <a class="btn" href="/community_discussions.php">Eiti į diskusijas</a>
+                    <a class="btn-outline" href="/account.php">Mano profilis</a>
+                <?php else: ?>
+                    <a class="btn" href="/login.php">Prisijunkite</a>
+                    <a class="btn-outline" href="/register.php">Registruotis</a>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div class="card sidebar-card" style="background: linear-gradient(135deg, #f8fafc, #fff);">
+            <h3>Kultūra ir saugumas</h3>
+            <p style="margin:0 0 16px; font-size:13px; color:var(--text-muted); line-height:1.6;">
+                Moderatoriai gali pašalinti netinkamą turinį. Laikykimės draugiško tono.
+            </p>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <span style="font-size:12px; background:#fff7ed; color:#9a3412; padding:4px 8px; border-radius:6px; border:1px solid #fed7aa;">🧡 Draugiškumas</span>
+                <span style="font-size:12px; background:#f0fdf4; color:#166534; padding:4px 8px; border-radius:6px; border:1px solid #bbf7d0;">🌱 Pagalba</span>
+            </div>
+        </div>
+
+        <div class="card sidebar-card" style="background: #f8fafc; border: 1px solid var(--border);">
+            <h3>Reikia pagalbos?</h3>
+            <p style="font-size:13px; color:var(--text-muted); line-height:1.5; margin-bottom:12px;">
+                Kilo klausimų dėl bendruomenės taisyklių?
+            </p>
+            <a href="/contact.php" style="font-size:13px; font-weight:600; color:var(--accent);">Susisiekti su mumis →</a>
+        </div>
+    </aside>
+  </div>
 </div>
 
 <?php renderFooter($pdo); ?>
