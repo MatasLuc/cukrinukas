@@ -1,7 +1,3 @@
-{
-type: uploaded file
-fileName: matasluc/cukrinukas/cukrinukas-6bf038f7119a31af5b6e7accb7211334acd38857/product.php
-fullContent:
 <?php
 session_start();
 require __DIR__ . '/db.php';
@@ -559,4 +555,3 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
   </script>
 </body>
 </html>
-}
