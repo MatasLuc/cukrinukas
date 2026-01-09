@@ -982,6 +982,15 @@ function ensureProductRelations(PDO $pdo): void {
             FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
+    
+    // Add track_price and track_stock if missing
+    $cols = $pdo->query("SHOW COLUMNS FROM product_variations")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('track_price', $cols, true)) {
+        $pdo->exec("ALTER TABLE product_variations ADD COLUMN track_price TINYINT(1) NOT NULL DEFAULT 0 AFTER price_delta");
+    }
+    if (!in_array('track_stock', $cols, true)) {
+        $pdo->exec("ALTER TABLE product_variations ADD COLUMN track_stock TINYINT(1) NOT NULL DEFAULT 0 AFTER quantity");
+    }
 
     $columns = $pdo->query("SHOW COLUMNS FROM product_variations")->fetchAll(PDO::FETCH_COLUMN);
     if (!in_array('group_name', $columns, true)) {
@@ -1112,6 +1121,7 @@ function ensureNavigationTable(PDO $pdo): void {
     }
 }
 
+// ATNAUJINTA: Variacijų apdorojimas (ARRAY)
 function getCartData(PDO $pdo, array $cartSession, array $variationSelections = []): array {
     $items = [];
     $baseTotal = 0;
@@ -1146,11 +1156,25 @@ function getCartData(PDO $pdo, array $cartSession, array $variationSelections = 
 
     foreach ($rows as $row) {
         $qty = (int) ($cartSession[$row['id']] ?? 1);
-        $varSelection = $variationSelections[$row['id']] ?? null;
-        $delta = (float)($varSelection['delta'] ?? 0);
+        
+        // Atnaujinta logika: variacijų masyvas
+        $varSelection = $variationSelections[$row['id']] ?? [];
+        
+        // Jei tai senas formatas (vienas objektas), paverčiam į masyvą
+        if (isset($varSelection['id'])) {
+            $varSelection = [$varSelection];
+        }
+        
+        $totalDelta = 0;
+        if (is_array($varSelection)) {
+            foreach ($varSelection as $v) {
+                $totalDelta += (float)($v['delta'] ?? 0);
+            }
+        }
 
-        $baseUnit = ($row['sale_price'] !== null ? (float)$row['sale_price'] : (float)$row['price']) + $delta;
-        $baseOriginal = (float)$row['price'] + $delta;
+        $baseUnit = ($row['sale_price'] !== null ? (float)$row['sale_price'] : (float)$row['price']) + $totalDelta;
+        $baseOriginal = (float)$row['price'] + $totalDelta;
+        
         $afterGlobal = applyGlobalDiscount($baseUnit, $globalDiscount);
         $catDiscount = null;
         if (isset($row['category_id'])) {
@@ -1166,6 +1190,7 @@ function getCartData(PDO $pdo, array $cartSession, array $variationSelections = 
         $globalAmount += ($baseUnit - $afterGlobal) * $qty;
         $categoryAmount += ($afterGlobal - $finalUnit) * $qty;
         $count += $qty;
+        
         $items[] = [
             'id' => $row['id'],
             'title' => $row['title'],
@@ -1176,7 +1201,10 @@ function getCartData(PDO $pdo, array $cartSession, array $variationSelections = 
             'line_total' => $finalLine,
             'line_base' => $baseLine,
             'category_id' => $row['category_id'],
-            'variation' => $varSelection,
+            // Grąžiname visą variacijų masyvą kaip 'variation_features', 
+            // bet paliekame 'variation' suderinamumui (pirmas elementas)
+            'variation_features' => $varSelection,
+            'variation' => !empty($varSelection) ? $varSelection[0] : null,
             'free_shipping_gift' => in_array((int)$row['id'], $freeShippingIds, true),
         ];
     }
@@ -1354,6 +1382,12 @@ function ensureOrdersTables(PDO $pdo): void {
             FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
+    
+    // ATNAUJINTA: Pridedame variation_info stulpelį, jei jo nėra
+    $orderItemColumns = $pdo->query("SHOW COLUMNS FROM order_items")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('variation_info', $orderItemColumns, true)) {
+        $pdo->exec('ALTER TABLE order_items ADD COLUMN variation_info TEXT DEFAULT NULL AFTER price');
+    }
 }
 
 function ensureDiscountTables(PDO $pdo): void {
