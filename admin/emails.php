@@ -12,6 +12,8 @@ $users = $stmt->fetchAll();
     </div>
 
     <form action="admin.php?view=emails" method="POST" class="table-form">
+        <?php echo csrfField(); ?>
+        
         <input type="hidden" name="action" value="send_email">
         
         <div class="grid grid-2">
