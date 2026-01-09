@@ -261,31 +261,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // --- VARIATIONS (SVARBU: IŠSAUGOJIMAS) ---
+            // --- VARIATIONS (SVARBU: IŠSAUGOJIMAS SU IMAGE_ID) ---
             $pdo->prepare('DELETE FROM product_variations WHERE product_id = ?')->execute([$productId]);
             
-            // Duomenys ateina struktūra: variations[groupId][items][rowId][name]...
             $postedVariations = $_POST['variations'] ?? [];
             
             if (is_array($postedVariations)) {
-                // Įsitikiname, kad turime reikiamus stulpelius
-                $insertVar = $pdo->prepare('INSERT INTO product_variations (product_id, group_name, name, price_delta, quantity) VALUES (?, ?, ?, ?, ?)');
+                $insertVar = $pdo->prepare('INSERT INTO product_variations (product_id, group_name, name, price_delta, quantity, image_id) VALUES (?, ?, ?, ?, ?, ?)');
                 
                 foreach ($postedVariations as $group) {
-                    // Grupės pavadinimas
                     $groupName = trim($group['group_name'] ?? '');
                     
-                    // Jei yra 'items', iteruojame per juos
                     if(!empty($group['items']) && is_array($group['items'])) {
                         foreach($group['items'] as $item) {
                             $vName = trim($item['name'] ?? '');
-                            // Jei variacija neturi pavadinimo, praleidžiam
                             if (!$vName) continue;
                             
                             $delta = isset($item['price']) && $item['price'] !== '' ? (float)$item['price'] : 0;
                             $vQty = isset($item['qty']) && $item['qty'] !== '' ? (int)$item['qty'] : 0;
+                            $vImgId = !empty($item['image_id']) ? (int)$item['image_id'] : null;
                             
-                            $insertVar->execute([$productId, $groupName, $vName, $delta, $vQty]);
+                            $insertVar->execute([$productId, $groupName, $vName, $delta, $vQty, $vImgId]);
                         }
                     }
                 }
@@ -684,3 +680,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirectWithMsg('content', 'Klaida trinant', 'error');
     }
 }
+?>
