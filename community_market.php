@@ -9,31 +9,42 @@ ensureCommunityTables($pdo);
 tryAutoLogin($pdo);
 $user = currentUser();
 
-// --- LOGIKA (Išsaugota) ---
+// --- LOGIKA ---
+// Pastaba: Duomenų bazėje naudojame kategorijų lentelę, todėl filtruojame pagal kategorijos pavadinimą.
 $types = ['Siūlau', 'Ieškau', 'Dovanoju'];
 $typeFilter = $_GET['type'] ?? null;
 if ($typeFilter && !in_array($typeFilter, $types)) $typeFilter = null;
 
-$where = "WHERE status = 'active'";
+$where = "WHERE m.status = 'active'";
 $params = [];
+
 if ($typeFilter) {
-    $where .= " AND type = ?";
+    // Filtruojame pagal prijungtos kategorijų lentelės pavadinimą
+    $where .= " AND c.name = ?";
     $params[] = $typeFilter;
 }
 
 $page = max(1, (int)($_GET['page'] ?? 1));
-$perPage = 12; // Daugiau elementų tinklelyje
+$perPage = 12;
 $offset = ($page - 1) * $perPage;
 
-$countStmt = $pdo->prepare("SELECT COUNT(*) FROM community_market_items $where");
+// Skaičiuojame bendrą kiekį (su JOIN, jei filtruojama)
+$countSql = "SELECT COUNT(*) 
+             FROM community_listings m 
+             LEFT JOIN community_listing_categories c ON m.category_id = c.id 
+             $where";
+$countStmt = $pdo->prepare($countSql);
 $countStmt->execute($params);
 $totalItems = $countStmt->fetchColumn();
 $totalPages = ceil($totalItems / $perPage);
 
+// Pagrindinė užklausa
+// 'type' gauname iš kategorijų lentelės (c.name)
 $sql = "
-    SELECT m.*, u.username 
-    FROM community_market_items m
+    SELECT m.*, u.username, c.name as type
+    FROM community_listings m
     LEFT JOIN users u ON m.user_id = u.id
+    LEFT JOIN community_listing_categories c ON m.category_id = c.id
     $where
     ORDER BY m.created_at DESC
     LIMIT $perPage OFFSET $offset
@@ -231,7 +242,8 @@ echo headerStyles();
     <?php else: ?>
         <div class="market-grid">
             <?php foreach ($items as $item): 
-                $badgeClass = 'badge-' . strtolower(str_replace(['ą','č','ę','ė','į','š','ų','ū','ž'], ['a','c','e','e','i','s','u','u','z'], $item['type']));
+                $typeName = $item['type'] ?: 'Kita';
+                $badgeClass = 'badge-' . strtolower(str_replace(['ą','č','ę','ė','į','š','ų','ū','ž'], ['a','c','e','e','i','s','u','u','z'], $typeName));
                 $itemUrl = '/community_listing.php?id=' . $item['id'];
             ?>
             <article class="item-card">
@@ -244,7 +256,7 @@ echo headerStyles();
                 </a>
                 <div class="item-body">
                     <span class="item-badge <?php echo $badgeClass; ?>">
-                        <?php echo htmlspecialchars($item['type']); ?>
+                        <?php echo htmlspecialchars($typeName); ?>
                     </span>
                     <a href="<?php echo $itemUrl; ?>" class="item-title">
                         <?php echo htmlspecialchars($item['title']); ?>
