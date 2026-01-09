@@ -32,13 +32,11 @@ echo headerStyles();
       --text-muted: #475467;
       --accent: #2563eb;
       --accent-hover: #1d4ed8;
-      --focus-ring: rgba(37, 99, 235, 0.2);
     }
     * { box-sizing: border-box; }
     body { margin:0; background: var(--bg); color: var(--text-main); font-family: 'Inter', sans-serif; }
     a { color:inherit; text-decoration:none; transition: color .2s; }
     
-    /* Layout struktūra: Pilnas plotis be šoninės juostos */
     .page { max-width: 1200px; margin:0 auto; padding:32px 20px 72px; display:flex; flex-direction:column; gap:40px; }
 
     /* Hero Section */
@@ -54,7 +52,7 @@ echo headerStyles();
         flex-wrap:wrap; 
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
-    .hero-content { max-width: 600px; }
+    .hero-content { max-width: 600px; flex: 1; }
     .hero h1 { margin:0 0 12px; font-size:32px; color:#1e3a8a; letter-spacing:-0.5px; }
     .hero p { margin:0; color:#1e40af; line-height:1.6; font-size:16px; }
     
@@ -66,14 +64,22 @@ echo headerStyles();
         margin-bottom: 16px;
     }
 
-    .stat-card { 
-        background:#fff; border:1px solid rgba(255,255,255,0.6); 
-        padding:20px 24px; border-radius:16px; 
-        min-width:180px; text-align:right;
-        box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1);
+    /* Hero Action Card (vietoje stat-card) */
+    .hero-card {
+        background: #fff;
+        border: 1px solid rgba(255,255,255,0.8);
+        padding: 24px;
+        border-radius: 20px;
+        width: 100%;
+        max-width: 320px;
+        box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.15);
+        text-align: center;
+        flex-shrink: 0;
     }
-    .stat-card strong { display:block; font-size:24px; color:#1e3a8a; margin-bottom: 4px; }
-    .stat-card span { color: #64748b; font-size:14px; font-weight: 500; }
+    .hero-card h3 { margin: 0 0 8px; font-size: 18px; color: var(--text-main); }
+    .hero-card p { margin: 0 0 16px; font-size: 13px; color: var(--text-muted); line-height: 1.4; }
+    
+    .hero-buttons { display: flex; flex-direction: column; gap: 10px; }
 
     /* Cards */
     .card { 
@@ -90,7 +96,7 @@ echo headerStyles();
     
     .card-body { padding: 32px; flex-grow: 1; display: flex; flex-direction: column; gap: 16px; }
 
-    /* Navigacijos tinklelis (2 didelės kortelės) */
+    /* Navigacijos tinklelis */
     .nav-grid { 
         display:grid; 
         grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); 
@@ -104,21 +110,7 @@ echo headerStyles();
         font-size: 28px; margin-bottom: 8px;
     }
 
-    /* Veiksmų sekcija (Login/Register) */
-    .action-bar {
-        background: #f8fafc;
-        border: 1px dashed var(--border);
-        border-radius: 20px;
-        padding: 32px;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 20px;
-    }
-    .action-buttons { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
-
-    /* Informacinis tinklelis (3 stulpeliai: Rules +, Rules -, Culture) */
+    /* Info Grid */
     .info-grid { 
         display:grid; 
         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
@@ -130,11 +122,12 @@ echo headerStyles();
 
     /* Buttons */
     .btn, .btn-outline { 
-        padding:12px 24px; border-radius:12px; 
-        font-weight:600; font-size:15px;
+        padding:10px 20px; border-radius:10px; 
+        font-weight:600; font-size:14px;
         cursor:pointer; text-decoration:none; 
         display:inline-flex; align-items:center; justify-content:center;
         transition: all .2s;
+        width: 100%;
     }
     .btn { border:none; background: #0f172a; color:#fff; }
     .btn:hover { background: #1e293b; color:#fff; transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
@@ -151,8 +144,8 @@ echo headerStyles();
     .help-footer a { color: var(--accent); font-weight: 600; text-decoration: underline; }
 
     @media (max-width: 768px) {
-        .hero { padding: 24px; flex-direction: column; align-items: flex-start; }
-        .stat-card { width: 100%; text-align: left; }
+        .hero { padding: 24px; flex-direction: column; align-items: stretch; }
+        .hero-card { max-width: 100%; }
         .nav-grid, .info-grid { grid-template-columns: 1fr; }
     }
 </style>
@@ -166,9 +159,23 @@ echo headerStyles();
       <h1>Pasikalbėkime ir dalinkimės</h1>
       <p>Čia susitinka žmonės diskutuoti, padėti vieni kitiems ir sąžiningai prekiauti tarpusavyje. Prisijunk prie mūsų augančios bendruomenės.</p>
     </div>
-    <div class="stat-card">
-      <strong>2</strong>
-      <span>Pagrindinės erdvės</span>
+    
+    <div class="hero-card">
+      <?php if ($user['id']): ?>
+          <h3>Sveiki, <?php echo htmlspecialchars($user['username']); ?>! 👋</h3>
+          <p>Dalyvaukite diskusijose ar valdykite savo profilį.</p>
+          <div class="hero-buttons">
+              <a class="btn" href="/community_thread_new.php">Kurti naują temą</a>
+              <a class="btn-outline" href="/account.php">Mano profilis</a>
+          </div>
+      <?php else: ?>
+          <h3>Prisijunk prie mūsų</h3>
+          <p>Norėdami kurti temas ar prekiauti, turite prisijungti.</p>
+          <div class="hero-buttons">
+              <a class="btn" href="/login.php">Prisijunkite</a>
+              <a class="btn-outline" href="/register.php">Registruotis</a>
+          </div>
+      <?php endif; ?>
     </div>
   </section>
 
@@ -182,7 +189,7 @@ echo headerStyles();
         <?php endforeach; ?>
         <?php foreach ($errors as $err): ?>
             <div class="notice error">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y8="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                 <?php echo htmlspecialchars($err); ?>
             </div>
         <?php endforeach; ?>
@@ -215,24 +222,6 @@ echo headerStyles();
               </div>
           </div>
       </a>
-  </div>
-
-  <div class="action-bar">
-      <?php if ($user['id']): ?>
-          <h3 style="margin:0; font-size:20px;">Sveiki sugrįžę, <?php echo htmlspecialchars($user['username']); ?>! 👋</h3>
-          <p style="margin:0; color:var(--text-muted);">Jūs jau esate bendruomenės narys. Galite laisvai kurti temas ir komentuoti.</p>
-          <div class="action-buttons">
-              <a class="btn" href="/community_thread_new.php">Kurti naują temą</a>
-              <a class="btn-outline" href="/account.php">Mano profilis</a>
-          </div>
-      <?php else: ?>
-          <h3 style="margin:0; font-size:20px;">Norite prisijungti prie diskusijų?</h3>
-          <p style="margin:0; color:var(--text-muted);">Prisijunkite prie paskyros, kad galėtumėte kurti temas, rašyti komentarus ir naudotis turgumi.</p>
-          <div class="action-buttons">
-              <a class="btn" href="/login.php">Prisijunkite</a>
-              <a class="btn-outline" href="/register.php">Registruotis</a>
-          </div>
-      <?php endif; ?>
   </div>
 
   <div class="info-grid">
