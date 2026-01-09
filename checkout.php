@@ -489,28 +489,29 @@ $finalTotal = $subtotal + $finalShipping;
                     <div class="summary-item">
                         <div>
                             <div style="font-weight:500; margin-bottom:2px;"><?php echo htmlspecialchars($item['title']); ?></div>
-                            <div style="font-size:12px; color:var(--text-muted);">
+                            <div style="font-size:12px; color:var(--text-muted); display:flex; flex-direction:column; gap:2px;">
                                 <?php 
-                                    $meta = [];
-                                    if ($item['quantity'] > 1) $meta[] = $item['quantity'] . ' vnt.';
-                                    
-                                    // Pataisytas variacijų rodymas
                                     $varData = $item['variation'] ?? [];
-                                    if (!empty($varData)) {
-                                        // Normalizuojam į masyvų sąrašą
-                                        if (!isset($varData[0])) {
-                                            $varData = [$varData];
-                                        }
-                                        foreach ($varData as $v) {
-                                            $vName = $v['name'] ?? '';
-                                            if ($vName) {
-                                                $meta[] = $vName;
-                                            }
-                                        }
+                                    // Normalizacija, kad visada būtų masyvų masyvas
+                                    if (!empty($varData) && !isset($varData[0])) {
+                                        $varData = [$varData];
                                     }
                                     
-                                    echo implode(', ', $meta);
-                                ?>
+                                    if (!empty($varData)): ?>
+                                        <?php foreach ($varData as $v): ?>
+                                            <?php 
+                                                $vGroup = $v['group'] ?? $v['group_name'] ?? 'Variacija';
+                                                $vName = $v['name'] ?? '';
+                                            ?>
+                                            <?php if($vName): ?>
+                                                <span><?php echo htmlspecialchars($vGroup); ?>: <strong><?php echo htmlspecialchars($vName); ?></strong></span>
+                                            <?php endif; ?>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                    
+                                    <?php if ($item['quantity'] > 1): ?>
+                                        <span>Kiekis: <?php echo $item['quantity']; ?> vnt.</span>
+                                    <?php endif; ?>
                             </div>
                         </div>
                         <div style="font-weight:600;"><?php echo number_format($item['line_total'], 2); ?> €</div>
