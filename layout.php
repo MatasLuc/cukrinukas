@@ -435,6 +435,9 @@ function renderHeader(PDO $pdo, string $active = '', array $meta = []): void {
         }
     }
 
+    // Favicon apibrėžimas
+    $faviconSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext x='50%25' y='50%25' dy='.35em' text-anchor='middle' font-family='Arial, sans-serif' font-weight='900' font-size='60' fill='black'%3EC%3C/text%3E%3C/svg%3E";
+
     $cart = getCartData($pdo, $_SESSION['cart'] ?? [], $_SESSION['cart_variations'] ?? []);
     $user = currentUser();
     try {
@@ -472,6 +475,8 @@ function renderHeader(PDO $pdo, string $active = '', array $meta = []): void {
       <link rel="manifest" href="/manifest.json">
       <meta name="theme-color" content="#829ed6">
       <link rel="apple-touch-icon" href="/uploads/icon-192.png">
+      
+      <link rel="icon" type="image/svg+xml" href="<?php echo $faviconSvg; ?>">
 
       <title><?php echo htmlspecialchars($metaTitle); ?></title>
       <meta name="description" content="<?php echo htmlspecialchars($metaDesc); ?>">
