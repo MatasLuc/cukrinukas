@@ -151,9 +151,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .notice.success { background: #ecfdf5; border: 1px solid #d1fae5; color: #065f46; }
 
     @media (max-width: 800px) {
-        .auth-container { grid-template-columns: 1fr; }
-        .auth-info { display: none; }
-        .auth-form-box { padding: 32px 24px; }
+        /* Išimame padding iš auth-wrapper, kad mobiliajame išnaudotume visą plotį */
+        .auth-wrapper {
+            padding: 20px 10px; /* Sumažinta nuo 40px 20px */
+            align-items: flex-start; /* Leidžia lengviau skrolinti jei ekranas žemas */
+        }
+        
+        .auth-container { 
+            grid-template-columns: 1fr; 
+            max-width: 500px; /* Kad planšetėse neišsitemptų per daug */
+        }
+        
+        .auth-info { 
+            display: none; 
+        }
+        
+        /* Sumažiname padding formos viduje, kad liktų daugiau vietos tekstui */
+        .auth-form-box { 
+            padding: 32px 20px; /* Sumažinta šoninė paraštė */
+        }
     }
   </style>
 </head>
