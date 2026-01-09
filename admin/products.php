@@ -70,7 +70,7 @@ foreach ($products as &$p) {
     $attrsStmt->execute([$p['id']]);
     $p['attributes'] = $attrsStmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Traukiame variacijas
+    // Variacijos
     $varsStmt = $pdo->prepare("SELECT * FROM product_variations WHERE product_id = ? ORDER BY id ASC");
     $varsStmt->execute([$p['id']]);
     $p['variations'] = $varsStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -297,7 +297,7 @@ foreach ($allCats as $c) {
     <div class="new-product-header">
         <div>
             <h3 style="margin:0; color:#4f46e5;" id="formTitle">+ Pridėti naują prekę</h3>
-            <p class="muted" style="margin:5px 0 0 0; font-size:12px;">Užpildykite pagrindinę informaciją. Kiti nustatymai (specifikacijos, foto) neprivalomi.</p>
+            <p class="muted" style="margin:5px 0 0 0; font-size:12px;">Užpildykite pagrindinę informaciją ir įkelkite nuotraukas.</p>
         </div>
         <button type="button" class="btn secondary" id="cancelEditBtn" onclick="resetForm()" style="display:none;">Atšaukti redagavimą</button>
     </div>
@@ -310,7 +310,6 @@ foreach ($allCats as $c) {
         <div class="product-tabs" style="border-top:1px solid #eee;">
             <button type="button" class="tab-btn active" onclick="switchTab('basic')">Pagrindinė info</button>
             <button type="button" class="tab-btn" onclick="switchTab('specs')">Specifikacijos ir Variacijos</button>
-            <button type="button" class="tab-btn" onclick="switchTab('media')">Nuotraukos</button>
             <button type="button" class="tab-btn" onclick="switchTab('seo')">SEO</button>
         </div>
 
@@ -339,6 +338,7 @@ foreach ($allCats as $c) {
                         <label>Bendras likutis (Jei nenaudojamos variacijos) *</label>
                         <input type="number" name="quantity" id="p_quantity" class="form-control" value="0" required>
                     </div>
+
                     <div class="full-width input-group">
                         <label>Išsamus aprašymas</label>
                         <div class="rich-editor-wrapper">
@@ -374,7 +374,23 @@ foreach ($allCats as $c) {
                             Rodyti pagrindiniame puslapyje (Featured)
                         </label>
                     </div>
-                </div>
+
+                    <div class="full-width" style="margin-top:20px; border-top:1px dashed #eee; padding-top:20px;">
+                        <label style="font-size:14px; margin-bottom:10px; display:block;">Prekės nuotraukos</label>
+                        
+                        <div class="input-group">
+                            <label>Įkelti naujas nuotraukas</label>
+                            <input type="file" name="images[]" multiple accept="image/*" class="form-control" onchange="previewImages(this)">
+                        </div>
+                        
+                        <div id="imgPreview" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;"></div>
+                        
+                        <div id="existingImages" style="margin-top:20px; display:none;">
+                            <label>Esamos nuotraukos (Žvaigždutė = Pagrindinė)</label>
+                            <div id="existingImgContainer" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;"></div>
+                        </div>
+                    </div>
+                    </div>
             </div>
 
             <div id="tab-specs" class="tab-content" style="padding:0;">
@@ -389,24 +405,12 @@ foreach ($allCats as $c) {
                     
                     <button type="button" class="btn secondary" onclick="addVariationGroup()" style="margin-top:10px;">+ Pridėti variacijų grupę</button>
                 </div>
+
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
                     <label>Techninės savybės (Atributai)</label>
                     <button type="button" class="btn secondary" style="font-size:12px;" onclick="addRichAttrRow()">+ Eilutė</button>
                 </div>
                 <div id="attributesContainer"></div>
-            </div>
-
-            <div id="tab-media" class="tab-content" style="padding:0;">
-                <div class="input-group">
-                    <label>Įkelti nuotraukas</label>
-                    <input type="file" name="images[]" multiple accept="image/*" class="form-control" onchange="previewImages(this)">
-                </div>
-                <div id="imgPreview" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;"></div>
-                
-                <div id="existingImages" style="margin-top:20px; display:none;">
-                    <label>Esamos nuotraukos</label>
-                    <div id="existingImgContainer" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;"></div>
-                </div>
             </div>
 
             <div id="tab-seo" class="tab-content" style="padding:0;">
@@ -436,7 +440,6 @@ foreach ($allCats as $c) {
         if(window.createToolbar) {
             window.createToolbar('descToolbar');
         }
-        // Initialize one attribute row by default
         addRichAttrRow();
     });
 
@@ -471,9 +474,6 @@ foreach ($allCats as $c) {
     }
 
     // --- VARIATIONS LOGIC (GROUPED) ---
-    // Structure in DOM:
-    // variationsWrapper -> var-group -> header (Group Name) + body (List of rows)
-    
     window.addVariationGroup = function(groupName = '', items = []) {
         const wrapper = document.getElementById('variationsWrapper');
         const groupId = Date.now() + Math.floor(Math.random()*1000);
@@ -498,7 +498,6 @@ foreach ($allCats as $c) {
         if(items && items.length > 0) {
             items.forEach(item => addVariationRow(groupId, item.name, item.price_delta, item.quantity));
         } else {
-            // Add one empty row by default
             addVariationRow(groupId);
         }
     }
@@ -533,12 +532,10 @@ foreach ($allCats as $c) {
         if(content) content.classList.add('active');
         
         const btns = document.querySelectorAll('.tab-btn');
-        // Indexai pasikeitė, nes "Prices" tabo nebėra
-        // Basic=0, Specs=1, Media=2, Seo=3
+        // Indexai: Basic=0, Specs=1, Seo=2
         if(id=='basic' && btns[0]) btns[0].classList.add('active');
         if(id=='specs' && btns[1]) btns[1].classList.add('active');
-        if(id=='media' && btns[2]) btns[2].classList.add('active');
-        if(id=='seo' && btns[3]) btns[3].classList.add('active');
+        if(id=='seo' && btns[2]) btns[2].classList.add('active');
     }
 
     window.syncEditors = function() {
@@ -574,7 +571,7 @@ foreach ($allCats as $c) {
 
     // --- EDIT & RESET LOGIC ---
     window.editProduct = function(data) {
-        resetForm(false); // Clear form but don't scroll up yet
+        resetForm(false); 
         
         // 1. Basic Info
         document.getElementById('productId').value = data.id;
@@ -582,15 +579,12 @@ foreach ($allCats as $c) {
         document.getElementById('p_subtitle').value = data.subtitle||'';
         document.getElementById('descEditor').innerHTML = data.description||'';
         document.getElementById('p_ribbon').value = data.ribbon_text||'';
-        
-        // MOVED FIELDS
         document.getElementById('p_price').value = data.price;
         document.getElementById('p_sale_price').value = data.sale_price||'';
         document.getElementById('p_quantity').value = data.quantity;
 
         if(data.is_featured_flag > 0) document.getElementById('p_featured').checked = true;
         
-        // Categories
         if(data.category_ids) {
             data.category_ids.forEach(cid => {
                 const cb = document.querySelector(`.cat-check[value="${cid}"]`);
@@ -598,34 +592,7 @@ foreach ($allCats as $c) {
             });
         }
 
-        // 2. Attributes & Variations
-        // Attributes
-        const attrC = document.getElementById('attributesContainer');
-        attrC.innerHTML = '';
-        if(data.attributes && data.attributes.length > 0) {
-            data.attributes.forEach(a => addRichAttrRow(a.label, a.value));
-        } else {
-            addRichAttrRow();
-        }
-
-        // Variations
-        const varWrapper = document.getElementById('variationsWrapper');
-        varWrapper.innerHTML = '';
-        if(data.variations && data.variations.length > 0) {
-            // Group variations by group_name
-            const groups = {};
-            data.variations.forEach(v => {
-                const g = v.group_name || ''; // Default if null
-                if(!groups[g]) groups[g] = [];
-                groups[g].push(v);
-            });
-            
-            for (const [gName, items] of Object.entries(groups)) {
-                addVariationGroup(gName, items);
-            }
-        }
-
-        // 3. Media
+        // 2. Images (Now in Basic tab)
         const imgC = document.getElementById('existingImgContainer');
         imgC.innerHTML = '';
         document.getElementById('existingImages').style.display = 'none';
@@ -651,6 +618,30 @@ foreach ($allCats as $c) {
             });
         }
 
+        // 3. Attributes & Variations (Specs tab)
+        const attrC = document.getElementById('attributesContainer');
+        attrC.innerHTML = '';
+        if(data.attributes && data.attributes.length > 0) {
+            data.attributes.forEach(a => addRichAttrRow(a.label, a.value));
+        } else {
+            addRichAttrRow();
+        }
+
+        const varWrapper = document.getElementById('variationsWrapper');
+        varWrapper.innerHTML = '';
+        if(data.variations && data.variations.length > 0) {
+            const groups = {};
+            data.variations.forEach(v => {
+                const g = v.group_name || ''; 
+                if(!groups[g]) groups[g] = [];
+                groups[g].push(v);
+            });
+            
+            for (const [gName, items] of Object.entries(groups)) {
+                addVariationGroup(gName, items);
+            }
+        }
+
         // 4. SEO
         document.getElementById('p_meta_tags').value = data.meta_tags||'';
         
@@ -668,7 +659,7 @@ foreach ($allCats as $c) {
         document.getElementById('productId').value = '';
         document.getElementById('descEditor').innerHTML = '';
         document.getElementById('attributesContainer').innerHTML = '';
-        addRichAttrRow(); // Restore empty
+        addRichAttrRow(); 
         document.getElementById('variationsWrapper').innerHTML = '';
         document.getElementById('imgPreview').innerHTML = '';
         document.getElementById('existingImgContainer').innerHTML = '';
