@@ -11,12 +11,10 @@ if (function_exists('ensureRecipeCategoriesTable')) ensureRecipeCategoriesTable(
 
 // Apdorojame veiksmus
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // SVARBU: Patikriname CSRF žetoną prieš bet kokius veiksmus
     validateCsrfToken();
 
     $action = $_POST['action'] ?? '';
     
-    // --- BENDRA FUNKCIJA SLUG GENERAVIMUI ---
     $generateSlug = function($name, $inputSlug) {
         if (empty($inputSlug)) {
             return strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $name)));
@@ -48,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: /admin.php?view=content'); exit;
     }
 
-    // --- RECEPTŲ KATEGORIJOS (NAUJA) ---
+    // --- RECEPTŲ KATEGORIJOS ---
     if ($action === 'create_recipe_category') {
         $name = trim($_POST['name'] ?? '');
         if ($name) {
@@ -107,130 +105,296 @@ if (isset($_GET['edit_recipe_cat'])) {
 }
 ?>
 
-<div class="card">
-  <h3>Naujienos</h3>
-  <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:10px;">
-    <p style="margin:0; color:#6b6b7a;">Valdykite naujienų įrašus.</p>
-    <a class="btn" href="/news_create.php">+ Nauja naujiena</a>
-  </div>
-  <table>
-    <thead><tr><th>Pavadinimas</th><th>Data</th><th>Veiksmai</th></tr></thead>
-    <tbody>
-      <?php foreach ($newsList as $n): ?>
-        <tr>
-          <td><?php echo htmlspecialchars($n['title']); ?></td>
-          <td><?php echo date('Y-m-d', strtotime($n['created_at'])); ?></td>
-          <td style="display:flex; gap: 8px;">
-            <a class="btn" href="/news_edit.php?id=<?php echo (int)$n['id']; ?>">Redaguoti</a>
-            <form method="POST" onsubmit="return confirm('Trinti naujieną?');" style="margin:0;">
-                <?php echo csrfField(); ?> <input type="hidden" name="action" value="delete_news"><input type="hidden" name="id" value="<?php echo $n['id']; ?>">
-                <button type="submit" class="btn" style="background:#d32f2f; color:white; border:none;">Ištrinti</button>
-            </form>
-          </td>
-        </tr>
-      <?php endforeach; ?>
-    </tbody>
-  </table>
-</div>
+<style>
+    /* Papildomi stiliai specifiniai šiam puslapiui, derinantys prie bendro dizaino */
+    .section-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-main);
+        margin: 0 0 4px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .section-subtitle {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-bottom: 16px;
+    }
+    
+    .form-box {
+        background: #f9fafb;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .form-label {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 13px;
+        background: #fff;
+    }
+    
+    .list-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+    }
+    .list-table tr:last-child td { border-bottom: none; }
+    
+    .date-badge {
+        font-size: 11px;
+        color: #6b7280;
+        background: #f3f4f6;
+        padding: 2px 6px;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    
+    .action-btn-group {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+    }
+    
+    .btn-xs {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+</style>
 
-<div class="card" style="margin-top:18px;">
-    <h3>Naujienų kategorijos</h3>
-    <div style="background: #f9f9ff; padding: 15px; border-radius: 8px; border: 1px solid #e4e7ec; margin-bottom: 20px;">
-        <form method="POST" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
-            <?php echo csrfField(); ?> <?php if ($editCategory): ?>
-                <input type="hidden" name="action" value="update_category">
-                <input type="hidden" name="id" value="<?php echo $editCategory['id']; ?>">
-                <div style="flex-grow:1;"><label>Pavadinimas</label><input type="text" name="name" required value="<?php echo htmlspecialchars($editCategory['name']); ?>" style="width:100%; padding:8px;"></div>
-                <div style="flex-grow:1;"><label>Slug</label><input type="text" name="slug" value="<?php echo htmlspecialchars($editCategory['slug']); ?>" style="width:100%; padding:8px;"></div>
-                <div><button type="submit" class="btn">Atnaujinti</button> <a href="/admin.php?view=content" class="btn secondary">Atšaukti</a></div>
-            <?php else: ?>
-                <input type="hidden" name="action" value="create_category">
-                <div style="flex-grow:1;"><label>Nauja kategorija</label><input type="text" name="name" required placeholder="pvz. Mityba" style="width:100%; padding:8px;"></div>
-                <div style="flex-grow:1;"><label>Slug</label><input type="text" name="slug" placeholder="neprivaloma" style="width:100%; padding:8px;"></div>
-                <div><button type="submit" class="btn">Pridėti</button></div>
-            <?php endif; ?>
-        </form>
+<div class="grid grid-2">
+    <div>
+        <div class="card">
+            <div style="display:flex; justify-content: space-between; align-items:flex-start; margin-bottom:10px;">
+                <div>
+                    <h3 class="section-title">📰 Naujienos</h3>
+                    <p class="section-subtitle">Paskutiniai įrašai</p>
+                </div>
+                <a class="btn" href="/news_create.php" style="font-size:12px;">+ Kurti naują</a>
+            </div>
+            
+            <table class="list-table">
+                <thead>
+                    <tr>
+                        <th>Pavadinimas</th>
+                        <th style="width: 100px;">Data</th>
+                        <th style="text-align:right; width:120px;">Veiksmai</th>
+                    </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($newsList as $n): ?>
+                    <tr>
+                      <td>
+                          <div style="font-weight:600; font-size:14px;"><?php echo htmlspecialchars($n['title']); ?></div>
+                      </td>
+                      <td><span class="date-badge"><?php echo date('Y-m-d', strtotime($n['created_at'])); ?></span></td>
+                      <td>
+                        <div class="action-btn-group">
+                            <a class="btn secondary btn-xs" href="/news_edit.php?id=<?php echo (int)$n['id']; ?>">Redaguoti</a>
+                            <form method="POST" onsubmit="return confirm('Trinti naujieną?');" style="margin:0;">
+                                <?php echo csrfField(); ?> 
+                                <input type="hidden" name="action" value="delete_news">
+                                <input type="hidden" name="id" value="<?php echo $n['id']; ?>">
+                                <button type="submit" class="btn btn-xs" style="background:#fee2e2; color:#b91c1c; border-color:#fecaca;">&times;</button>
+                            </form>
+                        </div>
+                      </td>
+                    </tr>
+                  <?php endforeach; ?>
+                  <?php if(empty($newsList)): ?>
+                    <tr><td colspan="3" class="muted" style="text-align:center; padding:20px;">Naujienų nėra.</td></tr>
+                  <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h3 class="section-title">📂 Naujienų kategorijos</h3>
+            <p class="section-subtitle">Grupuokite naujienas</p>
+
+            <div class="form-box" style="<?php echo $editCategory ? 'background:#eff6ff; border-color:#bfdbfe;' : ''; ?>">
+                <form method="POST" style="display:grid; grid-template-columns: 1fr 1fr auto; gap:10px; align-items:end;">
+                    <?php echo csrfField(); ?> 
+                    <?php if ($editCategory): ?>
+                        <input type="hidden" name="action" value="update_category">
+                        <input type="hidden" name="id" value="<?php echo $editCategory['id']; ?>">
+                        
+                        <div>
+                            <label class="form-label">Pavadinimas</label>
+                            <input type="text" name="name" required value="<?php echo htmlspecialchars($editCategory['name']); ?>" class="form-control">
+                        </div>
+                        <div>
+                            <label class="form-label">Slug (URL)</label>
+                            <input type="text" name="slug" value="<?php echo htmlspecialchars($editCategory['slug']); ?>" class="form-control">
+                        </div>
+                        <div style="display:flex; gap:4px;">
+                            <button type="submit" class="btn btn-xs">Išsaugoti</button>
+                            <a href="/admin.php?view=content" class="btn secondary btn-xs">Atšaukti</a>
+                        </div>
+                    <?php else: ?>
+                        <input type="hidden" name="action" value="create_category">
+                        <div>
+                            <label class="form-label">Nauja kategorija</label>
+                            <input type="text" name="name" required placeholder="pvz. Įvykiai" class="form-control">
+                        </div>
+                        <div>
+                            <label class="form-label">Slug (neprivaloma)</label>
+                            <input type="text" name="slug" placeholder="pvz. ivykiai" class="form-control">
+                        </div>
+                        <div><button type="submit" class="btn secondary btn-xs">Pridėti</button></div>
+                    <?php endif; ?>
+                </form>
+            </div>
+
+            <table class="list-table">
+                <thead><tr><th>Pavadinimas</th><th>Slug</th><th style="text-align:right;">Veiksmai</th></tr></thead>
+                <tbody>
+                <?php foreach ($categoryList as $cat): ?>
+                    <tr style="<?php echo ($editCategory && $editCategory['id'] == $cat['id']) ? 'background:#f0f9ff;' : ''; ?>">
+                        <td style="font-weight:600;"><?php echo htmlspecialchars($cat['name']); ?></td>
+                        <td style="color:#6b7280; font-size:12px;"><?php echo htmlspecialchars($cat['slug']); ?></td>
+                        <td>
+                            <div class="action-btn-group">
+                                <a class="btn secondary btn-xs" href="/admin.php?view=content&edit_cat=<?php echo $cat['id']; ?>">Redaguoti</a>
+                                <form method="POST" onsubmit="return confirm('Trinti kategoriją?');" style="margin:0;">
+                                    <?php echo csrfField(); ?> 
+                                    <input type="hidden" name="action" value="delete_category">
+                                    <input type="hidden" name="id" value="<?php echo $cat['id']; ?>">
+                                    <button type="submit" class="btn btn-xs" style="background:#fee2e2; color:#b91c1c; border-color:#fecaca;">&times;</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if(empty($categoryList)): ?>
+                    <tr><td colspan="3" class="muted" style="text-align:center;">Kategorijų nėra.</td></tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
-    <table>
-        <thead><tr><th>Pavadinimas</th><th>Slug</th><th>Veiksmai</th></tr></thead>
-        <tbody>
-        <?php foreach ($categoryList as $cat): ?>
-            <tr style="<?php echo ($editCategory && $editCategory['id'] == $cat['id']) ? 'background:#f0f9ff;' : ''; ?>">
-                <td><strong><?php echo htmlspecialchars($cat['name']); ?></strong></td>
-                <td style="color:#666;"><?php echo htmlspecialchars($cat['slug']); ?></td>
-                <td style="display:flex; gap: 8px;">
-                    <a class="btn" href="/admin.php?view=content&edit_cat=<?php echo $cat['id']; ?>">Redaguoti</a>
-                    <form method="POST" onsubmit="return confirm('Trinti kategoriją?');" style="margin:0;">
-                        <?php echo csrfField(); ?> <input type="hidden" name="action" value="delete_category"><input type="hidden" name="id" value="<?php echo $cat['id']; ?>">
-                        <button type="submit" class="btn" style="background:#d32f2f; color:white; border:none;">Ištrinti</button>
-                    </form>
-                </td>
-            </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table>
-</div>
 
-<div class="card" style="margin-top:18px;">
-  <h3>Receptai</h3>
-  <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:10px;">
-    <p style="margin:0; color:#6b6b7a;">Valdykite receptus.</p>
-    <a class="btn" href="/recipe_create.php">+ Naujas receptas</a>
-  </div>
-  <table>
-    <thead><tr><th>Pavadinimas</th><th>Data</th><th>Veiksmai</th></tr></thead>
-    <tbody>
-      <?php foreach ($recipeList as $r): ?>
-        <tr>
-          <td><?php echo htmlspecialchars($r['title']); ?></td>
-          <td><?php echo date('Y-m-d', strtotime($r['created_at'])); ?></td>
-          <td style="display:flex; gap: 8px;">
-            <a class="btn" href="/recipe_edit.php?id=<?php echo (int)$r['id']; ?>">Redaguoti</a>
-            <form method="POST" onsubmit="return confirm('Trinti receptą?');" style="margin:0;">
-                <?php echo csrfField(); ?> <input type="hidden" name="action" value="delete_recipe"><input type="hidden" name="id" value="<?php echo (int)$r['id']; ?>">
-                <button type="submit" class="btn" style="background:#d32f2f; color:white; border:none;">Ištrinti</button>
-            </form>
-          </td>
-        </tr>
-      <?php endforeach; ?>
-    </tbody>
-  </table>
-</div>
+    <div>
+        <div class="card">
+            <div style="display:flex; justify-content: space-between; align-items:flex-start; margin-bottom:10px;">
+                <div>
+                    <h3 class="section-title">🍳 Receptai</h3>
+                    <p class="section-subtitle">Skanūs įrašai</p>
+                </div>
+                <a class="btn" href="/recipe_create.php" style="font-size:12px;">+ Kurti naują</a>
+            </div>
+            
+            <table class="list-table">
+                <thead>
+                    <tr>
+                        <th>Pavadinimas</th>
+                        <th style="width: 100px;">Data</th>
+                        <th style="text-align:right; width:120px;">Veiksmai</th>
+                    </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($recipeList as $r): ?>
+                    <tr>
+                      <td>
+                          <div style="font-weight:600; font-size:14px;"><?php echo htmlspecialchars($r['title']); ?></div>
+                      </td>
+                      <td><span class="date-badge"><?php echo date('Y-m-d', strtotime($r['created_at'])); ?></span></td>
+                      <td>
+                        <div class="action-btn-group">
+                            <a class="btn secondary btn-xs" href="/recipe_edit.php?id=<?php echo (int)$r['id']; ?>">Redaguoti</a>
+                            <form method="POST" onsubmit="return confirm('Trinti receptą?');" style="margin:0;">
+                                <?php echo csrfField(); ?> 
+                                <input type="hidden" name="action" value="delete_recipe">
+                                <input type="hidden" name="id" value="<?php echo (int)$r['id']; ?>">
+                                <button type="submit" class="btn btn-xs" style="background:#fee2e2; color:#b91c1c; border-color:#fecaca;">&times;</button>
+                            </form>
+                        </div>
+                      </td>
+                    </tr>
+                  <?php endforeach; ?>
+                  <?php if(empty($recipeList)): ?>
+                    <tr><td colspan="3" class="muted" style="text-align:center; padding:20px;">Receptų nėra.</td></tr>
+                  <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
 
-<div class="card" style="margin-top:18px;">
-    <h3>Receptų kategorijos</h3>
-    <div style="background: #fff5f5; padding: 15px; border-radius: 8px; border: 1px solid #fed7d7; margin-bottom: 20px;">
-        <form method="POST" style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
-            <?php echo csrfField(); ?> <?php if ($editRecipeCategory): ?>
-                <input type="hidden" name="action" value="update_recipe_category">
-                <input type="hidden" name="id" value="<?php echo $editRecipeCategory['id']; ?>">
-                <div style="flex-grow:1;"><label>Pavadinimas</label><input type="text" name="name" required value="<?php echo htmlspecialchars($editRecipeCategory['name']); ?>" style="width:100%; padding:8px;"></div>
-                <div style="flex-grow:1;"><label>Slug</label><input type="text" name="slug" value="<?php echo htmlspecialchars($editRecipeCategory['slug']); ?>" style="width:100%; padding:8px;"></div>
-                <div><button type="submit" class="btn">Atnaujinti</button> <a href="/admin.php?view=content" class="btn secondary">Atšaukti</a></div>
-            <?php else: ?>
-                <input type="hidden" name="action" value="create_recipe_category">
-                <div style="flex-grow:1;"><label>Nauja receptų kategorija</label><input type="text" name="name" required placeholder="pvz. Desertai" style="width:100%; padding:8px;"></div>
-                <div style="flex-grow:1;"><label>Slug</label><input type="text" name="slug" placeholder="neprivaloma" style="width:100%; padding:8px;"></div>
-                <div><button type="submit" class="btn">Pridėti</button></div>
-            <?php endif; ?>
-        </form>
+        <div class="card">
+            <h3 class="section-title">🍽️ Receptų kategorijos</h3>
+            <p class="section-subtitle">Grupuokite receptus</p>
+
+            <div class="form-box" style="<?php echo $editRecipeCategory ? 'background:#fff7ed; border-color:#ffedd5;' : ''; ?>">
+                <form method="POST" style="display:grid; grid-template-columns: 1fr 1fr auto; gap:10px; align-items:end;">
+                    <?php echo csrfField(); ?> 
+                    <?php if ($editRecipeCategory): ?>
+                        <input type="hidden" name="action" value="update_recipe_category">
+                        <input type="hidden" name="id" value="<?php echo $editRecipeCategory['id']; ?>">
+                        
+                        <div>
+                            <label class="form-label">Pavadinimas</label>
+                            <input type="text" name="name" required value="<?php echo htmlspecialchars($editRecipeCategory['name']); ?>" class="form-control">
+                        </div>
+                        <div>
+                            <label class="form-label">Slug</label>
+                            <input type="text" name="slug" value="<?php echo htmlspecialchars($editRecipeCategory['slug']); ?>" class="form-control">
+                        </div>
+                        <div style="display:flex; gap:4px;">
+                            <button type="submit" class="btn btn-xs">Išsaugoti</button>
+                            <a href="/admin.php?view=content" class="btn secondary btn-xs">Atšaukti</a>
+                        </div>
+                    <?php else: ?>
+                        <input type="hidden" name="action" value="create_recipe_category">
+                        <div>
+                            <label class="form-label">Nauja kategorija</label>
+                            <input type="text" name="name" required placeholder="pvz. Desertai" class="form-control">
+                        </div>
+                        <div>
+                            <label class="form-label">Slug</label>
+                            <input type="text" name="slug" placeholder="neprivaloma" class="form-control">
+                        </div>
+                        <div><button type="submit" class="btn secondary btn-xs">Pridėti</button></div>
+                    <?php endif; ?>
+                </form>
+            </div>
+
+            <table class="list-table">
+                <thead><tr><th>Pavadinimas</th><th>Slug</th><th style="text-align:right;">Veiksmai</th></tr></thead>
+                <tbody>
+                <?php foreach ($recipeCategoryList as $cat): ?>
+                    <tr style="<?php echo ($editRecipeCategory && $editRecipeCategory['id'] == $cat['id']) ? 'background:#fff7ed;' : ''; ?>">
+                        <td style="font-weight:600;"><?php echo htmlspecialchars($cat['name']); ?></td>
+                        <td style="color:#6b7280; font-size:12px;"><?php echo htmlspecialchars($cat['slug']); ?></td>
+                        <td>
+                            <div class="action-btn-group">
+                                <a class="btn secondary btn-xs" href="/admin.php?view=content&edit_recipe_cat=<?php echo $cat['id']; ?>">Redaguoti</a>
+                                <form method="POST" onsubmit="return confirm('Trinti kategoriją?');" style="margin:0;">
+                                    <?php echo csrfField(); ?> 
+                                    <input type="hidden" name="action" value="delete_recipe_category">
+                                    <input type="hidden" name="id" value="<?php echo $cat['id']; ?>">
+                                    <button type="submit" class="btn btn-xs" style="background:#fee2e2; color:#b91c1c; border-color:#fecaca;">&times;</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if(empty($recipeCategoryList)): ?>
+                    <tr><td colspan="3" class="muted" style="text-align:center;">Kategorijų nėra.</td></tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
-    <table>
-        <thead><tr><th>Pavadinimas</th><th>Slug</th><th>Veiksmai</th></tr></thead>
-        <tbody>
-        <?php foreach ($recipeCategoryList as $cat): ?>
-            <tr style="<?php echo ($editRecipeCategory && $editRecipeCategory['id'] == $cat['id']) ? 'background:#fff0f0;' : ''; ?>">
-                <td><strong><?php echo htmlspecialchars($cat['name']); ?></strong></td>
-                <td style="color:#666;"><?php echo htmlspecialchars($cat['slug']); ?></td>
-                <td style="display:flex; gap: 8px;">
-                    <a class="btn" href="/admin.php?view=content&edit_recipe_cat=<?php echo $cat['id']; ?>">Redaguoti</a>
-                    <form method="POST" onsubmit="return confirm('Trinti receptų kategoriją?');" style="margin:0;">
-                        <?php echo csrfField(); ?> <input type="hidden" name="action" value="delete_recipe_category"><input type="hidden" name="id" value="<?php echo $cat['id']; ?>">
-                        <button type="submit" class="btn" style="background:#d32f2f; color:white; border:none;">Ištrinti</button>
-                    </form>
-                </td>
-            </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table>
 </div>
