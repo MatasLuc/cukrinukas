@@ -54,18 +54,27 @@ function sendEmail(string $to, string $subject, string $bodyHtml): bool {
 }
 
 /**
- * Sukuria gražų HTML laiško šabloną
+ * Sukuria gražų HTML laiško šabloną, atitinkantį Cukrinukas.lt dizainą (account.php stilius)
  */
 function getEmailTemplate(string $title, string $content, ?string $btnUrl = null, ?string $btnText = null): string {
     $year = date('Y');
     
+    // Spalvų paletė pagal account.php
+    $accentColor = '#2563eb'; // --accent
+    $accentHover = '#1d4ed8'; // --accent-hover
+    $bgBody = '#f7f7fb';      // --bg
+    $bgCard = '#ffffff';      // --card
+    $textMain = '#0f172a';    // --text-main
+    $textMuted = '#475467';   // --text-muted
+    $border = '#e4e7ec';      // --border
+    
     $buttonHtml = '';
     if ($btnUrl && $btnText) {
         $buttonHtml = "
-        <table role='presentation' border='0' cellpadding='0' cellspacing='0' style='margin: 24px 0;'>
+        <table role='presentation' border='0' cellpadding='0' cellspacing='0' style='margin: 32px 0;'>
           <tr>
             <td align='center'>
-              <a href='{$btnUrl}' style='background-color: #7c3aed; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-family: sans-serif;'>
+              <a href='{$btnUrl}' style='background-color: {$accentColor}; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 15px; display: inline-block; font-family: \"Inter\", Helvetica, Arial, sans-serif; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);'>
                 {$btnText}
               </a>
             </td>
@@ -79,36 +88,58 @@ function getEmailTemplate(string $title, string $content, ?string $btnUrl = null
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f7f7fb; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+<body style="margin: 0; padding: 0; background-color: {$bgBody}; font-family: 'Inter', Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
   <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
     <tr>
-      <td style="padding: 40px 20px;" align="center">
-        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e4e7ec;">
+      <td style="padding: 40px 15px;" align="center">
+        
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: {$bgCard}; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid {$border};">
+          
           <tr>
-            <td style="background-color: #ffffff; padding: 30px 40px; text-align: center; border-bottom: 1px solid #f0f0f0;">
-              <h2 style="margin: 0; color: #0b0b0b; font-size: 24px; letter-spacing: -0.5px;">Cukrinukas.lt</h2>
+            <td style="padding: 40px 40px 20px 40px; text-align: center; background-color: #ffffff;">
+               <div style="font-size: 26px; font-weight: 700; color: #1e3a8a; letter-spacing: -0.5px;">
+                 Cukrinukas<span style="color: {$accentColor};">.lt</span>
+               </div>
             </td>
           </tr>
+
           <tr>
-            <td style="padding: 40px; color: #333333; font-size: 16px; line-height: 1.6;">
-              <h1 style="margin-top: 0; margin-bottom: 16px; font-size: 20px; color: #111827;">{$title}</h1>
-              <div style="color: #4b5563;">
+            <td style="padding: 20px 48px 48px 48px; color: {$textMuted}; font-size: 16px; line-height: 1.6; text-align: left;">
+              
+              <h1 style="margin-top: 0; margin-bottom: 24px; font-size: 22px; font-weight: 700; color: {$textMain}; text-align: center;">
+                {$title}
+              </h1>
+              
+              <div style="color: {$textMuted};">
                 {$content}
               </div>
+
               {$buttonHtml}
-              <p style="margin-top: 24px; font-size: 14px; color: #6b7280;">
-                Linkėjimai,<br>
-                <strong>Cukrinukas komanda</strong>
+
+              <div style="border-top: 1px solid {$border}; margin-top: 32px; padding-top: 24px; font-size: 14px; color: #64748b;">
+                Pagarbiai,<br>
+                <strong style="color: {$textMain};">Cukrinukas komanda</strong>
+              </div>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="background-color: #f8fafc; padding: 24px; text-align: center; font-size: 13px; color: #94a3b8; border-top: 1px solid {$border};">
+              <p style="margin: 0;">&copy; {$year} Cukrinukas.lt. Visos teisės saugomos.</p>
+              <p style="margin: 8px 0 0 0;">
+                <a href="https://cukrinukas.lt" style="color: {$accentColor}; text-decoration: none; font-weight: 500;">Apsilankyti parduotuvėje</a>
               </p>
             </td>
           </tr>
-          <tr>
-            <td style="background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #9ca3af;">
-              &copy; {$year} Cukrinukas.lt. Visos teisės saugomos.
-            </td>
-          </tr>
+
         </table>
+        
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" height="40"><tr><td>&nbsp;</td></tr></table>
+      
       </td>
     </tr>
   </table>
