@@ -107,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirectWithMsg('categories', 'Neteisingas ID', 'error');
     }
 
-    // --- PREKĖS IR FEATURED (Titulinio prekės) ---
+    // --- PREKĖS IR FEATURED ---
     
     if ($action === 'toggle_featured') {
         $pid = (int)($_POST['product_id'] ?? 0);
@@ -115,15 +115,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if ($pid) {
             if ($setFeatured == 0) {
-                // Šaliname iš featured_products
                 $pdo->prepare("DELETE FROM featured_products WHERE product_id = ?")->execute([$pid]);
                 redirectWithMsg('products', 'Prekė pašalinta iš pagrindinio puslapio');
             } else {
-                // Pridedame, jei neviršija limito
                 $count = $pdo->query("SELECT COUNT(*) FROM featured_products")->fetchColumn();
                 $maxPos = (int)$pdo->query("SELECT MAX(position) FROM featured_products")->fetchColumn();
                 
-                // Įterpiame (jei dar nėra)
                 $stmt = $pdo->prepare("SELECT id FROM featured_products WHERE product_id = ?");
                 $stmt->execute([$pid]);
                 if (!$stmt->fetch()) {
@@ -173,7 +170,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $qty = (int)($_POST['quantity'] ?? 0);
         $metaTags = trim($_POST['meta_tags'] ?? '');
         
-        // Featured (checkbox formoje)
         $isFeatured = isset($_POST['is_featured']) ? true : false;
         
         $cats = $_POST['categories'] ?? [];
@@ -200,7 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msg = 'Prekė sukurta';
             }
 
-            // --- SYNC FEATURED PRODUCTS ---
+            // --- SYNC FEATURED ---
             if ($isFeatured) {
                 $exists = $pdo->prepare("SELECT id FROM featured_products WHERE product_id = ?");
                 $exists->execute([$productId]);
@@ -265,19 +261,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // Variations - STATIC 3 ROWS LOGIC
+            // --- VARIATIONS (SVARBU: IŠSAUGOJIMAS) ---
             $pdo->prepare('DELETE FROM product_variations WHERE product_id = ?')->execute([$productId]);
             
+            // Duomenys ateina struktūra: variations[groupId][items][rowId][name]...
             $postedVariations = $_POST['variations'] ?? [];
+            
             if (is_array($postedVariations)) {
-                $insertVar = $pdo->prepare('INSERT INTO product_variations (product_id, name, price_delta) VALUES (?, ?, ?)');
+                // Įsitikiname, kad turime reikiamus stulpelius
+                $insertVar = $pdo->prepare('INSERT INTO product_variations (product_id, group_name, name, price_delta, quantity) VALUES (?, ?, ?, ?, ?)');
                 
-                foreach ($postedVariations as $var) {
-                    // Tikriname ar variacija pažymėta kaip "active" ir ar turi pavadinimą
-                    if (isset($var['active']) && $var['active'] == '1' && !empty(trim($var['name'] ?? ''))) {
-                        $vName = trim($var['name']);
-                        $delta = isset($var['price']) && $var['price'] !== '' ? (float)$var['price'] : 0;
-                        $insertVar->execute([$productId, $vName, $delta]);
+                foreach ($postedVariations as $group) {
+                    // Grupės pavadinimas
+                    $groupName = trim($group['group_name'] ?? '');
+                    
+                    // Jei yra 'items', iteruojame per juos
+                    if(!empty($group['items']) && is_array($group['items'])) {
+                        foreach($group['items'] as $item) {
+                            $vName = trim($item['name'] ?? '');
+                            // Jei variacija neturi pavadinimo, praleidžiam
+                            if (!$vName) continue;
+                            
+                            $delta = isset($item['price']) && $item['price'] !== '' ? (float)$item['price'] : 0;
+                            $vQty = isset($item['qty']) && $item['qty'] !== '' ? (int)$item['qty'] : 0;
+                            
+                            $insertVar->execute([$productId, $groupName, $vName, $delta, $vQty]);
+                        }
                     }
                 }
             }
