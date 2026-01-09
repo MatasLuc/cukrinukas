@@ -9,50 +9,67 @@ $users = $stmt->fetchAll();
 <style>
     /* Paprasto redaktoriaus stilius */
     .simple-editor-wrapper {
-        border: 1px solid #ccc;
+        border: 1px solid #e5e7eb;
         border-radius: 8px;
         background: #fff;
         overflow: hidden;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
     .editor-toolbar {
-        background: #f3f4f6;
-        border-bottom: 1px solid #ccc;
+        background: #f9fafb;
+        border-bottom: 1px solid #e5e7eb;
         padding: 8px;
         display: flex;
         gap: 5px;
         flex-wrap: wrap;
+        align-items: center;
     }
     .editor-btn {
         background: #fff;
         border: 1px solid #d1d5db;
-        border-radius: 4px;
+        border-radius: 6px;
         cursor: pointer;
-        padding: 5px 10px;
+        padding: 6px 10px;
         font-size: 14px;
         font-weight: 600;
-        min-width: 30px;
+        min-width: 32px;
+        color: #374151;
+        transition: all 0.2s;
     }
     .editor-btn:hover {
-        background: #e5e7eb;
+        background: #f3f4f6;
+        color: #111827;
+        border-color: #9ca3af;
     }
     #editor-visual {
-        min-height: 300px;
-        padding: 16px;
+        min-height: 400px;
+        padding: 24px;
         outline: none;
         overflow-y: auto;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        font-size: 14px;
-        line-height: 1.5;
+        font-size: 16px;
+        line-height: 1.6;
+        color: #374151;
     }
     #editor-visual:focus {
-        background-color: #fafafa;
+        background-color: #fff;
     }
     #editor-visual blockquote {
-        border-left: 3px solid #ccc;
+        border-left: 4px solid #4f46e5;
         margin-left: 0;
-        padding-left: 10px;
-        color: #666;
+        padding-left: 16px;
+        color: #6b7280;
+        background: #f9fafb;
+        padding: 12px 16px;
+        border-radius: 0 8px 8px 0;
     }
+    #editor-visual img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+    }
+    /* Select grupavimas */
+    optgroup { font-weight: 700; color: #4f46e5; }
 </style>
 
 <div class="card">
@@ -67,11 +84,11 @@ $users = $stmt->fetchAll();
         
         <div class="grid grid-2">
             <div>
-                <label style="display:block; margin-bottom:8px; font-weight:600;">Gavėjas</label>
-                <select name="recipient_id" required style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd; background-color: #fff;">
+                <label style="display:block; margin-bottom:8px; font-weight:600; color:#374151;">Gavėjas</label>
+                <select name="recipient_id" required style="width:100%; padding:10px; border-radius:8px; border:1px solid #d1d5db; background-color: #fff; font-size:14px;">
                     <option value="">-- Pasirinkite gavėją --</option>
                     
-                    <option value="all" style="font-weight:bold; color:var(--primary);">📢 SIŲSTI VISIEMS KLIENTAMS (<?php echo count($users); ?>)</option>
+                    <option value="all" style="font-weight:bold; color:#4f46e5;">📢 SIŲSTI VISIEMS KLIENTAMS (<?php echo count($users); ?>)</option>
                     <option disabled>--------------------------------</option>
                     
                     <?php foreach ($users as $u): ?>
@@ -83,25 +100,54 @@ $users = $stmt->fetchAll();
             </div>
 
             <div>
-                <label style="display:block; margin-bottom:8px; font-weight:600;">Šablonas (greitas užpildymas)</label>
-                <select id="templateSelector" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd; background:#f9fafb;">
+                <label style="display:block; margin-bottom:8px; font-weight:600; color:#374151;">Šablonas (greitas užpildymas)</label>
+                <select id="templateSelector" style="width:100%; padding:10px; border-radius:8px; border:1px solid #d1d5db; background:#f9fafb; font-size:14px;">
                     <option value="">-- Pasirinkite šabloną --</option>
-                    <option value="promo">🎉 Reklaminis pasiūlymas</option>
-                    <option value="order_shipped">📦 Užsakymas išsiųstas</option>
-                    <option value="birthday">🎂 Gimtadienio sveikinimas</option>
-                    <option value="feedback">⭐ Atsiliepimo prašymas</option>
-                    <option value="apology">😔 Atsiprašymas dėl vėlavimo</option>
+                    
+                    <optgroup label="✨ Bendra komunikacija">
+                        <option value="welcome">👋 Sveiki atvykę (Registracija)</option>
+                        <option value="order_shipped">📦 Užsakymas išsiųstas</option>
+                        <option value="feedback">⭐ Atsiliepimo prašymas</option>
+                        <option value="apology">😔 Atsiprašymas dėl vėlavimo</option>
+                        <option value="restock">🔄 Prekė vėl prekyboje</option>
+                    </optgroup>
+
+                    <optgroup label="🔥 Pasiūlymai ir Akcijos">
+                        <option value="promo">🎉 Bendras išpardavimas (-20%)</option>
+                        <option value="cart_recovery">🛒 Paliktas krepšelis</option>
+                        <option value="new_arrival">✨ Naujienos parduotuvėje</option>
+                        <option value="vip_invite">💎 Kvietimas į VIP klubą</option>
+                        <option value="loyalty_points">💰 Lojalumo taškų priminimas</option>
+                        <option value="referral">🤝 Pakviesk draugą</option>
+                        <option value="survey">📝 Trumpa apklausa</option>
+                        <option value="summer_sale">☀️ Vasaros išpardavimas</option>
+                        <option value="winter_sale">❄️ Žiemos išpardavimas</option>
+                    </optgroup>
+
+                    <optgroup label="📅 Šventės ir Progos">
+                        <option value="birthday">🎂 Gimtadienio sveikinimas</option>
+                        <option value="seasonal_christmas">🎄 Kalėdos</option>
+                        <option value="seasonal_easter">🥚 Velykos</option>
+                        <option value="seasonal_valentines">💖 Valentino diena</option>
+                        <option value="seasonal_halloween">🎃 Helovinas</option>
+                        <option value="womens_day">🌷 Moters diena</option>
+                        <option value="mens_day">🕶️ Vyro diena</option>
+                        <option value="childrens_day">🎈 Vaikų gynimo diena</option>
+                        <option value="black_friday">⚫ Black Friday</option>
+                        <option value="cyber_monday">💻 Cyber Monday</option>
+                        <option value="back_to_school">🎒 Atgal į mokyklą</option>
+                    </optgroup>
                 </select>
             </div>
         </div>
 
         <div style="margin-top:16px;">
-            <label style="display:block; margin-bottom:8px; font-weight:600;">Laiško tema</label>
-            <input type="text" name="subject" id="emailSubject" required placeholder="pvz.: Savaitgalio išpardavimas!" style="width:100%;">
+            <label style="display:block; margin-bottom:8px; font-weight:600; color:#374151;">Laiško tema</label>
+            <input type="text" name="subject" id="emailSubject" required placeholder="pvz.: Savaitgalio išpardavimas!" style="width:100%; padding:10px; border-radius:8px; border:1px solid #d1d5db;">
         </div>
 
         <div style="margin-top:16px;">
-            <label style="display:block; margin-bottom:8px; font-weight:600;">Laiško turinis</label>
+            <label style="display:block; margin-bottom:8px; font-weight:600; color:#374151;">Laiško turinis</label>
             
             <textarea name="message" id="hiddenMessage" style="display:none;"></textarea>
 
@@ -110,26 +156,30 @@ $users = $stmt->fetchAll();
                     <button type="button" class="editor-btn" onclick="execCmd('bold')" title="Paryškinti"><b>B</b></button>
                     <button type="button" class="editor-btn" onclick="execCmd('italic')" title="Pasviras"><i>I</i></button>
                     <button type="button" class="editor-btn" onclick="execCmd('underline')" title="Pabraukti"><u>U</u></button>
-                    <div style="width:1px; background:#ccc; margin:0 5px;"></div>
+                    <button type="button" class="editor-btn" onclick="execCmd('strikeThrough')" title="Perbraukti"><s>S</s></button>
+                    <div style="width:1px; height:20px; background:#d1d5db; margin:0 5px;"></div>
+                    <button type="button" class="editor-btn" onclick="execCmd('justifyLeft')" title="Kairė">⬅️</button>
+                    <button type="button" class="editor-btn" onclick="execCmd('justifyCenter')" title="Centras">↔️</button>
+                    <div style="width:1px; height:20px; background:#d1d5db; margin:0 5px;"></div>
                     <button type="button" class="editor-btn" onclick="execCmd('insertUnorderedList')" title="Sąrašas su taškais">• Sąrašas</button>
                     <button type="button" class="editor-btn" onclick="execCmd('insertOrderedList')" title="Numeruotas sąrašas">1. Sąrašas</button>
-                    <div style="width:1px; background:#ccc; margin:0 5px;"></div>
+                    <div style="width:1px; height:20px; background:#d1d5db; margin:0 5px;"></div>
                     <button type="button" class="editor-btn" onclick="createLink()" title="Įterpti nuorodą">🔗</button>
                     <button type="button" class="editor-btn" onclick="execCmd('unlink')" title="Panaikinti nuorodą">❌🔗</button>
-                    <div style="width:1px; background:#ccc; margin:0 5px;"></div>
-                    <button type="button" class="editor-btn" onclick="execCmd('removeFormat')" title="Išvalyti formatavimą">Išvalyti</button>
+                    <div style="width:1px; height:20px; background:#d1d5db; margin:0 5px;"></div>
+                    <button type="button" class="editor-btn" onclick="execCmd('removeFormat')" title="Išvalyti formatavimą">🧹</button>
                 </div>
                 
                 <div id="editor-visual" contenteditable="true"></div>
             </div>
 
-            <p class="text-muted" style="font-size:12px; margin-top:4px;">
-                Jūsų tekstas bus automatiškai įdėtas į standartinį „Cukrinukas“ dizaino rėmelį su logotipu.
+            <p class="text-muted" style="font-size:13px; margin-top:8px; color:#6b7280;">
+                💡 <b>Patarimas:</b> Jūsų tekstas bus automatiškai įdėtas į standartinį „Cukrinukas“ dizaino rėmelį su logotipu.
             </p>
         </div>
 
         <div style="margin-top:24px; text-align:right;">
-            <button type="submit" class="btn" style="background:var(--primary); color:white; padding: 12px 24px;">
+            <button type="submit" class="btn" style="background:var(--primary); color:white; padding: 12px 24px; font-weight:600; border-radius:8px; border:none; cursor:pointer;">
                 Siųsti laišką 🚀
             </button>
         </div>
@@ -156,50 +206,292 @@ function syncContent() {
     document.getElementById('hiddenMessage').value = visualContent;
 }
 
-// Sinchronizuojame ir rašymo metu, kad netyčia neprarastume
 document.getElementById('editor-visual').addEventListener('input', syncContent);
 
-// --- Šablonų logika ---
+// --- Stiliai naudojami šablonuose ---
+const styleBtn = 'background-color: #4f46e5; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold; font-size: 16px; margin-top: 10px; margin-bottom: 10px;';
+const styleH2 = 'color: #111827; font-size: 24px; margin-bottom: 16px; font-weight: 700;';
+const styleP = 'color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 16px;';
+const styleHighlight = 'color: #4f46e5; font-weight: bold;';
+const styleBox = 'background-color: #f3f4f6; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb; margin: 20px 0; text-align: center;';
+const styleCode = 'background-color: #fff; border: 2px dashed #4f46e5; color: #4f46e5; font-size: 20px; font-weight: bold; padding: 10px 20px; display: inline-block; border-radius: 4px; margin: 10px 0;';
+
+// --- Šablonų logika (25 vnt.) ---
 const templates = {
-    promo: {
-        subject: "Specialus pasiūlymas tik Jums! 🍭",
-        body: `<p>Sveiki!</p>
-<p>Norime pranešti, kad šią savaitę <b>Cukrinukas.lt</b> parduotuvėje vyksta ypatinga akcija.</p>
-<p>Pasinaudokite proga įsigyti savo mėgstamiausių saldumynų su <strong style="color: #e03e2d;">20% nuolaida</strong>! Tiesiog atsiskaitymo metu naudokite kodą:</p>
-<h3 style="text-align: center; background-color: #fffacd; padding: 10px;">SALDU20</h3>
-<p>Pasiūlymas galioja iki sekmadienio.</p>
-<p>Laukiame Jūsų sugrįžtant!</p>`
+    // 1. WELCOME
+    welcome: {
+        subject: "Sveiki atvykę į Cukrinukas.lt šeimą! 👋",
+        body: `<h2 style="${styleH2}">Sveiki atvykę!</h2>
+<p style="${styleP}">Džiaugiamės, kad prisijungėte prie smaližių bendruomenės. Nuo šiol pirmieji sužinosite apie naujausius skanėstus ir geriausius pasiūlymus.</p>
+<p style="${styleP}">Norėdami padaryti pradžią dar saldesnę, dovanojame Jums nuolaidą pirmajam apsipirkimui:</p>
+<div style="${styleBox}">
+    <span style="${styleCode}">SVEIKAS10</span>
+    <p style="margin-top:10px; font-size:14px; color:#6b7280;">Nuolaidos kodas suteikia -10% visam krepšeliui.</p>
+</div>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt/products" style="${styleBtn}">Pradėti apsipirkimą</a>
+</div>`
     },
+    
+    // 2. ORDER SHIPPED
     order_shipped: {
         subject: "Jūsų užsakymas jau pakeliui! 🚚",
-        body: `<p>Sveiki,</p>
-<p>Turime puikių žinių! Jūsų užsakymas buvo sėkmingai supakuotas ir perduotas kurjeriui.</p>
-<p>Siuntą turėtumėte gauti per <strong>1-3 darbo dienas</strong>.</p>
-<hr />
-<p>Tikimės, kad saldumynai Jums patiks!</p>
-<p><em>Cukrinukas komanda</em></p>`
+        body: `<h2 style="${styleH2}">Geros naujienos!</h2>
+<p style="${styleP}">Jūsų užsakymas buvo kruopščiai supakuotas ir perduotas kurjeriui. Jau visai netrukus galėsite mėgautis savo skanėstais.</p>
+<div style="${styleBox}">
+    <p style="${styleP}">Siunta Jus pasieks per <strong>1-3 darbo dienas</strong>.</p>
+</div>
+<p style="${styleP}">Tikimės, kad saldumynai Jums patiks!</p>
+<p style="${styleP}"><em>Cukrinukas komanda</em></p>`
     },
+
+    // 3. PROMO (SALE)
+    promo: {
+        subject: "Saldus išpardavimas: -20% viskam! 🍭",
+        body: `<h2 style="${styleH2}">Metas pasilepinti!</h2>
+<p style="${styleP}">Tik šią savaitę <b>Cukrinukas.lt</b> parduotuvėje skelbiame visuotinį išpardavimą. Visiems saldumynams taikome <span style="${styleHighlight}">20% nuolaidą</span>.</p>
+<p style="${styleP}">Nuolaidos kodas:</p>
+<div style="${styleBox}">
+    <span style="${styleCode}">SALDU20</span>
+</div>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt" style="${styleBtn}">Griebti nuolaidą</a>
+</div>
+<p style="font-size:12px; color:#9ca3af; text-align:center; margin-top:20px;">Pasiūlymas galioja iki sekmadienio vidurnakčio.</p>`
+    },
+
+    // 4. CART RECOVERY
+    cart_recovery: {
+        subject: "Jūsų krepšelis liūdi be Jūsų... 🛒",
+        body: `<h2 style="${styleH2}">Ar kažką pamiršote?</h2>
+<p style="${styleP}">Pastebėjome, kad įsidėjote prekių į krepšelį, bet užsakymo nebaigėte. Jūsų skanėstai vis dar laukia rezervuoti!</p>
+<p style="${styleP}">Grįžkite ir užbaikite užsakymą dabar – tai užtruks tik minutę.</p>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt/cart" style="${styleBtn}">Tęsti užsakymą</a>
+</div>`
+    },
+
+    // 5. BIRTHDAY
     birthday: {
         subject: "Su gimtadieniu! 🎂 Dovana Jums",
         body: `<div style="text-align: center;">
-<h2>Sveikiname su gimtadieniu! 🥳</h2>
-<p>Šia ypatinga proga norime Jums padovanoti nedidelę staigmeną – <strong>nemokamą pristatymą</strong> kitam Jūsų užsakymui.</p>
-<p>Linkime saldžių ir džiugių metų!</p>
+<h2 style="${styleH2}">Sveikiname su gimtadieniu! 🥳</h2>
+<p style="${styleP}">Šia ypatinga proga norime Jums padovanoti nedidelę staigmeną – <strong>nemokamą pristatymą</strong> kitam Jūsų užsakymui.</p>
+<div style="${styleBox}">
+    <span style="${styleCode}">GIMTADIENIS</span>
+</div>
+<p style="${styleP}">Linkime saldžių ir džiugių metų!</p>
+<a href="https://cukrinukas.lt" style="${styleBtn}">Atsiimti dovaną</a>
 </div>`
     },
+
+    // 6. FEEDBACK
     feedback: {
         subject: "Kaip mums sekėsi? ⭐",
-        body: `<p>Sveiki,</p>
-<p>Neseniai pirkote iš Cukrinukas.lt. Mums labai svarbi Jūsų nuomonė!</p>
-<p>Ar esate patenkinti prekėmis? Būsime labai dėkingi, jei rasite minutėlę ir brūkštelėsite atsakymą arba paliksite įvertinimą mūsų puslapyje.</p>
-<p>Ačiū, kad padedate mums tobulėti!</p>`
+        body: `<h2 style="${styleH2}">Jūsų nuomonė mums svarbi</h2>
+<p style="${styleP}">Neseniai pirkote iš Cukrinukas.lt. Ar esate patenkinti prekėmis ir aptarnavimu?</p>
+<p style="${styleP}">Būsime labai dėkingi, jei skirsite minutę ir paliksite atsiliepimą.</p>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt/account" style="${styleBtn}">Palikti atsiliepimą</a>
+</div>`
     },
+
+    // 7. APOLOGY
     apology: {
         subject: "Atsiprašome dėl vėlavimo 😔",
-        body: `<p>Sveiki,</p>
-<p>Norime nuoširdžiai atsiprašyti, kad Jūsų užsakymo vykdymas užtruko ilgiau nei planuota.</p>
-<p>Dedame visas pastangas, kad siunta Jus pasiektų kuo greičiau. Kaip kompensaciją, prie kito užsakymo pridėsime nedidelę dovanėlę.</p>
-<p>Ačiū už Jūsų kantrybę ir supratingumą.</p>`
+        body: `<h2 style="${styleH2}">Atsiprašome...</h2>
+<p style="${styleP}">Norime nuoširdžiai atsiprašyti, kad Jūsų užsakymo vykdymas užtruko ilgiau nei planuota. Mes labai vertiname Jūsų laiką.</p>
+<p style="${styleP}">Kaip kompensaciją, prie kito užsakymo pridėsime nedidelę dovanėlę arba taikysime nuolaidą:</p>
+<div style="${styleBox}">
+    <span style="${styleCode}">ATSIPRASOME15</span>
+</div>
+<p style="${styleP}">Ačiū už Jūsų kantrybę ir supratingumą.</p>`
+    },
+
+    // 8. NEW ARRIVAL
+    new_arrival: {
+        subject: "Naujienos! Paragaukite pirmieji ✨",
+        body: `<h2 style="${styleH2}">Ką tik atvyko!</h2>
+<p style="${styleP}">Mūsų lentynas pasiekė visiškai nauji, dar neragauti skoniai! Nuo egzotiškų guminukų iki išskirtinio šokolado.</p>
+<p style="${styleP}">Būkite pirmieji, kurie išbandys šias naujienas.</p>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt/products?sort=newest" style="${styleBtn}">Žiūrėti naujienas</a>
+</div>`
+    },
+
+    // 9. RESTOCK
+    restock: {
+        subject: "Jūsų laukta prekė vėl prekyboje! 🔄",
+        body: `<h2 style="${styleH2}">Jos sugrįžo!</h2>
+<p style="${styleP}">Turime gerų žinių – prekė, kurios ieškojote, vėl mūsų sandėlyje. Tačiau paskubėkite, kiekis ribotas!</p>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt/products" style="${styleBtn}">Pirkti dabar</a>
+</div>`
+    },
+
+    // 10. VIP INVITE
+    vip_invite: {
+        subject: "Jūs tapote VIP klientu! 💎",
+        body: `<h2 style="${styleH2}">Sveikiname prisijungus prie elito!</h2>
+<p style="${styleP}">Dėl savo lojalumo Jūs patekote į mūsų VIP klientų sąrašą. Tai reiškia išskirtinius pasiūlymus, slaptus išpardavimus ir pirmenybę aptarnavimui.</p>
+<p style="${styleP}">Ačiū, kad esate su mumis!</p>`
+    },
+
+    // 11. CHRISTMAS
+    seasonal_christmas: {
+        subject: "Jaukių ir saldžių Šv. Kalėdų! 🎄",
+        body: `<div style="text-align: center;">
+<h2 style="${styleH2}">Linksmų Šv. Kalėdų!</h2>
+<p style="${styleP}">Tegul šios šventės būna pripildytos juoko, šilumos ir, žinoma, saldžių akimirkų.</p>
+<p style="${styleP}">Dėkojame, kad šiais metais buvote kartu. Siunčiame Jums šventinę dovaną – nuolaidą:</p>
+<div style="${styleBox}">
+    <span style="${styleCode}">KALEDOS2024</span>
+</div>
+<a href="https://cukrinukas.lt" style="${styleBtn}">Apsilankyti parduotuvėje</a>
+</div>`
+    },
+
+    // 12. EASTER
+    seasonal_easter: {
+        subject: "Su Šv. Velykomis! 🐣",
+        body: `<h2 style="${styleH2}">Pavasariški sveikinimai!</h2>
+<p style="${styleP}">Sveikiname Jus su atgimimo švente! Tegul margučių ridenimas būna linksmas, o stalas – gausus skanėstų.</p>
+<p style="${styleP}">Velykų proga visiems šokoladiniams kiaušiniams taikome nuolaidą!</p>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt" style="${styleBtn}">Velykiniai pasiūlymai</a>
+</div>`
+    },
+
+    // 13. HALLOWEEN
+    seasonal_halloween: {
+        subject: "Pokštas ar saldainis? 🎃",
+        body: `<h2 style="${styleH2}">Šiurpiausiai saldi naktis!</h2>
+<p style="${styleP}">Helovinas jau čia! Pasiruoškite gąsdinti ir vaišinti. Tik šiandien – „baisiai“ geros kainos visiems saldainiams.</p>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt" style="${styleBtn}" onclick="return false;">Noriu saldainių!</a>
+</div>`
+    },
+
+    // 14. VALENTINES
+    seasonal_valentines: {
+        subject: "Meilė tvyro ore... 💖",
+        body: `<h2 style="${styleH2}">Saldūs linkėjimai Valentino proga!</h2>
+<p style="${styleP}">Nustebinkite savo mylimą žmogų (arba palepinkite save) saldžia dovana. Meilė yra saldi, kaip ir mūsų šokoladas.</p>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt" style="${styleBtn}">Dovanos mylimiesiems</a>
+</div>`
+    },
+
+    // 15. BLACK FRIDAY
+    black_friday: {
+        subject: "⚫ BLACK FRIDAY prasideda dabar!",
+        body: `<h2 style="${styleH2}; color:#000;">DIDŽIAUSIAS METŲ IŠPARDAVIMAS</h2>
+<p style="${styleP}">Tai, ko laukėte visus metus. Nuolaidos net iki <span style="color:#ef4444; font-weight:bold;">-50%</span>!</p>
+<p style="${styleP}">Prekių kiekis ribotas, tad nelaukite.</p>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt" style="${styleBtn}; background-color:#000;">PIRKTI DABAR</a>
+</div>`
+    },
+
+    // 16. CYBER MONDAY
+    cyber_monday: {
+        subject: "💻 Cyber Monday: paskutinė proga!",
+        body: `<h2 style="${styleH2}">Paskutinės išpardavimo valandos</h2>
+<p style="${styleP}">Jei nespėjote per Black Friday, Cyber Monday suteikia antrą šansą. Nemokamas pristatymas visiems užsakymams šiandien!</p>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt" style="${styleBtn}">Paskutinis šansas</a>
+</div>`
+    },
+
+    // 17. WOMENS DAY
+    womens_day: {
+        subject: "Su Kovo 8-ąja! 🌷",
+        body: `<h2 style="${styleH2}">Žavingosios moterys,</h2>
+<p style="${styleP}">Sveikiname Jus su Tarptautine moters diena! Linkime, kad kasdienybė būtų kupina spalvų, šypsenų ir saldžių akimirkų.</p>
+<p style="${styleP}">Šia proga dovanojame gėles... ir nuolaidą:</p>
+<div style="${styleBox}">
+    <span style="${styleCode}">MOTERIMS10</span>
+</div>`
+    },
+
+    // 18. MENS DAY
+    mens_day: {
+        subject: "Sveikinimai Vyro dienos proga! 🕶️",
+        body: `<h2 style="${styleH2}">Stiprybės ir energijos!</h2>
+<p style="${styleP}">Sveikiname su Tarptautine vyro diena. Pasikraukite energijos su mūsų baltyminiais batonėliais ar juoduoju šokoladu.</p>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt" style="${styleBtn}">Vyriškas pasirinkimas</a>
+</div>`
+    },
+
+    // 19. CHILDRENS DAY
+    childrens_day: {
+        subject: "Vaikų gynimo diena – laikas dūkti! 🎈",
+        body: `<h2 style="${styleH2}">Vaikystė turi būti saldi!</h2>
+<p style="${styleP}">Sveikiname visus mažuosius smaližius. Šiandien guminukams ir ledinukams taikome specialias kainas.</p>
+<p style="${styleP}">Tegul šypsenos niekada nedingsta nuo vaikų veidų.</p>`
+    },
+
+    // 20. BACK TO SCHOOL
+    back_to_school: {
+        subject: "Atgal į mokyklą su energija! 🎒",
+        body: `<h2 style="${styleH2}">Pasiruošę mokslo metams?</h2>
+<p style="${styleP}">Kad mokslai eitųsi sklandžiau, reikia pasirūpinti užkandžiais pertraukoms! Kuprinę jau turite, o skanėstais pasirūpinsime mes.</p>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt" style="${styleBtn}">Mokyklinis krepšelis</a>
+</div>`
+    },
+
+    // 21. SUMMER SALE
+    summer_sale: {
+        subject: "Karštas vasaros išpardavimas! ☀️",
+        body: `<h2 style="${styleH2}">Vasara, saulė ir... nuolaidos!</h2>
+<p style="${styleP}">Atsigaivinkite geriausiais pasiūlymais. Vasaros prekių likučių išpardavimas jau prasidėjo.</p>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt" style="${styleBtn}">Nerti į vasarą</a>
+</div>`
+    },
+
+    // 22. WINTER SALE
+    winter_sale: {
+        subject: "Žiemos išpardavimas – jaukūs vakarai ❄️",
+        body: `<h2 style="${styleH2}">Sušilkite su mūsų pasiūlymais</h2>
+<p style="${styleP}">Ilgi žiemos vakarai geriausi su puodeliu karšto šokolado. Pasinaudokite žiemos nuolaidomis!</p>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt" style="${styleBtn}">Žiemos jaukumas</a>
+</div>`
+    },
+
+    // 23. REFERRAL
+    referral: {
+        subject: "Pakviesk draugą ir gauk dovanų! 🤝",
+        body: `<h2 style="${styleH2}">Dalintis gera!</h2>
+<p style="${styleP}">Ar žinojote, kad pakvietę draugą apsipirkti Cukrinukas.lt, abu gausite po 5€ nuolaidą?</p>
+<p style="${styleP}">Nusiųskite savo nuorodą draugui ir mėgaukitės saldumynais pigiau.</p>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt/account" style="${styleBtn}">Gauti nuorodą</a>
+</div>`
+    },
+
+    // 24. SURVEY
+    survey: {
+        subject: "Padėkite mums tobulėti 📝",
+        body: `<h2 style="${styleH2}">Mums trūksta Jūsų nuomonės</h2>
+<p style="${styleP}">Norime tapti geriausia saldumynų parduotuve Lietuvoje, bet be Jūsų pagalbos to nepadarysime. Atsakykite į 3 klausimus ir gaukite staigmeną.</p>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt/survey" style="${styleBtn}">Dalyvauti apklausoje</a>
+</div>`
+    },
+
+    // 25. LOYALTY POINTS
+    loyalty_points: {
+        subject: "Jūs turite nepanaudotų taškų! 💰",
+        body: `<h2 style="${styleH2}">Neiššvaistykite savo taškų</h2>
+<p style="${styleP}">Primename, kad savo sąskaitoje turite sukaupę lojalumo taškų, kuriuos galite panaudoti kaip nuolaidą kitam apsipirkimui.</p>
+<p style="${styleP}">Pažiūrėkite savo likutį prisijungę prie paskyros.</p>
+<div style="text-align: center;">
+    <a href="https://cukrinukas.lt/account" style="${styleBtn}">Mano taškai</a>
+</div>`
     }
 };
 
