@@ -25,21 +25,97 @@ ensureCartTables($pdo);
 ensureLockerTables($pdo);
 ensureShippingSettings($pdo);
 
-// --- 1. KREPŠELIO DUOMENŲ GAVIMAS ---
-$cartItemsRaw = $_SESSION['cart'] ?? [];
-$cartVariations = $_SESSION['cart_variations'] ?? [];
+// --- 1. KREPŠELIO DUOMENŲ GAVIMAS (Pagal cart.php logiką) ---
+$rawCart = $_SESSION['cart'] ?? [];
+$rawVariations = $_SESSION['cart_variations'] ?? [];
 
 // Jei krepšelis tuščias, metam atgal į produktus
-if (empty($cartItemsRaw)) {
+if (empty($rawCart)) {
     header('Location: /products.php');
     exit;
 }
 
-$cartData = getCartData($pdo, $cartItemsRaw, $cartVariations);
-$items = $cartData['items'] ?? [];
-$subtotal = $cartData['total'] ?? 0;
+// Surenkame produktų ID
+$productIdsToFetch = [];
+foreach (array_keys($rawCart) as $key) {
+    $parts = explode('_', $key);
+    $pid = (int)$parts[0];
+    if ($pid > 0) {
+        $productIdsToFetch[$pid] = true;
+    }
+}
 
-// Jei po apdorojimo krepšelis tuščias (pvz. ištrinti produktai)
+// Užkrauname produktus iš DB
+$fetchedProducts = [];
+if (!empty($productIdsToFetch)) {
+    $placeholders = implode(',', array_fill(0, count($productIdsToFetch), '?'));
+    $stmt = $pdo->prepare("SELECT * FROM products WHERE id IN ($placeholders)");
+    $stmt->execute(array_keys($productIdsToFetch));
+    while ($row = $stmt->fetch()) {
+        $fetchedProducts[$row['id']] = $row;
+    }
+}
+
+// Nuolaidų ir nustatymų gavimas
+$categoryDiscounts = getCategoryDiscounts($pdo);
+$globalDiscount = getGlobalDiscount($pdo);
+$freeShippingIds = getFreeShippingProductIds($pdo); // IDs prekių, kurios suteikia nemokamą siuntimą
+
+$items = [];
+$subtotal = 0;
+
+// Formuojame items sąrašą (Iteruojame per sesijos raktus, kad atskirtume variacijas)
+foreach ($rawCart as $key => $qty) {
+    $parts = explode('_', $key);
+    $pid = (int)$parts[0];
+    
+    if (!isset($fetchedProducts[$pid])) continue;
+    $product = $fetchedProducts[$pid];
+    
+    // Prijungiame variacijas
+    $currentVariations = $rawVariations[$key] ?? [];
+    
+    // Skaičiuojame kainą su variacijomis
+    $variationDelta = 0;
+    foreach ($currentVariations as $cv) {
+        $variationDelta += (float)($cv['delta'] ?? 0);
+    }
+    
+    // Bazinės kainos
+    $basePrice = (float)$product['price'] + $variationDelta;
+    $salePrice = ($product['sale_price'] !== null) ? ((float)$product['sale_price'] + $variationDelta) : null;
+    
+    // Pritaikome nuolaidas
+    $catDisc = $categoryDiscounts[$product['category_id']] ?? null;
+    $finalPrice = ($salePrice !== null) ? $salePrice : $basePrice;
+    
+    // Globali nuolaida
+    if (($globalDiscount['type'] ?? '') === 'percent') $finalPrice *= (1 - $globalDiscount['value']/100);
+    elseif (($globalDiscount['type'] ?? '') === 'amount') $finalPrice -= $globalDiscount['value'];
+    
+    // Kategorijos
+    if ($catDisc) {
+        if ($catDisc['type'] === 'percent') $finalPrice *= (1 - $catDisc['value']/100);
+        elseif ($catDisc['type'] === 'amount') $finalPrice -= $catDisc['value'];
+    }
+    
+    $finalPrice = max(0, $finalPrice);
+    
+    $items[] = [
+        'id' => $pid,
+        'title' => $product['title'],
+        'image_url' => $product['image_url'],
+        'quantity' => $qty,
+        'price' => $finalPrice,
+        'line_total' => $finalPrice * $qty,
+        'variation' => $currentVariations, // Čia saugomas pilnas variacijų masyvas
+        'category_id' => $product['category_id']
+    ];
+    
+    $subtotal += ($finalPrice * $qty);
+}
+
+// Jei po apdorojimo krepšelis tuščias
 if (empty($items)) {
     header('Location: /products.php');
     exit;
@@ -52,10 +128,6 @@ $lockerPrice = (float)($shippingSettings['locker_price'] ?? 2.49);
 $freeOver = isset($shippingSettings['free_over']) ? (float)$shippingSettings['free_over'] : null;
 
 // Patikriname nemokamą pristatymą
-$globalDiscount = getGlobalDiscount($pdo);
-$categoryDiscounts = getCategoryDiscounts($pdo);
-$freeShippingIds = $cartData['free_shipping_ids'] ?? [];
-
 $hasFreeShippingProduct = false;
 foreach ($items as $itm) {
     if (in_array((int)$itm['id'], $freeShippingIds, true)) {
@@ -102,7 +174,6 @@ if (isset($_SESSION['user_id'])) {
     if ($uData) {
         $name = $uData['name'];
         $email = $uData['email'];
-        // Galima bandyti sukonstruoti adresą, jei yra
         if (!empty($uData['city'])) {
             $address = $uData['city'];
         }
@@ -111,7 +182,6 @@ if (isset($_SESSION['user_id'])) {
 
 // POST apdorojimas
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // CSRF patikra
     if (function_exists('validateCsrfToken')) {
         validateCsrfToken();
     }
@@ -119,16 +189,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
-    $address = trim($_POST['address'] ?? ''); // Kurjeriui
+    $address = trim($_POST['address'] ?? '');
     $deliveryMethod = $_POST['delivery_method'] ?? 'courier';
     
-    // Paštomatų duomenys
     $lockerProvider = $_POST['locker_provider'] ?? '';
-    $lockerLocationTitle = $_POST['locker_location'] ?? ''; // Tai inputo tekstas
-    $lockerId = (int)($_POST['locker_id_hidden'] ?? 0); // Paslėptas ID
+    $lockerLocationTitle = $_POST['locker_location'] ?? '';
+    $lockerId = (int)($_POST['locker_id_hidden'] ?? 0);
     $lockerRequest = trim($_POST['locker_request'] ?? '');
 
-    // Validacija
     if (empty($name) || empty($email) || empty($phone)) {
         $errors[] = 'Užpildykite visus kontaktinius duomenis (vardą, el. paštą, telefoną).';
     }
@@ -151,14 +219,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Skaičiuojame galutinę sumą
     $shippingCost = $isFreeShipping ? 0 : ($deliveryMethod === 'locker' ? $lockerPrice : $courierPrice);
     $totalPayable = $subtotal + $shippingCost;
 
     if (empty($errors)) {
         $pdo->beginTransaction();
         try {
-            // Formuojame pristatymo detales JSON formatui
             $deliveryDetails = [
                 'method' => $deliveryMethod,
                 'phone' => $phone
@@ -194,7 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $email,
                 $phone,
                 $finalAddressString,
-                0, // discount_amount (galima plėsti ateityje)
+                0,
                 $shippingCost,
                 $totalPayable,
                 'laukiama apmokėjimo',
@@ -211,17 +277,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($items as $item) {
                 // Formuojame variacijos info tekstą
                 $varInfoParts = [];
+                $varData = $item['variation'] ?? [];
                 
-                // SVARBU: Naudojame 'variation_features', nes getCartData į 'variation' įdeda tik pirmą elementą.
-                $varData = $item['variation_features'] ?? [];
-                
-                // Atsarginis variantas: jei variation_features tuščias, bet yra variation (senas formatas/kitoks call)
-                if (empty($varData) && !empty($item['variation'])) {
-                    // Jei tai objektas/masyvas, įdedame į masyvą
-                    $varData = [$item['variation']]; 
+                // Jei kartais tai nebūtų masyvas (nors dabar turėtų būti)
+                if (!empty($varData) && !is_array($varData)) {
+                    $varData = [$varData];
                 }
 
-                // Surenkame info
                 foreach ($varData as $v) {
                     $group = $v['group'] ?? $v['group_name'] ?? '';
                     $val = $v['name'] ?? '';
@@ -237,7 +299,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $item['id'],
                     $item['quantity'],
                     $item['price'],
-                    $varInfo // Įrašome visą sujungtą eilutę
+                    $varInfo
                 ]);
             }
 
@@ -245,35 +307,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // 3. Apmokėjimas (Paysera)
             if (class_exists('WebToPay')) {
-                // Bandome užkrauti config
                 $configPath = __DIR__ . '/libwebtopay/config.php';
                 $payseraConfig = [];
                 if (file_exists($configPath)) {
                     $payseraConfig = require $configPath;
                 }
 
-                // Jei konfigas tuščias, naudojame fallback (saugumo dėlei geriau turėti failą)
                 $projectId = $payseraConfig['projectid'] ?? 0;
                 $signPassword = $payseraConfig['sign_password'] ?? '';
                 $testMode = $payseraConfig['test'] ?? 1;
 
                 if ($projectId > 0 && !empty($signPassword)) {
-                    // Išvalome krepšelį prieš nukreipiant
                     $_SESSION['cart'] = [];
                     $_SESSION['cart_variations'] = [];
                     if (isset($_SESSION['user_id'])) {
                         clearUserCart($pdo, (int)$_SESSION['user_id']);
                     }
 
-                    // Formuojame užklausą
-                    // accepturl/cancelurl/callbackurl turėtų būti pilni domenai.
                     $host = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
                     
                     $request = [
                         'projectid'     => $projectId,
                         'sign_password' => $signPassword,
                         'orderid'       => $orderId,
-                        'amount'        => (int)(round($totalPayable * 100)), // Centais
+                        'amount'        => (int)(round($totalPayable * 100)),
                         'currency'      => 'EUR',
                         'accepturl'     => $host . '/libwebtopay/accept.php',
                         'cancelurl'     => $host . '/libwebtopay/cancel.php',
@@ -288,13 +345,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // Jei nėra Paysera arba konfigūracijos - tiesiog nukreipiame
             $_SESSION['cart'] = [];
             $_SESSION['cart_variations'] = [];
             if (isset($_SESSION['user_id'])) {
                 clearUserCart($pdo, (int)$_SESSION['user_id']);
             }
-            // Nukreipiam į užsakymų sąrašą
             header('Location: /orders.php');
             exit;
 
@@ -308,7 +363,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Skaičiavimai atvaizdavimui (jei nebuvo POST arba įvyko klaida)
 $finalShipping = $isFreeShipping ? 0 : ($deliveryMethod === 'locker' ? $lockerPrice : $courierPrice);
 $finalTotal = $subtotal + $finalShipping;
 
@@ -485,12 +539,7 @@ $finalTotal = $subtotal + $finalShipping;
                             <div style="font-weight:500; margin-bottom:2px;"><?php echo htmlspecialchars($item['title']); ?></div>
                             <div style="font-size:12px; color:var(--text-muted); display:flex; flex-direction:column; gap:2px;">
                                 <?php 
-                                    // Svarbu: naudojame 'variation_features', nes getCartData į 'variation' deda tik pirmą elementą
-                                    $varData = $item['variation_features'] ?? [];
-                                    if (empty($varData) && !empty($item['variation'])) {
-                                        $varData = [$item['variation']];
-                                    }
-                                    
+                                    $varData = $item['variation'] ?? [];
                                     if (!empty($varData)): ?>
                                         <?php foreach ($varData as $v): ?>
                                             <?php 
