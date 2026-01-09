@@ -133,15 +133,6 @@ $itemStmt = $pdo->prepare('
         margin-bottom: 12px;
     }
 
-    .stat-card { 
-        background:#fff; border:1px solid rgba(255,255,255,0.6); 
-        padding:16px 20px; border-radius:16px; 
-        min-width:160px; text-align:right;
-        box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1);
-    }
-    .stat-card strong { display:block; font-size:20px; color:#1e3a8a; margin-bottom: 4px; }
-    .stat-card span { color: #64748b; font-size:13px; font-weight: 500; }
-
     /* Main Grid Layout */
     .layout { display:grid; grid-template-columns: 1fr 320px; gap:24px; align-items:start; }
     @media(max-width: 900px){ .layout { grid-template-columns:1fr; } }
@@ -278,10 +269,6 @@ $itemStmt = $pdo->prepare('
         <div class="pill">📦 Istorija</div>
         <h1>Mano užsakymai</h1>
         <p>Sekite užsakymų būseną ir peržiūrėkite pirkinių istoriją.</p>
-      </div>
-      <div class="stat-card">
-        <strong><?php echo number_format($totalSpent, 2); ?> €</strong>
-        <span>Iš viso išleista</span>
       </div>
     </section>
 
