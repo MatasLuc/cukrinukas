@@ -336,10 +336,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'order_status') {
         $orderId = (int)($_POST['order_id'] ?? 0);
         $status = trim($_POST['status'] ?? '');
-        $allowed = ["laukiama","apdorojama","išsiųsta","įvykdyta","atšaukta"];
+        $allowed = ["laukiama", "apdorojama", "išsiųsta", "įvykdyta", "apmokėta", "atšaukta"];
+        
         if ($orderId && in_array($status, $allowed, true)) {
-            $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$status, $orderId]);
-            redirectWithMsg('orders', 'Užsakymo būsena atnaujinta');
+            
+            // Jei statusas keičiamas į apmokėta/įvykdyta, paleidžiam pilną procesą
+            if ($status === 'apmokėta' || $status === 'įvykdyta') {
+                require_once __DIR__ . '/../helpers.php'; // Užtikrinam, kad turim funkciją
+                approveOrder($pdo, $orderId);
+                
+                // Jei pasirinkta 'įvykdyta', papildomai dar atnaujinam statusą (nes approveOrder nustato 'apmokėta')
+                if ($status === 'įvykdyta') {
+                    $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute(['įvykdyta', $orderId]);
+                }
+                
+                redirectWithMsg('orders', 'Užsakymas patvirtintas, likučiai nurašyti ir laiškai išsiųsti.');
+            } else {
+                // Kitiems statusams (pvz. išsiųsta, atšaukta) tiesiog atnaujinam DB
+                $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$status, $orderId]);
+                redirectWithMsg('orders', 'Užsakymo būsena atnaujinta');
+            }
         }
         redirectWithMsg('orders', 'Klaida atnaujinant būseną', 'error');
     }
