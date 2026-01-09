@@ -209,29 +209,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmtItem = $pdo->prepare($sqlItem);
 
             foreach ($items as $item) {
-                // Formuojame variacijos info tekstą
-                $varInfo = null;
-                if (!empty($item['variation'])) {
-                    // $item['variation'] ateina iš cart.php logikos
-                    // Tai gali būti masyvas su 'name', 'group_name'
-                    $vName = $item['variation']['name'] ?? '';
-                    $vGroup = $item['variation']['group_name'] ?? '';
-                    $varInfo = trim("$vGroup $vName");
-                } elseif (!empty($item['variation_features'])) {
-                    // Jei struktūra kitokia (feature masyvas)
-                     $parts = [];
-                     foreach ($item['variation_features'] as $vf) {
-                         $parts[] = ($vf['group_name'] ?? '') . ' ' . ($vf['name'] ?? '');
-                     }
-                     if ($parts) $varInfo = implode(', ', $parts);
+                // Formuojame variacijos info tekstą (pataisyta, kad palaikytų masyvus)
+                $varInfoParts = [];
+                
+                // Paimame variacijų duomenis
+                $varData = $item['variation'] ?? [];
+                
+                // Jei tai nėra masyvų masyvas, paverčiame į masyvą su vienu elementu
+                if (!empty($varData) && !isset($varData[0])) {
+                    $varData = [$varData];
                 }
+
+                // Surenkame info
+                foreach ($varData as $v) {
+                    $group = $v['group'] ?? $v['group_name'] ?? '';
+                    $val = $v['name'] ?? '';
+                    if ($val) {
+                        $varInfoParts[] = trim(($group ? "$group: " : '') . $val);
+                    }
+                }
+
+                // Atsarginis variantas senai struktūrai (jei yra)
+                if (empty($varInfoParts) && !empty($item['variation_features'])) {
+                     foreach ($item['variation_features'] as $vf) {
+                         $varInfoParts[] = ($vf['group_name'] ?? '') . ' ' . ($vf['name'] ?? '');
+                     }
+                }
+
+                $varInfo = !empty($varInfoParts) ? implode(', ', $varInfoParts) : null;
 
                 $stmtItem->execute([
                     $orderId,
                     $item['id'],
                     $item['quantity'],
                     $item['price'],
-                    $varInfo // Įrašome į variation_info stulpelį
+                    $varInfo // Įrašome visą sujungtą eilutę
                 ]);
             }
 
@@ -261,7 +273,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     // Formuojame užklausą
                     // accepturl/cancelurl/callbackurl turėtų būti pilni domenai.
-                    // Čia darome prielaidą, kad domenas nustatytas arba naudojame santykinius (WebToPay reikalauja absoliučių).
                     $host = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
                     
                     $request = [
@@ -482,7 +493,22 @@ $finalTotal = $subtotal + $finalShipping;
                                 <?php 
                                     $meta = [];
                                     if ($item['quantity'] > 1) $meta[] = $item['quantity'] . ' vnt.';
-                                    if (!empty($item['variation']['name'])) $meta[] = $item['variation']['name'];
+                                    
+                                    // Pataisytas variacijų rodymas
+                                    $varData = $item['variation'] ?? [];
+                                    if (!empty($varData)) {
+                                        // Normalizuojam į masyvų sąrašą
+                                        if (!isset($varData[0])) {
+                                            $varData = [$varData];
+                                        }
+                                        foreach ($varData as $v) {
+                                            $vName = $v['name'] ?? '';
+                                            if ($vName) {
+                                                $meta[] = $vName;
+                                            }
+                                        }
+                                    }
+                                    
                                     echo implode(', ', $meta);
                                 ?>
                             </div>
