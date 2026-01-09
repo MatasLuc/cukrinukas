@@ -215,25 +215,16 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
     .description { color: var(--text-muted); line-height: 1.7; font-size: 15px; }
     .description img { max-width: 100%; height: auto; border-radius: 8px; }
 
-    /* Specs Table Update */
-    .specs-table { width: 100%; border-collapse: collapse; }
-    .specs-table td { padding: 10px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
-    .specs-table tr:last-child td { border-bottom: none; }
-    
-    .spec-label { 
-        width: 1px; /* Sutraukia iki minimalaus pločio */
-        white-space: nowrap; /* Neleidžia laužyti teksto */
-        padding-right: 24px; 
-        color: var(--text-muted); /* Neryški spalva */
-        font-weight: 500; 
-        font-size: 14px;
-    }
-    .spec-value { 
-        color: var(--text-main); /* Ryškesnis tekstas */
-        font-weight: 500; 
+    /* Specs List Update */
+    .specs-list { display: flex; flex-direction: column; }
+    .spec-item { 
+        padding: 12px 0; 
+        border-bottom: 1px solid var(--border); 
+        color: var(--text-main); 
         font-size: 14px; 
-        width: 100%;
+        line-height: 1.6;
     }
+    .spec-item:last-child { border-bottom: none; }
 
     /* Buy Box */
     .buy-box {
@@ -293,17 +284,9 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
 
     /* Mobile Responsive */
     @media (max-width: 900px) {
-        .product-grid { 
-            display: flex; 
-            flex-direction: column; 
-            gap: 24px; 
-        }
+        .product-grid { display: flex; flex-direction: column; gap: 24px; }
+        .left-col { display: contents; }
         
-        .left-col { 
-            display: contents; /* Išpakuoja vaikus (gallery, desc, specs) į pagrindinį grid */
-        }
-        
-        /* Eilės tvarka */
         .gallery-section { order: 1; }
         .buy-box { order: 2; position: static; margin-bottom: 20px; }
         .content-desc { order: 3; }
@@ -370,14 +353,13 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
             <?php if ($attributes): ?>
                 <div class="content-card content-specs">
                     <h3>Techninė specifikacija</h3>
-                    <table class="specs-table">
+                    <div class="specs-list">
                         <?php foreach ($attributes as $attr): ?>
-                            <tr>
-                                <td class="spec-label"><?php echo htmlspecialchars($attr['label']); ?></td>
-                                <td class="spec-value"><?php echo $attr['value']; ?></td>
-                            </tr>
+                            <div class="spec-item">
+                                <?php echo $attr['value']; ?>
+                            </div>
                         <?php endforeach; ?>
-                    </table>
+                    </div>
                 </div>
             <?php endif; ?>
         </div>
