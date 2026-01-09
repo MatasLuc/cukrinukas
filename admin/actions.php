@@ -684,7 +684,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'delete_news') {
-        $id = (int)($_POST['id'] ?? 0);
+        $id = (int)$_POST['id'] ?? 0);
         if ($id) {
             $pdo->prepare('DELETE FROM news WHERE id = ?')->execute([$id]);
             redirectWithMsg('content', 'Naujiena ištrinta');
@@ -693,43 +693,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'delete_recipe') {
-        $id = (int)($_POST['id'] ?? 0);
+        $id = (int)$_POST['id'] ?? 0);
         if ($id) {
             $pdo->prepare('DELETE FROM recipes WHERE id = ?')->execute([$id]);
             redirectWithMsg('content', 'Receptas ištrintas');
         }
         redirectWithMsg('content', 'Klaida trinant', 'error');
     }
-    // --- LAIŠKŲ SIUNTIMAS ---
-    if ($action === 'send_email') {
-        require_once __DIR__ . '/../mailer.php'; // Įtraukiame mailerį
 
-        $recipientId = (int)($_POST['recipient_id'] ?? 0);
+    // --- LAIŠKŲ SIUNTIMAS (ATNAUJINTA) ---
+    if ($action === 'send_email') {
+        require_once __DIR__ . '/../mailer.php';
+
+        $recipientInput = $_POST['recipient_id'] ?? '';
         $subject = trim($_POST['subject'] ?? '');
         $content = trim($_POST['message'] ?? '');
 
-        if (!$recipientId || !$subject || !$content) {
+        if (!$recipientInput || !$subject || !$content) {
             redirectWithMsg('emails', 'Užpildykite visus laukus (gavėjas, tema, žinutė)', 'error');
         }
 
-        // Gauname vartotojo el. paštą
-        $stmt = $pdo->prepare("SELECT email, name FROM users WHERE id = ?");
-        $stmt->execute([$recipientId]);
-        $user = $stmt->fetch();
+        // Tikriname, ar siunčiama VISIEMS
+        if ($recipientInput === 'all') {
+            // Siunčiame masinį laišką
+            $stmt = $pdo->query("SELECT email, name FROM users WHERE email IS NOT NULL AND email != ''");
+            $allUsers = $stmt->fetchAll();
+            $sentCount = 0;
 
-        if ($user) {
-            // Panaudojame gražų šabloną iš mailer.php
-            $htmlBody = getEmailTemplate($subject, $content, 'https://cukrinukas.lt', 'Apsilankyti parduotuvėje');
-            
-            $sent = sendEmail($user['email'], $subject, $htmlBody);
-            
-            if ($sent) {
-                redirectWithMsg('emails', "Laiškas sėkmingai išsiųstas klientui {$user['name']}!");
-            } else {
-                redirectWithMsg('emails', 'Nepavyko išsiųsti laiško. Patikrinkite serverio/SMTP nustatymus.', 'error');
+            foreach ($allUsers as $user) {
+                // Generuojame laišką kiekvienam (kad būtų personalizuota antraštė, jei mailer.php tai naudoja, ir saugiau nuo spam filtrų)
+                $htmlBody = getEmailTemplate($subject, $content, 'https://cukrinukas.lt', 'Apsilankyti parduotuvėje');
+                
+                if (sendEmail($user['email'], $subject, $htmlBody)) {
+                    $sentCount++;
+                }
             }
+
+            redirectWithMsg('emails', "Laiškas išsiųstas $sentCount klientams iš " . count($allUsers) . "!");
+
         } else {
-            redirectWithMsg('emails', 'Vartotojas nerastas', 'error');
+            // Siunčiame vienam klientui
+            $recipientId = (int)$recipientInput;
+            $stmt = $pdo->prepare("SELECT email, name FROM users WHERE id = ?");
+            $stmt->execute([$recipientId]);
+            $user = $stmt->fetch();
+
+            if ($user) {
+                $htmlBody = getEmailTemplate($subject, $content, 'https://cukrinukas.lt', 'Apsilankyti parduotuvėje');
+                
+                $sent = sendEmail($user['email'], $subject, $htmlBody);
+                
+                if ($sent) {
+                    redirectWithMsg('emails', "Laiškas sėkmingai išsiųstas klientui {$user['name']}!");
+                } else {
+                    redirectWithMsg('emails', 'Nepavyko išsiųsti laiško. Patikrinkite serverio nustatymus.', 'error');
+                }
+            } else {
+                redirectWithMsg('emails', 'Vartotojas nerastas', 'error');
+            }
         }
     }
 }
