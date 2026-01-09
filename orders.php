@@ -179,6 +179,7 @@ $itemStmt = $pdo->prepare('SELECT oi.*, p.title, p.image_url FROM order_items oi
     }
     .btn:hover { 
         background: #1e293b; 
+        color: #ffffff !important; /* FIX: Priverstinė balta spalva */
         transform: translateY(-1px); 
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
