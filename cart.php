@@ -2,6 +2,7 @@
 session_start();
 require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
+require_once __DIR__ . '/helpers.php'; // Būtina slugify funkcijai
 
 $pdo = getPdo();
 ensureProductsTable($pdo);
@@ -390,13 +391,17 @@ if (isset($_POST['add_promo_product'])) {
                 <h2 class="section-title">Prekių sąrašas <span style="font-weight:400; color:var(--text-muted); font-size:14px;"><?php echo count($items); ?> vnt.</span></h2>
                 
                 <?php foreach ($items as $item): ?>
+                  <?php 
+                    // SEO URL generavimas krepšelio prekėms
+                    $itemUrl = '/produktas/' . slugify($item['title']) . '-' . (int)$item['id']; 
+                  ?>
                   <div class="cart-item">
-                    <a href="/product.php?id=<?php echo (int)$item['id']; ?>">
+                    <a href="<?php echo htmlspecialchars($itemUrl); ?>">
                         <img class="item-img" src="<?php echo htmlspecialchars($item['image_url']); ?>" alt="<?php echo htmlspecialchars($item['title']); ?>">
                     </a>
                     
                     <div class="item-info">
-                      <h3><a href="/product.php?id=<?php echo (int)$item['id']; ?>"><?php echo htmlspecialchars($item['title']); ?></a></h3>
+                      <h3><a href="<?php echo htmlspecialchars($itemUrl); ?>"><?php echo htmlspecialchars($item['title']); ?></a></h3>
                       <div class="item-meta">
                         <?php if (!empty($item['variation']['name'])): ?>
                           <span>Variacija: <strong><?php echo htmlspecialchars($item['variation']['name']); ?></strong></span>
