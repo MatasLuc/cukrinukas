@@ -10,9 +10,19 @@ tryAutoLogin($pdo);
 $user = currentUser();
 
 // --- LOGIKA ---
-$types = ['Siūlau', 'Ieškau', 'Dovanoju'];
+
+// 1. Ištraukiame kategorijas iš DB (vietoj hardcoded masyvo)
+$stmtCats = $pdo->query("SELECT * FROM community_listing_categories ORDER BY name ASC");
+$dbCategories = $stmtCats->fetchAll();
+
+// Sudarome tik pavadinimų masyvą validacijai
+$validCategoryNames = array_column($dbCategories, 'name');
+
 $typeFilter = $_GET['type'] ?? null;
-if ($typeFilter && !in_array($typeFilter, $types)) $typeFilter = null;
+// Jei pasirinktas filtras neegzistuoja DB, atšaukiame jį
+if ($typeFilter && !in_array($typeFilter, $validCategoryNames)) {
+    $typeFilter = null;
+}
 
 $where = "WHERE m.status = 'active'";
 $params = [];
@@ -59,7 +69,7 @@ echo headerStyles();
       --border: #e4e7ec;
       --text-main: #0f172a;
       --text-muted: #475467;
-      --accent: #2563eb; /* Pakeista į mėlyną (kaip diskusijose) */
+      --accent: #2563eb;
       --accent-hover: #1d4ed8;
     }
     * { box-sizing: border-box; }
@@ -68,7 +78,7 @@ echo headerStyles();
     
     .page { max-width: 1200px; margin:0 auto; padding:32px 20px 72px; display:flex; flex-direction:column; gap:32px; }
 
-    /* Hero Section (Mėlynas stilius) */
+    /* Hero Section */
     .hero { 
         background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
         border:1px solid #dbeafe; 
@@ -101,7 +111,7 @@ echo headerStyles();
         border-radius: 20px;
         width: 100%;
         max-width: 300px;
-        box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.15); /* Mėlynas šešėlis */
+        box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.15);
         text-align: center;
         flex-shrink: 0;
     }
@@ -158,21 +168,16 @@ echo headerStyles();
         padding: 4px 8px; border-radius: 6px; align-self: flex-start;
         letter-spacing: 0.5px; margin-bottom: 4px;
     }
-    /* Badge colors */
-    .badge-siulau { background: #dcfce7; color: #166534; }
-    .badge-ieskau { background: #dbeafe; color: #1e40af; }
-    .badge-dovanoju { background: #fef9c3; color: #854d0e; }
-    .badge-kita { background: #f1f5f9; color: #475467; }
+    /* Paprasta badge stiliaus logika pagal pirmą raidę, kad nereiktų kiekvienai kategorijai css */
+    .badge-generic { background: #dbeafe; color: #1e40af; }
 
     .item-title { font-size: 18px; font-weight: 700; margin: 0; color: var(--text-main); line-height: 1.3; }
     
-    /* New: Description styling */
     .item-desc {
         font-size: 14px; 
         color: var(--text-muted); 
         line-height: 1.5;
         margin-top: 4px;
-        /* Teksto kirpimas po 2 eilučių */
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
@@ -185,7 +190,7 @@ echo headerStyles();
     /* Buttons */
     .btn { 
         padding:10px 20px; border-radius:10px; border:none;
-        background: #0f172a; /* Tamsiai mėlyna/juoda mygtukams, kad derėtų */
+        background: #0f172a;
         color:#fff; font-weight:600; font-size:14px;
         cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center;
         transition: all .2s; width: 100%;
@@ -236,9 +241,9 @@ echo headerStyles();
     <div>
         <div class="filter-bar">
             <a href="/community_market.php" class="filter-chip <?php echo !$typeFilter ? 'active' : ''; ?>">Visi skelbimai</a>
-            <?php foreach ($types as $type): ?>
-                <a href="?type=<?php echo urlencode($type); ?>" class="filter-chip <?php echo $typeFilter === $type ? 'active' : ''; ?>">
-                    <?php echo htmlspecialchars($type); ?>
+            <?php foreach ($dbCategories as $cat): ?>
+                <a href="?type=<?php echo urlencode($cat['name']); ?>" class="filter-chip <?php echo $typeFilter === $cat['name'] ? 'active' : ''; ?>">
+                    <?php echo htmlspecialchars($cat['name']); ?>
                 </a>
             <?php endforeach; ?>
         </div>
@@ -248,7 +253,7 @@ echo headerStyles();
         <div class="empty-state">
             <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;">🏷️</div>
             <h3 style="margin: 0 0 8px; font-size: 18px;">Skelbimų nerasta</h3>
-            <p style="color: var(--text-muted); margin: 0 0 24px; font-size: 15px;">Šiuo metu aktyvių skelbimų nėra.</p>
+            <p style="color: var(--text-muted); margin: 0 0 24px; font-size: 15px;">Šiuo metu šioje kategorijoje aktyvių skelbimų nėra.</p>
             <?php if ($user['id']): ?>
                 <a class="btn" href="/community_listing_new.php" style="width:auto;">Įdėti pirmą skelbimą</a>
             <?php endif; ?>
@@ -257,14 +262,8 @@ echo headerStyles();
         <div class="market-grid">
             <?php foreach ($items as $item): 
                 $typeName = !empty($item['type_name']) ? $item['type_name'] : 'Kita';
-                $safeType = strtolower(str_replace(
-                    ['ą','č','ę','ė','į','š','ų','ū','ž'], 
-                    ['a','c','e','e','i','s','u','u','z'], 
-                    $typeName
-                ));
-                $badgeClass = 'badge-' . $safeType;
                 
-                // Aprašymo paruošimas
+                // Paprasta aprašymo logika
                 $desc = strip_tags($item['description']);
                 if (mb_strlen($desc) > 90) {
                     $desc = mb_substr($desc, 0, 90) . '...';
@@ -281,7 +280,7 @@ echo headerStyles();
                     <?php endif; ?>
                 </a>
                 <div class="item-body">
-                    <span class="item-badge <?php echo htmlspecialchars($badgeClass); ?>">
+                    <span class="item-badge badge-generic">
                         <?php echo htmlspecialchars($typeName); ?>
                     </span>
                     <a href="<?php echo $itemUrl; ?>" class="item-title">
