@@ -9,7 +9,7 @@ ensureCommunityTables($pdo);
 tryAutoLogin($pdo);
 $user = currentUser();
 
-// --- 1. LOGIKA (Išsaugota) ---
+// --- 1. LOGIKA ---
 
 // Kategorijos
 $categories = ['Bendra', 'Receptai', 'Mityba', 'Sveikata', 'Įvairūs'];
@@ -25,23 +25,30 @@ $offset = ($page - 1) * $perPage;
 $where = 'WHERE 1=1';
 $params = [];
 if ($catFilter) {
-    $where .= ' AND category = ?';
+    // Filtruojame pagal prijungtos kategorijų lentelės pavadinimą
+    $where .= ' AND c.name = ?';
     $params[] = $catFilter;
 }
 
-$countStmt = $pdo->prepare("SELECT COUNT(*) FROM community_threads $where");
+// Skaičiuojame (su JOIN)
+$countSql = "SELECT COUNT(*) FROM community_threads t 
+             LEFT JOIN community_thread_categories c ON t.category_id = c.id 
+             $where";
+$countStmt = $pdo->prepare($countSql);
 $countStmt->execute($params);
 $totalThreads = $countStmt->fetchColumn();
 $totalPages = ceil($totalThreads / $perPage);
 
+// Pagrindinė užklausa (koreguoti lentelių pavadinimai ir pašalintas is_pinned)
 $sql = "
-    SELECT t.*, u.username, 
-           (SELECT COUNT(*) FROM community_posts p WHERE p.thread_id = t.id) as reply_count,
-           (SELECT created_at FROM community_posts p WHERE p.thread_id = t.id ORDER BY created_at DESC LIMIT 1) as last_reply_at
+    SELECT t.*, u.username, c.name as category,
+           (SELECT COUNT(*) FROM community_comments p WHERE p.thread_id = t.id) as reply_count,
+           (SELECT created_at FROM community_comments p WHERE p.thread_id = t.id ORDER BY created_at DESC LIMIT 1) as last_reply_at
     FROM community_threads t
     LEFT JOIN users u ON t.user_id = u.id
+    LEFT JOIN community_thread_categories c ON t.category_id = c.id
     $where
-    ORDER BY t.is_pinned DESC, COALESCE(last_reply_at, t.created_at) DESC
+    ORDER BY COALESCE(last_reply_at, t.created_at) DESC
     LIMIT $perPage OFFSET $offset
 ";
 $stmt = $pdo->prepare($sql);
@@ -156,7 +163,6 @@ echo headerStyles();
         font-size: 20px;
         flex-shrink: 0;
     }
-    .thread-pinned { background: #fff7ed; color: #ea580c; }
     
     .thread-info { flex: 1; min-width: 0; }
     .thread-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
@@ -250,22 +256,18 @@ echo headerStyles();
     <?php else: ?>
         <div class="thread-list">
             <?php foreach ($threads as $t): 
-                $isPinned = (bool)$t['is_pinned'];
+                // Pašalinta is_pinned logika, nes stulpelio nėra DB
                 $replyCount = (int)$t['reply_count'];
                 $lastActivity = $t['last_reply_at'] ? $t['last_reply_at'] : $t['created_at'];
             ?>
             <div class="thread-card">
-                <div class="thread-icon <?php echo $isPinned ? 'thread-pinned' : ''; ?>">
-                    <?php if ($isPinned): ?>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"></path></svg>
-                    <?php else: ?>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-                    <?php endif; ?>
+                <div class="thread-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
                 </div>
                 
                 <div class="thread-info">
                     <div class="thread-meta">
-                        <span class="thread-category"><?php echo htmlspecialchars($t['category']); ?></span>
+                        <span class="thread-category"><?php echo htmlspecialchars($t['category'] ?: 'Bendra'); ?></span>
                         <span>• <?php echo htmlspecialchars($t['username'] ?: 'Nežinomas'); ?></span>
                         <span>• <?php echo date('Y-m-d', strtotime($t['created_at'])); ?></span>
                     </div>
