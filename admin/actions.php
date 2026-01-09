@@ -261,13 +261,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // --- VARIATIONS (SVARBU: IŠSAUGOJIMAS SU IMAGE_ID) ---
+            // --- VARIATIONS ---
             $pdo->prepare('DELETE FROM product_variations WHERE product_id = ?')->execute([$productId]);
             
             $postedVariations = $_POST['variations'] ?? [];
             
             if (is_array($postedVariations)) {
-                $insertVar = $pdo->prepare('INSERT INTO product_variations (product_id, group_name, name, price_delta, quantity, image_id) VALUES (?, ?, ?, ?, ?, ?)');
+                // ATNAUJINTA UŽKLAUSA SU TRACK_PRICE ir TRACK_STOCK
+                $insertVar = $pdo->prepare('INSERT INTO product_variations (product_id, group_name, name, price_delta, quantity, image_id, track_price, track_stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
                 
                 foreach ($postedVariations as $group) {
                     $groupName = trim($group['group_name'] ?? '');
@@ -281,7 +282,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $vQty = isset($item['qty']) && $item['qty'] !== '' ? (int)$item['qty'] : 0;
                             $vImgId = !empty($item['image_id']) ? (int)$item['image_id'] : null;
                             
-                            $insertVar->execute([$productId, $groupName, $vName, $delta, $vQty, $vImgId]);
+                            // Tikriname, ar pažymėti checkbox'ai
+                            $trackPrice = isset($item['track_price']) ? 1 : 0;
+                            $trackStock = isset($item['track_stock']) ? 1 : 0;
+                            
+                            $insertVar->execute([$productId, $groupName, $vName, $delta, $vQty, $vImgId, $trackPrice, $trackStock]);
                         }
                     }
                 }
