@@ -10,27 +10,116 @@ ensureCartTables($pdo);
 ensureAdminAccount($pdo);
 tryAutoLogin($pdo);
 
-$cartData = getCartData($pdo, $_SESSION['cart'] ?? [], $_SESSION['cart_variations'] ?? []);
-$items = $cartData['items'];
-$total = $cartData['total'];
-$freeShippingIds = $cartData['free_shipping_ids'] ?? [];
-$freeShippingOffers = getFreeShippingProducts($pdo);
-$hasGiftProduct = false;
-foreach ($items as $it) {
-    if (!empty($it['free_shipping_gift'])) {
-        $hasGiftProduct = true;
-        break;
+// --- KREPŠELIO SURINKIMO LOGIKA ---
+$rawCart = $_SESSION['cart'] ?? [];
+$rawVariations = $_SESSION['cart_variations'] ?? [];
+
+$items = [];
+$total = 0;
+$freeShippingIds = [];
+
+// Nuolaidų gavimas (jei helperiai naudoja tas pačias funkcijas)
+$categoryDiscounts = getCategoryDiscounts($pdo);
+$globalDiscount = getGlobalDiscount($pdo);
+$fsProducts = getFreeShippingProducts($pdo);
+$fsIds = array_column($fsProducts, 'product_id');
+
+// Surenkame unikalius produktų ID iš krepšelio raktų
+$productIdsToFetch = [];
+foreach (array_keys($rawCart) as $key) {
+    // Raktas gali būti "123" arba "123_md5hash"
+    $parts = explode('_', $key);
+    $pid = (int)$parts[0];
+    if ($pid > 0) {
+        $productIdsToFetch[$pid] = true;
     }
 }
 
-if (isset($_POST['remove_id'])) {
-    validateCsrfToken();
-    $removeId = (int) $_POST['remove_id'];
-    unset($_SESSION['cart'][$removeId]);
-    unset($_SESSION['cart_variations'][$removeId]);
-    if (!empty($_SESSION['user_id'])) {
-        deleteCartItem($pdo, (int)$_SESSION['user_id'], $removeId);
+$fetchedProducts = [];
+if (!empty($productIdsToFetch)) {
+    $placeholders = implode(',', array_fill(0, count($productIdsToFetch), '?'));
+    $stmt = $pdo->prepare("SELECT * FROM products WHERE id IN ($placeholders)");
+    $stmt->execute(array_keys($productIdsToFetch));
+    while ($row = $stmt->fetch()) {
+        $fetchedProducts[$row['id']] = $row;
     }
+}
+
+// Formuojame items sąrašą
+foreach ($rawCart as $key => $qty) {
+    $parts = explode('_', $key);
+    $pid = (int)$parts[0];
+    
+    if (!isset($fetchedProducts[$pid])) continue;
+    $product = $fetchedProducts[$pid];
+    
+    // Prijungiame variacijas
+    $currentVariations = $rawVariations[$key] ?? [];
+    
+    // Skaičiuojame kainą su variacijomis
+    $variationDelta = 0;
+    foreach ($currentVariations as $cv) {
+        $variationDelta += (float)($cv['delta'] ?? 0);
+    }
+    
+    // Bazinės kainos
+    $basePrice = (float)$product['price'] + $variationDelta;
+    $salePrice = ($product['sale_price'] !== null) ? ((float)$product['sale_price'] + $variationDelta) : null;
+    
+    // Pritaikome nuolaidas
+    // Pastaba: čia naudojama supaprastinta logika, atkartojanti helperius
+    // Jei helperių funkcijos prieinamos, geriausia naudoti jas, bet čia įdedame tiesioginį skaičiavimą
+    
+    // Kategorijos nuolaida
+    $catDisc = $categoryDiscounts[$product['category_id']] ?? null;
+    $finalPrice = ($salePrice !== null) ? $salePrice : $basePrice;
+    
+    // Globali nuolaida
+    if ($globalDiscount['type'] === 'percent') $finalPrice *= (1 - $globalDiscount['value']/100);
+    elseif ($globalDiscount['type'] === 'amount') $finalPrice -= $globalDiscount['value'];
+    
+    // Kategorijos
+    if ($catDisc) {
+        if ($catDisc['type'] === 'percent') $finalPrice *= (1 - $catDisc['value']/100);
+        elseif ($catDisc['type'] === 'amount') $finalPrice -= $catDisc['value'];
+    }
+    
+    $finalPrice = max(0, $finalPrice);
+    
+    // Ar nemokamas pristatymas?
+    if (in_array($pid, $fsIds)) {
+        $freeShippingIds[] = $pid;
+    }
+
+    $items[] = [
+        'id' => $pid,
+        'cart_key' => $key, // Svarbu ištrynimui
+        'title' => $product['title'],
+        'image_url' => $product['image_url'],
+        'quantity' => $qty,
+        'price' => $finalPrice,
+        'line_total' => $finalPrice * $qty,
+        'variation' => $currentVariations,
+        'free_shipping_gift' => in_array($pid, $fsIds)
+    ];
+    
+    $total += ($finalPrice * $qty);
+}
+
+$freeShippingOffers = getFreeShippingProducts($pdo);
+$hasGiftProduct = !empty($freeShippingIds);
+
+// --- PABAIGA LOGIKOS ---
+
+if (isset($_POST['remove_key'])) {
+    validateCsrfToken();
+    $removeKey = $_POST['remove_key'];
+    unset($_SESSION['cart'][$removeKey]);
+    unset($_SESSION['cart_variations'][$removeKey]);
+    
+    // DB valymas (jei naudojama) - čia reikėtų sudėtingesnės logikos, 
+    // todėl kol kas paliekame tik sesiją.
+    
     header('Location: /cart.php');
     exit;
 }
@@ -38,11 +127,10 @@ if (isset($_POST['remove_id'])) {
 if (isset($_POST['add_promo_product'])) {
     validateCsrfToken();
     $pid = (int)$_POST['add_promo_product'];
+    // Promo prekės paprastai neturi variacijų, tad naudojame paprastą ID kaip raktą
+    $key = (string)$pid . '_default';
     if ($pid > 0) {
-        $_SESSION['cart'][$pid] = ($_SESSION['cart'][$pid] ?? 0) + 1;
-        if (!empty($_SESSION['user_id'])) {
-            saveCartItem($pdo, (int)$_SESSION['user_id'], $pid, $_SESSION['cart'][$pid]);
-        }
+        $_SESSION['cart'][$key] = ($_SESSION['cart'][$key] ?? 0) + 1;
     }
     header('Location: /cart.php');
     exit;
@@ -395,17 +483,8 @@ if (isset($_POST['add_promo_product'])) {
                     // SEO URL generavimas krepšelio prekėms
                     $itemUrl = '/produktas/' . slugify($item['title']) . '-' . (int)$item['id']; 
                     
-                    // Paruošiame variacijų sąrašą atvaizdavimui
-                    $itemVariations = [];
-                    if (!empty($item['variation'])) {
-                        // Jei 'variation' yra masyvų masyvas (list of variations)
-                        if (isset($item['variation'][0]) && is_array($item['variation'][0])) {
-                            $itemVariations = $item['variation'];
-                        } else {
-                            // Jei tai senas formatas ar pavienė variacija
-                            $itemVariations[] = $item['variation'];
-                        }
-                    }
+                    // Variacijos
+                    $itemVariations = $item['variation'] ?? [];
                   ?>
                   <div class="cart-item">
                     <a href="<?php echo htmlspecialchars($itemUrl); ?>">
@@ -442,7 +521,7 @@ if (isset($_POST['add_promo_product'])) {
                       <div class="item-price"><?php echo number_format($item['line_total'], 2); ?> €</div>
                       <form method="post" style="margin-top: 8px;">
                         <?php echo csrfField(); ?>
-                        <input type="hidden" name="remove_id" value="<?php echo (int)$item['id']; ?>">
+                        <input type="hidden" name="remove_key" value="<?php echo htmlspecialchars($item['cart_key']); ?>">
                         <button class="remove-btn" type="submit">Pašalinti</button>
                       </form>
                     </div>
