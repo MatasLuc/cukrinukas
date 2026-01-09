@@ -1,76 +1,81 @@
 <?php
 // admin/dashboard.php
 
-// --------------------------------------------------------------------------
 // 1. STATISTIKOS SURINKIMAS
-// --------------------------------------------------------------------------
+// ------------------------
 
-// -- Pagrindiniai skaitliukai (naudojame duomenis iš hero_stats.php arba perskaičiuojame tiksliau) --
-// Skaičiuojame šio mėnesio pardavimus
-$currentMonthSales = $pdo->query("SELECT SUM(total) FROM orders WHERE status != 'atšaukta' AND MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())")->fetchColumn() ?: 0;
-// Skaičiuojame praėjusio mėnesio pardavimus (palyginimui)
-$lastMonthSales = $pdo->query("SELECT SUM(total) FROM orders WHERE status != 'atšaukta' AND MONTH(created_at) = MONTH(CURRENT_DATE() - INTERVAL 1 MONTH) AND YEAR(created_at) = YEAR(CURRENT_DATE() - INTERVAL 1 MONTH)")->fetchColumn() ?: 0;
+// Apskaičiuojame visus reikalingus rodiklius čia, kad nereikėtų išorinių failų
+try {
+    // Viso pardavimai (neįskaitant atšauktų)
+    $totalSalesHero = $pdo->query("SELECT SUM(total) FROM orders WHERE status != 'atšaukta'")->fetchColumn() ?: 0;
+    
+    // Viso užsakymų
+    $ordersCountHero = $pdo->query("SELECT COUNT(*) FROM orders")->fetchColumn() ?: 0;
+    
+    // Vartotojų skaičius
+    $userCountHero = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn() ?: 0;
+    
+    // Vidutinis krepšelis
+    $averageOrderHero = $pdo->query("SELECT AVG(total) FROM orders WHERE status != 'atšaukta'")->fetchColumn() ?: 0;
 
-// Procentinis pokytis
-$salesGrowth = 0;
-if ($lastMonthSales > 0) {
-    $salesGrowth = (($currentMonthSales - $lastMonthSales) / $lastMonthSales) * 100;
-} elseif ($currentMonthSales > 0) {
-    $salesGrowth = 100;
+    // Šio mėnesio pardavimai
+    $currentMonthSales = $pdo->query("SELECT SUM(total) FROM orders WHERE status != 'atšaukta' AND MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())")->fetchColumn() ?: 0;
+    
+    // Praėjusio mėnesio pardavimai
+    $lastMonthSales = $pdo->query("SELECT SUM(total) FROM orders WHERE status != 'atšaukta' AND MONTH(created_at) = MONTH(CURRENT_DATE() - INTERVAL 1 MONTH) AND YEAR(created_at) = YEAR(CURRENT_DATE() - INTERVAL 1 MONTH)")->fetchColumn() ?: 0;
+    
+    // Augimas %
+    $salesGrowth = 0;
+    if ($lastMonthSales > 0) {
+        $salesGrowth = (($currentMonthSales - $lastMonthSales) / $lastMonthSales) * 100;
+    } elseif ($currentMonthSales > 0) {
+        $salesGrowth = 100;
+    }
+
+    // Naujausi užsakymai
+    $latestOrders = $pdo->query('SELECT id, customer_name, total, status, created_at FROM orders ORDER BY created_at DESC LIMIT 6')->fetchAll();
+
+    // Mažas likutis
+    $lowStockProducts = $pdo->query('SELECT id, title, stock_quantity, image_url FROM products WHERE stock_quantity <= 5 ORDER BY stock_quantity ASC LIMIT 5')->fetchAll();
+
+    // Top prekės
+    $topProducts = $pdo->query("
+        SELECT p.id, p.title, p.image_url, SUM(oi.quantity) as sold_count
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.id
+        JOIN orders o ON oi.order_id = o.id
+        WHERE o.status != 'atšaukta'
+        GROUP BY p.id
+        ORDER BY sold_count DESC
+        LIMIT 5
+    ")->fetchAll();
+
+    // Grafikas (7 dienos)
+    $chartDataRaw = $pdo->query("
+        SELECT DATE(created_at) as date, SUM(total) as total 
+        FROM orders 
+        WHERE created_at >= DATE(NOW()) - INTERVAL 7 DAY AND status != 'atšaukta'
+        GROUP BY DATE(created_at)
+    ")->fetchAll(PDO::FETCH_KEY_PAIR);
+
+} catch (Exception $e) {
+    // Jei duomenų bazė tuščia ar klaida, nustatome nulius, kad puslapis nelūžtų
+    $totalSalesHero = 0; $ordersCountHero = 0; $userCountHero = 0; $averageOrderHero = 0;
+    $currentMonthSales = 0; $salesGrowth = 0;
+    $latestOrders = []; $lowStockProducts = []; $topProducts = []; $chartDataRaw = [];
 }
 
-// -- Naujausi užsakymai --
-$latestOrders = $pdo->query('
-    SELECT id, customer_name, total, status, created_at 
-    FROM orders 
-    ORDER BY created_at DESC 
-    LIMIT 6
-')->fetchAll();
-
-// -- Mažo likučio prekės (svarbu administravimui) --
-$lowStockProducts = $pdo->query('
-    SELECT id, title, stock_quantity, image_url 
-    FROM products 
-    WHERE stock_quantity <= 5 
-    ORDER BY stock_quantity ASC 
-    LIMIT 5
-')->fetchAll();
-
-// -- Populiariausios prekės (pagal parduotą kiekį) --
-$topProducts = $pdo->query('
-    SELECT p.id, p.title, p.image_url, SUM(oi.quantity) as sold_count
-    FROM order_items oi
-    JOIN products p ON oi.product_id = p.id
-    JOIN orders o ON oi.order_id = o.id
-    WHERE o.status != \'atšaukta\'
-    GROUP BY p.id
-    ORDER BY sold_count DESC
-    LIMIT 5
-')->fetchAll();
-
-// -- Savaitės pardavimų grafikas (Paskutinės 7 dienos) --
-// Sugeneruojame masyvą paskutinėms 7 dienoms
+// Grafiko duomenų paruošimas
 $dates = [];
-for ($i = 6; $i >= 0; $i--) {
-    $dates[] = date('Y-m-d', strtotime("-$i days"));
-}
-// Paimame duomenis
-$chartDataRaw = $pdo->query("
-    SELECT DATE(created_at) as date, SUM(total) as total 
-    FROM orders 
-    WHERE created_at >= DATE(NOW()) - INTERVAL 7 DAY AND status != 'atšaukta'
-    GROUP BY DATE(created_at)
-")->fetchAll(PDO::FETCH_KEY_PAIR);
-
 $chartData = [];
 $maxVal = 0;
-foreach ($dates as $date) {
-    $val = $chartDataRaw[$date] ?? 0;
-    $chartData[$date] = $val;
+for ($i = 6; $i >= 0; $i--) {
+    $d = date('Y-m-d', strtotime("-$i days"));
+    $val = $chartDataRaw[$d] ?? 0;
+    $chartData[$d] = $val;
     if ($val > $maxVal) $maxVal = $val;
 }
-if ($maxVal == 0) $maxVal = 1; // Kad nebūtų dalybos iš nulio
-
+if ($maxVal == 0) $maxVal = 1;
 ?>
 
 <style>
@@ -110,7 +115,7 @@ if ($maxVal == 0) $maxVal = 1; // Kad nebūtų dalybos iš nulio
         content: attr(data-val) ' €';
         position: absolute; top: -25px; left: 50%; transform: translateX(-50%);
         background: #1f2937; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 11px;
-        white-space: nowrap;
+        white-space: nowrap; pointer-events: none;
     }
     .bar-label { margin-top: 8px; font-size: 11px; color: #6b7280; }
     
@@ -139,17 +144,17 @@ if ($maxVal == 0) $maxVal = 1; // Kad nebūtų dalybos iš nulio
             <div class="stat-value"><?php echo (int)$ordersCountHero; ?></div>
         </div>
         <div class="stat-trend trend-up">
-            <span style="color:#9ca3af; font-weight:400;">Aktyvumas parduotuvėje</span>
+            <span style="color:#9ca3af; font-weight:400;">Parduotuvės aktyvumas</span>
         </div>
     </div>
 
     <div class="stat-card">
         <div>
-            <div class="stat-title">Vartotojai</div>
+            <div class="stat-title">Registruoti vartotojai</div>
             <div class="stat-value"><?php echo (int)$userCountHero; ?></div>
         </div>
         <div class="stat-trend">
-            <span style="color:#9ca3af; font-weight:400;">Registruoti pirkėjai</span>
+            <span style="color:#9ca3af; font-weight:400;">Klientų bazė</span>
         </div>
     </div>
 
@@ -159,7 +164,7 @@ if ($maxVal == 0) $maxVal = 1; // Kad nebūtų dalybos iš nulio
             <div class="stat-value"><?php echo number_format($averageOrderHero, 2); ?> €</div>
         </div>
         <div class="stat-trend">
-            <span style="color:#9ca3af; font-weight:400;">Vidutinė krepšelio vertė</span>
+            <span style="color:#9ca3af; font-weight:400;">Krepšelio vertė</span>
         </div>
     </div>
 </div>
