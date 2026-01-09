@@ -104,7 +104,7 @@ foreach ($allCats as $c) {
     .modal-body { padding: 0; overflow-y: auto; flex: 1; display: flex; flex-direction: column; }
     .modal-footer { padding: 15px 24px; border-top: 1px solid #eee; background: #f9f9ff; text-align: right; }
     
-    /* Tabs stiliai (naudojami ir modale, ir kūrimo formoje) */
+    /* Tabs stiliai */
     .product-tabs { display: flex; background: #fff; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 10; padding: 0 24px; }
     .tab-btn { padding: 16px 20px; background: transparent; border: none; border-bottom: 2px solid transparent; font-weight: 600; color: #6b7280; cursor: pointer; transition: 0.2s; font-size: 14px; }
     .tab-btn:hover { color: #4f46e5; background: #f9fafb; }
@@ -127,11 +127,10 @@ foreach ($allCats as $c) {
     .star-btn.active { color: #f59e0b; }
     .del-btn { cursor: pointer; color: #ef4444; border: none; background: none; font-weight: bold; }
 
-    /* Variacijų eilutės */
-    .static-var-row { background: #f9fafb; padding: 12px; border: 1px solid #eee; border-radius: 6px; margin-bottom: 10px; }
-    .static-var-row.active-row { background: #fff; border-color: #c7d2fe; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-    .var-inputs { display: none; margin-top: 10px; grid-template-columns: 1fr 150px; gap: 10px; }
-    .active-row .var-inputs { display: grid; }
+    /* Variacijų eilutės (Naujas dizainas) */
+    .var-row-dynamic { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; background: #fdfdfd; padding: 8px; border: 1px solid #eee; border-radius: 6px; }
+    .var-row-dynamic input { margin-bottom: 0; }
+    .var-row-dynamic .del-var { color: #ef4444; cursor: pointer; font-size: 18px; border: none; background: none; padding: 0 5px; }
 
     /* Kiti stiliai */
     .cat-box { border: 1px solid #d1d5db; border-radius: 6px; padding: 10px; max-height: 200px; overflow-y: auto; background: #fff; }
@@ -156,7 +155,6 @@ foreach ($allCats as $c) {
     .page-link:hover { background: #f3f4f6; }
     .page-link.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
     
-    /* Naujos prekės sekcija apačioje */
     .new-product-section { margin-top: 40px; border-top: 2px solid #e5e7eb; padding-top: 30px; background: #fff; border-radius: 8px; border:1px solid #e5e7eb; }
     .new-product-header { padding: 15px 24px; border-bottom: 1px solid #eee; background: #fcfcfc; border-radius: 8px 8px 0 0; }
     
@@ -310,6 +308,7 @@ foreach ($allCats as $c) {
     <form method="post" enctype="multipart/form-data" action="/admin.php?view=products" onsubmit="return syncNewProductEditors()">
         <?php echo csrfField(); ?>
         <input type="hidden" name="action" value="save_product">
+
         <div class="product-tabs" style="border-top:1px solid #eee;">
             <button type="button" class="tab-btn active" onclick="switchNewTab('new-basic')">Pagrindinė info</button>
             <button type="button" class="tab-btn" onclick="switchNewTab('new-specs')">Specifikacijos</button>
@@ -372,8 +371,7 @@ foreach ($allCats as $c) {
                     <label>Techninės savybės</label>
                     <button type="button" class="btn secondary" style="font-size:12px;" onclick="addRichAttrRow('newAttributesContainer')">+ Eilutė</button>
                 </div>
-                <div id="newAttributesContainer">
-                    </div>
+                <div id="newAttributesContainer"></div>
             </div>
 
             <div id="tab-new-prices" class="tab-content" style="padding:0;">
@@ -384,25 +382,19 @@ foreach ($allCats as $c) {
                 </div>
                 <hr style="margin:20px 0; border:0; border-top:1px dashed #eee;">
                 
-                <div style="margin-bottom:15px;">
-                    <label>Variacijos (pvz. Dydis, Spalva)</label>
-                    <p class="muted" style="font-size:12px; margin:0 0 10px 0;">Pažymėkite varnele, kad įjungtumėte variaciją.</p>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <div>
+                        <label>Variacijos ir pasirinkimai</label>
+                        <p class="muted" style="font-size:12px; margin:2px 0 0 0;">
+                            Čia galite įvesti variacijas (pvz. "Dydis: XL") arba papildomas paslaugas (pvz. "Dovanų pakavimas").<br>
+                            Jei kaina nekeičiama (0.00), ji nebus rodoma.
+                        </p>
+                    </div>
+                    <button type="button" class="btn secondary" style="font-size:12px;" onclick="addVarRow('newVariationsContainer')">+ Pridėti pasirinkimą</button>
                 </div>
 
-                <div id="newStaticVariations">
-                    <?php for($i=0; $i<3; $i++): ?>
-                    <div class="static-var-row" id="new_var_row_<?php echo $i; ?>">
-                        <label style="font-weight:600; cursor:pointer; display:flex; align-items:center; gap:8px;">
-                            <input type="checkbox" name="variations[<?php echo $i; ?>][active]" value="1" id="new_var_check_<?php echo $i; ?>" onchange="toggleNewVarRow(<?php echo $i; ?>)">
-                            Variacija <?php echo $i+1; ?>
-                        </label>
-                        <div class="var-inputs">
-                            <input name="variations[<?php echo $i; ?>][name]" class="form-control" placeholder="Pavadinimas (pvz. XL, Raudona)">
-                            <input name="variations[<?php echo $i; ?>][price]" type="number" step="0.01" class="form-control" placeholder="Kainos skirtumas (+/- €)">
-                        </div>
+                <div id="newVariationsContainer">
                     </div>
-                    <?php endfor; ?>
-                </div>
             </div>
 
             <div id="tab-new-media" class="tab-content" style="padding:0;">
@@ -520,22 +512,18 @@ foreach ($allCats as $c) {
                 </div>
                 <hr style="margin:20px 0; border:0; border-top:1px dashed #eee;">
                 
-                <div style="margin-bottom:15px;"><label>Variacijos</label></div>
-
-                <div id="editStaticVariations">
-                    <?php for($i=0; $i<3; $i++): ?>
-                    <div class="static-var-row" id="edit_var_row_<?php echo $i; ?>">
-                        <label style="font-weight:600; cursor:pointer; display:flex; align-items:center; gap:8px;">
-                            <input type="checkbox" name="variations[<?php echo $i; ?>][active]" value="1" id="edit_var_check_<?php echo $i; ?>" onchange="toggleEditVarRow(<?php echo $i; ?>)">
-                            Variacija <?php echo $i+1; ?>
-                        </label>
-                        <div class="var-inputs">
-                            <input name="variations[<?php echo $i; ?>][name]" id="edit_var_name_<?php echo $i; ?>" class="form-control" placeholder="Pavadinimas">
-                            <input name="variations[<?php echo $i; ?>][price]" id="edit_var_price_<?php echo $i; ?>" type="number" step="0.01" class="form-control" placeholder="Kaina (+/-)">
-                        </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <div>
+                        <label>Variacijos ir pasirinkimai</label>
+                        <p class="muted" style="font-size:12px; margin:2px 0 0 0;">
+                            Pvz: "Dydis: XL" (0.00 €) arba "Pakavimas: Dėžutė" (+1.50 €)
+                        </p>
                     </div>
-                    <?php endfor; ?>
+                    <button type="button" class="btn secondary" style="font-size:12px;" onclick="addVarRow('editVariationsContainer')">+ Pridėti pasirinkimą</button>
                 </div>
+
+                <div id="editVariationsContainer">
+                    </div>
             </div>
 
             <div id="tab-edit-media" class="tab-content">
@@ -614,29 +602,43 @@ foreach ($allCats as $c) {
         if(window.createToolbar) window.createToolbar('tb_'+uid);
     }
 
+    // --- DYNAMIC VARIATIONS LOGIC ---
+    window.addVarRow = function(containerId, name='', price='') {
+        const c = document.getElementById(containerId);
+        if(!c) return;
+        
+        // Unikalus indeksas, kad PHP gautų visus duomenis kaip masyvą
+        const idx = Date.now() + Math.floor(Math.random() * 1000);
+        
+        const row = document.createElement('div');
+        row.className = 'var-row-dynamic';
+        row.innerHTML = `
+            <input type="hidden" name="variations[${idx}][active]" value="1">
+            <div style="flex:2;">
+                <input name="variations[${idx}][name]" class="form-control" placeholder="Pavadinimas (pvz. Spalva: Raudona)" value="${name.replace(/"/g, '&quot;')}" required>
+            </div>
+            <div style="flex:1;">
+                <input name="variations[${idx}][price]" type="number" step="0.01" class="form-control" placeholder="Kaina +/- (Palikti tuščią jei 0)" value="${price}">
+            </div>
+            <button type="button" class="del-var" onclick="this.parentElement.remove()" title="Ištrinti">&times;</button>
+        `;
+        c.appendChild(row);
+    }
+
     // --- NEW PRODUCT LOGIC ---
     window.switchNewTab = function(id) {
-        // Toggle new product tabs
         document.querySelectorAll('#newProductSection .tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('#newProductSection .tab-btn').forEach(el => el.classList.remove('active'));
         
         const content = document.getElementById('tab-' + id);
         if(content) content.classList.add('active');
         
-        // Buttons
         const btns = document.querySelectorAll('#newProductSection .tab-btn');
         if(id=='new-basic') btns[0].classList.add('active');
         if(id=='new-specs') btns[1].classList.add('active');
         if(id=='new-prices') btns[2].classList.add('active');
         if(id=='new-media') btns[3].classList.add('active');
         if(id=='new-seo') btns[4].classList.add('active');
-    }
-
-    window.toggleNewVarRow = function(index) {
-        const checkbox = document.getElementById('new_var_check_' + index);
-        const row = document.getElementById('new_var_row_' + index);
-        if(checkbox.checked) row.classList.add('active-row');
-        else row.classList.remove('active-row');
     }
 
     window.syncNewProductEditors = function() {
@@ -679,13 +681,6 @@ foreach ($allCats as $c) {
         if(id=='edit-prices') btns[2].classList.add('active');
         if(id=='edit-media') btns[3].classList.add('active');
         if(id=='edit-seo') btns[4].classList.add('active');
-    }
-
-    window.toggleEditVarRow = function(index) {
-        const checkbox = document.getElementById('edit_var_check_' + index);
-        const row = document.getElementById('edit_var_row_' + index);
-        if(checkbox.checked) row.classList.add('active-row');
-        else row.classList.remove('active-row');
     }
 
     window.syncEditEditors = function() {
@@ -750,23 +745,19 @@ foreach ($allCats as $c) {
             document.getElementById('editAttributesContainer').innerHTML = '';
             if(data.attributes) data.attributes.forEach(a => addRichAttrRow('editAttributesContainer', a.label, a.value));
             
-            // Variations
-            for(let i=0; i<3; i++) {
-                document.getElementById('edit_var_check_'+i).checked = false;
-                document.getElementById('edit_var_name_'+i).value = '';
-                document.getElementById('edit_var_price_'+i).value = '';
-                toggleEditVarRow(i);
-            }
-            if(data.variations) {
-                data.variations.forEach((v, idx) => {
-                    if(idx < 3) {
-                        const cb = document.getElementById('edit_var_check_'+idx);
-                        cb.checked = true;
-                        document.getElementById('edit_var_name_'+idx).value = v.name;
-                        document.getElementById('edit_var_price_'+idx).value = v.price_delta;
-                        toggleEditVarRow(idx);
-                    }
+            // Variations (DYNAMIC LOADING)
+            const varContainer = document.getElementById('editVariationsContainer');
+            varContainer.innerHTML = '';
+            if(data.variations && data.variations.length > 0) {
+                data.variations.forEach(v => {
+                    // Check if price is 0.00, then show empty
+                    let pVal = v.price_delta;
+                    if(parseFloat(pVal) === 0) pVal = '';
+                    addVarRow('editVariationsContainer', v.name, pVal);
                 });
+            } else {
+                 // Jei nėra variacijų, nieko nerodome, arba galima pridėti vieną tuščią.
+                 // addVarRow('editVariationsContainer'); 
             }
 
             // Images
