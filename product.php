@@ -1,3 +1,7 @@
+{
+type: uploaded file
+fileName: matasluc/cukrinukas/cukrinukas-6bf038f7119a31af5b6e7accb7211334acd38857/product.php
+fullContent:
 <?php
 session_start();
 require __DIR__ . '/db.php';
@@ -49,7 +53,7 @@ $variations = $variationsStmt->fetchAll();
 $groupedVariations = [];
 $variationMap = [];
 foreach ($variations as $var) {
-    $group = $var['group_name'] ?: 'Pasirinkimas'; // Jei nėra grupės vardo
+    $group = $var['group_name'] ?: 'Pasirinkimas'; // Default grupė
     $groupedVariations[$group][] = $var;
     $variationMap[(int)$var['id']] = $var;
 }
@@ -61,9 +65,11 @@ $related = $relStmt->fetchAll();
 
 $isFreeShippingGift = in_array($id, $freeShippingIds, true);
 
-// POST logika (Krepšelis / Norų sąrašas)
+// POST logika
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     validateCsrfToken();
+    
+    // Norų sąrašas
     if (($_POST['action'] ?? '') === 'wishlist') {
         if (empty($_SESSION['user_id'])) {
             header('Location: /login.php');
@@ -74,22 +80,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    // Į krepšelį
     $qty = max(1, (int) ($_POST['quantity'] ?? 1));
-    
-    // Krepšelio logika
     $_SESSION['cart'][$id] = ($_SESSION['cart'][$id] ?? 0) + $qty;
 
-    $selectedVarId = (int) ($_POST['variation_id'] ?? 0);
-    if ($selectedVarId && isset($variationMap[$selectedVarId])) {
-        $sel = $variationMap[$selectedVarId];
-        $_SESSION['cart_variations'][$id] = [
-            'id' => $selectedVarId,
-            'name' => ($sel['group_name'] ? $sel['group_name'] . ': ' : '') . $sel['name'],
-            'delta' => (float)$sel['price_delta'],
-        ];
+    // Variacijų apdorojimas (MULTI-SELECT)
+    // Tikimės gauti masyvą $_POST['variations'] = ['Dydis' => var_id, 'Spalva' => var_id]
+    $postedVariations = $_POST['variations'] ?? [];
+    $cartVariations = [];
+    
+    // Jei senas formatas (pavienis ID)
+    if (isset($_POST['variation_id']) && !empty($_POST['variation_id'])) {
+        $postedVariations['default'] = $_POST['variation_id'];
+    }
+
+    if (is_array($postedVariations)) {
+        foreach ($postedVariations as $group => $varId) {
+            $varId = (int)$varId;
+            if ($varId && isset($variationMap[$varId])) {
+                $sel = $variationMap[$varId];
+                // Formuojame struktūrą. Pastaba: cart.php turės mokėti priimti masyvą.
+                // Šiuo metu pritaikome taip, kad veiktų su paprasta logika arba būtų galima plėsti.
+                // Saugome visus pasirinkimus į sesiją.
+                $cartVariations[] = [
+                    'id' => $varId,
+                    'group' => $sel['group_name'],
+                    'name' => $sel['name'],
+                    'delta' => (float)$sel['price_delta'],
+                ];
+            }
+        }
+    }
+
+    // Išsaugome į sesiją. 
+    // DĖMESIO: Jei jūsų cart.php tikisi vieno varianto, jis naudos tik pirmą arba paskutinį. 
+    // Ši struktūra paruošta "Advanced" krepšeliui.
+    if (!empty($cartVariations)) {
+        $_SESSION['cart_variations'][$id] = $cartVariations; 
     } else {
-        // Jei variacija nepasirinkta, bet jos egzistuoja, galima įdėti validaciją. 
-        // Šiuo atveju tiesiog išvalome seną variaciją, jei buvo.
         unset($_SESSION['cart_variations'][$id]);
     }
 
@@ -100,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// Nuolaidų skaičiavimas
+// Kainos
 $categoryDiscounts = getCategoryDiscounts($pdo);
 $globalDiscount = getGlobalDiscount($pdo);
 $productCategoryDiscount = null;
@@ -125,320 +153,346 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
   <?php echo headerStyles(); ?>
   <style>
     :root {
-      --bg: #f7f7fb;
-      --card: #ffffff;
-      --border: #e4e7ec;
-      --text: #0f172a;
-      --muted: #64748b;
-      --accent: #829ed6;
-      --accent-hover: #6a8bc9;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --accent: #2563eb; /* Mėlyna iš orders.php */
+      --accent-hover: #1d4ed8;
+      --accent-light: #eff6ff;
+      --success: #059669;
     }
+    
     * { box-sizing: border-box; }
-    body { margin:0; background: var(--bg); color: var(--text); font-family:'Inter', system-ui, -apple-system, sans-serif; }
-    a { color:inherit; text-decoration:none; }
+    body { margin:0; background: var(--bg); color: var(--text-main); font-family: 'Inter', sans-serif; }
+    a { color:inherit; text-decoration:none; transition: color 0.2s; }
     
-    .page { max-width:1150px; margin:0 auto; padding:20px 20px 60px; display:grid; gap:32px; }
-    
-    .breadcrumbs { display:flex; align-items:center; gap:8px; font-weight:500; font-size: 14px; color: var(--muted); flex-wrap: wrap; margin-bottom: -10px;}
-    .breadcrumbs a:hover { color: var(--accent); }
-    
-    /* Layout */
-    .shell { display:grid; grid-template-columns: 1.1fr 0.9fr; gap:32px; align-items:start; }
-    
-    /* Gallery */
-    .gallery { display:grid; gap:16px; position: sticky; top: 20px; }
-    .main-image { position:relative; border-radius:16px; overflow:hidden; background:#fff; cursor:zoom-in; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-    .main-image img { width:100%; display:block; height:auto; aspect-ratio: 1/1; object-fit:contain; }
-    
-    .ribbon { position:absolute; top:16px; left:16px; background: var(--accent); color:#fff; padding:6px 12px; border-radius:8px; font-weight:700; font-size: 13px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index: 2; }
-    
-    .thumbs { display:flex; gap:12px; flex-wrap:wrap; }
-    .thumbs img { width:80px; height:80px; object-fit:contain; border-radius:10px; border:2px solid transparent; background:#fff; cursor:pointer; transition:all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-    .thumbs img:hover { transform:translateY(-2px); border-color: #d1d5db; }
-    .thumbs img.active-thumb { border-color: var(--accent); }
-    
-    /* Product Info */
-    .details { display:grid; gap:20px; }
-    .product-header h1 { margin:0 0 8px 0; font-size:30px; letter-spacing:-0.02em; line-height: 1.2; }
-    .subtitle { margin:0; color:var(--accent); font-weight: 500; font-size: 16px; }
-    .category-tag { display: inline-block; font-size: 13px; font-weight: 600; color: var(--muted); background: #f1f5f9; padding: 4px 10px; border-radius: 6px; margin-bottom: 12px; }
+    .page-container { max-width: 1200px; margin: 0 auto; padding: 0 20px 60px; }
 
-    .price-block { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-top: 4px; }
-    .old { color:#94a3b8; text-decoration:line-through; font-size: 18px; font-weight: 500; }
-    .current { font-size:32px; font-weight:800; letter-spacing:-0.02em; color: var(--text); line-height: 1; }
-    
-    /* Controls */
-    .controls-card { background: #fff; border: 1px solid var(--border); padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px -5px rgba(0,0,0,0.05); }
-    
-    .var-group { margin-bottom: 20px; }
-    .var-title { font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; letter-spacing: 0.03em; }
-    .chips { display: flex; flex-wrap: wrap; gap: 10px; }
-    
-    .variation-chip { 
-        border:1px solid var(--border); 
-        padding:10px 16px; 
-        border-radius:10px; 
-        background:#fff; 
-        color:var(--text); 
-        font-weight:600; 
-        cursor:pointer; 
-        transition:all 0.15s ease;
-        display: inline-flex;
+    /* Hero Section (Stilius pagal orders.php) */
+    .hero {
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        border: 1px solid #bfdbfe;
+        border-radius: 20px;
+        padding: 32px;
+        margin-top: 24px;
+        margin-bottom: 32px;
+        display: flex;
         flex-direction: column;
-        align-items: center;
-        min-width: 60px;
-        text-align: center;
-        font-size: 14px;
+        gap: 12px;
     }
-    .variation-chip:hover { border-color: var(--accent); background: #f8fafc; }
-    .variation-chip.active { border-color:var(--accent); background:#eff6ff; color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-    .variation-chip small { font-size: 11px; font-weight: 400; opacity: 0.8; margin-top: 2px; }
+    .breadcrumbs { display:flex; align-items:center; gap:8px; font-weight:500; font-size: 13px; color: #3b82f6; flex-wrap: wrap; }
+    .breadcrumbs a:hover { text-decoration: underline; }
+    .breadcrumbs span { color: #93c5fd; }
     
-    .add-to-cart-row { display:flex; gap:12px; margin-top: 24px; }
-    .qty-input { width: 70px; text-align: center; border: 1px solid var(--border); border-radius: 12px; font-size: 18px; font-weight: 600; }
-    .btn-main { flex: 1; background: var(--text); color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.2s; padding: 0 24px; }
-    .btn-main:hover { background: #334155; }
-    .btn-icon { width: 50px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); background: #fff; border-radius: 12px; cursor: pointer; color: var(--text); transition: all 0.2s; }
-    .btn-icon:hover { border-color: var(--accent); color: var(--accent); }
+    .hero h1 { margin: 0; font-size: 32px; color: #1e3a8a; letter-spacing: -0.02em; line-height: 1.2; }
+    .hero .category-pill {
+        display: inline-flex; background: #fff; color: #2563eb; 
+        padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;
+        border: 1px solid #bfdbfe; text-transform: uppercase; letter-spacing: 0.05em;
+        width: fit-content;
+    }
 
-    /* Content Sections */
-    .content-section { background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.02); }
-    .content-section h3 { margin: 0 0 16px 0; font-size: 20px; }
+    /* Layout Grid */
+    .product-grid { display: grid; grid-template-columns: 1fr 400px; gap: 32px; align-items: start; }
     
-    .description { color: var(--muted); line-height: 1.7; font-size: 15px; }
-    .description img { max-width: 100%; height: auto; border-radius: 8px; margin: 10px 0; }
-    .description ul { padding-left: 20px; }
+    /* Left Column */
+    .gallery-section { display: flex; flex-direction: column; gap: 16px; }
+    .main-image-wrap { 
+        position: relative; border-radius: 16px; overflow: hidden; 
+        background: #fff; border: 1px solid var(--border);
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+    }
+    .main-image-wrap img { width: 100%; height: auto; display: block; object-fit: contain; max-height: 600px; }
+    .ribbon { 
+        position: absolute; top: 16px; left: 16px; 
+        background: var(--accent); color: #fff; 
+        padding: 6px 12px; border-radius: 8px; 
+        font-weight: 700; font-size: 13px; 
+        box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+    }
     
-    .specs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
-    .spec-item { background: #f8fafc; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); }
-    .spec-label { font-weight: 700; font-size: 13px; color: var(--text); margin-bottom: 4px; }
-    .spec-val { color: var(--muted); font-size: 14px; }
-    .spec-val p { margin: 0; }
+    .thumbs { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+    .thumb { 
+        width: 70px; height: 70px; flex-shrink: 0; border-radius: 8px; 
+        border: 2px solid transparent; cursor: pointer; object-fit: cover; 
+        background: #fff; transition: all 0.2s;
+    }
+    .thumb:hover { transform: translateY(-2px); }
+    .thumb.active { border-color: var(--accent); }
+
+    .content-card {
+        background: var(--card-bg); border: 1px solid var(--border);
+        border-radius: 16px; padding: 24px; margin-top: 24px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .content-card h3 { margin: 0 0 16px 0; font-size: 18px; color: var(--text-main); border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+    .description { color: var(--text-muted); line-height: 1.7; font-size: 15px; }
+    .description img { max-width: 100%; height: auto; border-radius: 8px; }
+
+    .specs-table { width: 100%; border-collapse: collapse; }
+    .specs-table td { padding: 12px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .specs-table tr:last-child td { border-bottom: none; }
+    .spec-label { width: 40%; color: var(--text-main); font-weight: 600; font-size: 14px; }
+    .spec-value { color: var(--text-muted); font-size: 14px; }
+
+    /* Right Column (Buy Box) */
+    .buy-box {
+        background: var(--card-bg); border: 1px solid var(--border);
+        border-radius: 16px; padding: 24px;
+        position: sticky; top: 24px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+        display: flex; flex-direction: column; gap: 20px;
+    }
+    
+    .price-area { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+    .price-current { font-size: 36px; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em; }
+    .price-old { font-size: 18px; color: #94a3b8; text-decoration: line-through; }
+    
+    /* Variation Groups */
+    .var-group { margin-bottom: 16px; }
+    .var-label { font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 8px; display: block; text-transform: uppercase; letter-spacing: 0.03em; }
+    .var-options { display: flex; flex-wrap: wrap; gap: 8px; }
+    
+    .var-chip {
+        border: 1px solid var(--border);
+        background: #fff;
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex; align-items: center; gap: 6px;
+    }
+    .var-chip:hover { border-color: #cbd5e1; background: #f8fafc; }
+    .var-chip.active {
+        border-color: var(--accent);
+        background: var(--accent-light);
+        color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+    }
+    .var-price { font-size: 11px; opacity: 0.8; font-weight: 400; }
+
+    /* Actions */
+    .action-row { display: grid; grid-template-columns: 80px 1fr; gap: 12px; margin-top: 8px; }
+    .qty-input { 
+        width: 100%; height: 48px; text-align: center; font-size: 18px; font-weight: 600;
+        border: 1px solid var(--border); border-radius: 10px; background: #f8fafc;
+    }
+    .btn-add {
+        width: 100%; height: 48px; border: none; border-radius: 10px;
+        background: var(--accent); color: #fff;
+        font-size: 16px; font-weight: 600; cursor: pointer;
+        transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-add:hover { background: var(--accent-hover); }
+
+    .info-list { display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--text-muted); margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .info-item { display: flex; align-items: center; gap: 8px; }
 
     /* Related */
-    .related-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:20px; }
-    .related-card { background:#fff; border:1px solid var(--border); border-radius:16px; padding:12px; box-shadow:0 2px 4px rgba(0,0,0,0.03); display:flex; flex-direction:column; gap:10px; transition: transform 0.2s; }
-    .related-card:hover { transform: translateY(-4px); box-shadow: 0 10px 20px -5px rgba(0,0,0,0.08); }
-    .related-card img { width:100%; aspect-ratio: 1/1; object-fit:contain; border-radius:12px; background: #f8fafc; }
-    .related-title { font-weight:600; font-size:15px; line-height: 1.4; color: var(--text); }
-    .related-price { margin-top: auto; font-weight:700; font-size: 16px; }
+    .related-section { margin-top: 60px; }
+    .related-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; margin-top: 20px; }
+    .rel-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 12px; transition: transform 0.2s; }
+    .rel-card:hover { transform: translateY(-4px); box-shadow: 0 10px 20px -5px rgba(0,0,0,0.1); }
+    .rel-img { width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 8px; margin-bottom: 10px; }
+    .rel-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text-main); }
+    .rel-price { font-weight: 700; color: var(--text-main); }
 
-    /* Lightbox */
-    .lightbox { position:fixed; inset:0; background:rgba(0,0,0,0.9); display:flex; align-items:center; justify-content:center; padding:20px; z-index:1000; opacity:0; pointer-events:none; transition:opacity 0.2s ease; backdrop-filter: blur(5px); }
-    .lightbox.show { opacity:1; pointer-events:all; }
-    .lightbox img { max-width:90vw; max-height:90vh; border-radius:8px; box-shadow:0 20px 50px rgba(0,0,0,0.5); }
-
-    /* Mobile Responsive */
+    /* Mobile */
     @media (max-width: 900px) {
-        .shell { grid-template-columns: 1fr; gap: 24px; }
-        .gallery { position: static; }
-        .main-image img { max-height: 400px; }
-        .page { padding: 16px; gap: 24px; }
-        .product-header h1 { font-size: 24px; }
-        .current { font-size: 28px; }
-        .add-to-cart-row { position: sticky; bottom: 16px; z-index: 10; background: #fff; padding: 12px; border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); margin: 0 -10px; width: calc(100% + 20px); }
+        .product-grid { grid-template-columns: 1fr; gap: 24px; }
+        .hero { padding: 20px; margin-top: 10px; }
+        .buy-box { position: static; }
+        .action-row { position: sticky; bottom: 10px; background: #fff; padding: 10px; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); z-index: 20; }
     }
   </style>
 </head>
 <body>
   <?php renderHeader($pdo, 'product', $meta); ?>
   
-  <?php $mainImage = $images[0]['path'] ?? $product['image_url']; ?>
-  
-  <div class="page">
-    <div class="breadcrumbs">
-      <a href="/">Pagrindinis</a> <span>/</span>
-      <a href="/products.php">Parduotuvė</a>
-      <?php if (!empty($product['category_name'])): ?>
-         <span>/</span> <a href="/products.php?category=<?php echo urlencode($product['category_slug'] ?? ''); ?>">
-            <?php echo htmlspecialchars($product['category_name']); ?>
-         </a>
-      <?php endif; ?>
+  <div class="page-container">
+    
+    <div class="hero">
+        <div class="breadcrumbs">
+            <a href="/">Pradžia</a> <span>/</span>
+            <a href="/products.php">Parduotuvė</a>
+            <?php if (!empty($product['category_name'])): ?>
+                <span>/</span> <a href="/products.php?category=<?php echo urlencode($product['category_slug'] ?? ''); ?>">
+                    <?php echo htmlspecialchars($product['category_name']); ?>
+                </a>
+            <?php endif; ?>
+        </div>
+        
+        <?php if (!empty($product['category_name'])): ?>
+            <div class="category-pill"><?php echo htmlspecialchars($product['category_name']); ?></div>
+        <?php endif; ?>
+
+        <h1><?php echo htmlspecialchars($product['title']); ?></h1>
+        <?php if (!empty($product['subtitle'])): ?>
+            <p style="margin:0; color: #1e40af; font-size: 16px;"><?php echo htmlspecialchars($product['subtitle']); ?></p>
+        <?php endif; ?>
     </div>
 
-    <div class="shell">
-      <div class="gallery">
-        <div class="main-image">
-          <?php if (!empty($product['ribbon_text'])): ?><div class="ribbon"><?php echo htmlspecialchars($product['ribbon_text']); ?></div><?php endif; ?>
-          <img src="<?php echo htmlspecialchars($mainImage); ?>" alt="<?php echo htmlspecialchars($product['title']); ?>" id="heroImage">
-        </div>
-        <?php if (count($images) > 0): ?>
-          <div class="thumbs">
-            <?php foreach ($images as $img): ?>
-              <img src="<?php echo htmlspecialchars($img['path']); ?>" onclick="setMainImage(this)" class="<?php echo ($img['path'] === $mainImage) ? 'active-thumb' : ''; ?>">
-            <?php endforeach; ?>
-          </div>
-        <?php endif; ?>
+    <div class="product-grid">
         
-        <div style="margin-top:10px; display:flex; gap:12px; font-size:13px; color:var(--muted); justify-content:center;">
-             <span>🔄 14 dienų grąžinimas</span>
-             <span>🛡️ 24 mėn. garantija</span>
-        </div>
-      </div>
-
-      <div class="details">
-        <div class="product-header">
-            <?php if (!empty($product['category_name'])): ?>
-                <a href="/products.php?category=<?php echo urlencode($product['category_slug']); ?>" class="category-tag"><?php echo htmlspecialchars($product['category_name']); ?></a>
-            <?php endif; ?>
-            
-            <div style="display:flex; justify-content:space-between; align-items:start;">
-                <h1><?php echo htmlspecialchars($product['title']); ?></h1>
-                <?php if (!empty($_SESSION['is_admin'])): ?>
-                    <a href="/admin.php?view=products&edit=<?php echo (int)$product['id']; ?>" target="_blank" style="font-size:12px; background:#0f172a; color:#fff; padding:4px 8px; border-radius:6px;">Redaguoti</a>
+        <div class="left-col">
+            <div class="gallery-section">
+                <?php $mainImage = $images[0]['path'] ?? $product['image_url']; ?>
+                <div class="main-image-wrap">
+                    <?php if (!empty($product['ribbon_text'])): ?>
+                        <div class="ribbon"><?php echo htmlspecialchars($product['ribbon_text']); ?></div>
+                    <?php endif; ?>
+                    <img src="<?php echo htmlspecialchars($mainImage); ?>" alt="<?php echo htmlspecialchars($product['title']); ?>" id="mainImg">
+                </div>
+                
+                <?php if (count($images) > 0): ?>
+                    <div class="thumbs">
+                        <?php foreach ($images as $img): ?>
+                            <img src="<?php echo htmlspecialchars($img['path']); ?>" class="thumb <?php echo ($img['path'] === $mainImage) ? 'active' : ''; ?>" onclick="changeImage(this)">
+                        <?php endforeach; ?>
+                    </div>
                 <?php endif; ?>
             </div>
-            
-            <?php if (!empty($product['subtitle'])): ?><p class="subtitle"><?php echo htmlspecialchars($product['subtitle']); ?></p><?php endif; ?>
-            
-            <div class="price-block">
-                <span id="price-old" class="old" style="display: <?php echo $priceDisplay['has_discount'] ? 'block' : 'none'; ?>;">
-                    <?php echo number_format($priceDisplay['original'], 2); ?> €
-                </span>
-                <span id="price-current" class="current"><?php echo number_format($priceDisplay['current'], 2); ?> €</span>
-            </div>
+
+            <?php if (!empty($product['description'])): ?>
+                <div class="content-card">
+                    <h3>Aprašymas</h3>
+                    <div class="description">
+                        <?php echo $product['description']; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($attributes): ?>
+                <div class="content-card">
+                    <h3>Techninė specifikacija</h3>
+                    <table class="specs-table">
+                        <?php foreach ($attributes as $attr): ?>
+                            <tr>
+                                <td class="spec-label"><?php echo htmlspecialchars($attr['label']); ?></td>
+                                <td class="spec-value"><?php echo $attr['value']; ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </table>
+                </div>
+            <?php endif; ?>
         </div>
 
-        <form method="post" class="controls-card">
+        <form method="post" class="buy-box" id="productForm">
             <?php echo csrfField(); ?>
-            <input type="hidden" name="variation_id" id="variation-id" value="0">
             
+            <?php if (!empty($_SESSION['is_admin'])): ?>
+                <a href="/admin.php?view=products&edit=<?php echo $product['id']; ?>" style="font-size:12px; text-decoration:underline; color:red; text-align:right;">[Redaguoti prekę]</a>
+            <?php endif; ?>
+
+            <div>
+                <div class="price-area">
+                    <span id="price-old" class="price-old" style="display: <?php echo $priceDisplay['has_discount'] ? 'block' : 'none'; ?>;">
+                        <?php echo number_format($priceDisplay['original'], 2); ?> €
+                    </span>
+                    <span id="price-current" class="price-current"><?php echo number_format($priceDisplay['current'], 2); ?> €</span>
+                </div>
+                <div style="font-size:13px; color:var(--success); font-weight:600;">
+                    <?php echo ($product['quantity'] > 0) ? '● Turime sandėlyje' : '<span style="color:#ef4444">● Išparduota</span>'; ?>
+                </div>
+            </div>
+
             <?php if ($groupedVariations): ?>
-                <?php foreach ($groupedVariations as $groupName => $vars): ?>
-                    <div class="var-group">
-                        <div class="var-title"><?php echo htmlspecialchars($groupName); ?></div>
-                        <div class="chips">
-                            <?php foreach ($vars as $var): ?>
-                                <div class="variation-chip" 
-                                     data-id="<?php echo (int)$var['id']; ?>" 
-                                     data-delta="<?php echo (float)$var['price_delta']; ?>"
-                                     onclick="selectVariation(this)">
-                                    <span><?php echo htmlspecialchars($var['name']); ?></span>
-                                    <?php if($var['price_delta'] != 0): ?>
-                                        <small><?php echo $var['price_delta'] > 0 ? '+' : ''; ?><?php echo number_format($var['price_delta'], 2); ?> €</small>
-                                    <?php endif; ?>
-                                </div>
-                            <?php endforeach; ?>
+                <div id="variations-container">
+                    <?php foreach ($groupedVariations as $groupName => $vars): ?>
+                        <div class="var-group">
+                            <label class="var-label"><?php echo htmlspecialchars($groupName); ?></label>
+                            <input type="hidden" name="variations[<?php echo htmlspecialchars($groupName); ?>]" id="input-<?php echo md5($groupName); ?>" value="">
+                            
+                            <div class="var-options">
+                                <?php foreach ($vars as $var): ?>
+                                    <div class="var-chip" 
+                                         data-group="<?php echo md5($groupName); ?>" 
+                                         data-id="<?php echo (int)$var['id']; ?>"
+                                         data-delta="<?php echo (float)$var['price_delta']; ?>"
+                                         onclick="selectVariation(this)">
+                                        <?php echo htmlspecialchars($var['name']); ?>
+                                        <?php if ((float)$var['price_delta'] != 0): ?>
+                                            <span class="var-price">(<?php echo $var['price_delta'] > 0 ? '+' : ''; ?><?php echo number_format($var['price_delta'], 2); ?> €)</span>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
-                    </div>
-                <?php endforeach; ?>
+                    <?php endforeach; ?>
+                </div>
             <?php endif; ?>
 
             <?php if ($isFreeShippingGift): ?>
-                <div style="background:#ecfdf5; border:1px solid #6ee7b7; color:#064e3b; padding:10px; border-radius:8px; font-size:13px; margin-top:10px; display:flex; gap:8px; align-items:center;">
-                    <span>🎁</span> <strong>Dovana:</strong> Pirkite šią prekę ir gaukite nemokamą pristatymą visam užsakymui!
+                <div style="background:#ecfdf5; padding:12px; border-radius:8px; border:1px solid #6ee7b7; color:#064e3b; font-size:13px; line-height:1.4;">
+                    <strong>Nemokamas pristatymas! 🚚</strong><br>
+                    Įsigiję šią prekę, gausite nemokamą pristatymą visam krepšeliui.
                 </div>
             <?php endif; ?>
 
-            <div class="add-to-cart-row">
-                <input class="qty-input" type="number" name="quantity" min="1" value="1" aria-label="Kiekis">
-                
-                <button class="btn-main" type="submit">
+            <div class="action-row">
+                <input type="number" name="quantity" value="1" min="1" class="qty-input">
+                <button type="submit" class="btn-add">
                     Į krepšelį
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                 </button>
-                
-                <button class="btn-icon" name="action" value="wishlist" type="submit" aria-label="Į norų sąrašą" title="Įsiminti">
-                    ♡
-                </button>
+            </div>
+            
+            <button type="submit" name="action" value="wishlist" style="background:none; border:none; color:var(--text-muted); font-size:13px; cursor:pointer; text-decoration:underline; margin-top:8px;">
+                Pridėti į norų sąrašą
+            </button>
+
+            <div class="info-list">
+                <div class="info-item"><span>🔄</span> 14 dienų grąžinimo garantija</div>
+                <div class="info-item"><span>🛡️</span> 24 mėn. kokybės garantija</div>
+                <div class="info-item"><span>🚀</span> Pristatymas per 1-3 d.d.</div>
             </div>
         </form>
-
-        <?php if (!empty($product['description'])): ?>
-          <div class="content-section">
-            <h3>Aprašymas</h3>
-            <div class="description">
-                <?php echo $product['description']; ?>
-            </div>
-          </div>
-        <?php endif; ?>
-
-        <?php if ($attributes): ?>
-          <div class="content-section">
-            <h3>Specifikacija</h3>
-            <div class="specs-grid">
-              <?php foreach ($attributes as $attr): ?>
-                <div class="spec-item">
-                  <div class="spec-label"><?php echo htmlspecialchars($attr['label']); ?></div>
-                  <div class="spec-val"><?php echo $attr['value']; // Admin įveda HTML, todėl escapinti nereikia (saugoma admin pusėje) ?></div>
-                </div>
-              <?php endforeach; ?>
-            </div>
-          </div>
-        <?php endif; ?>
-      </div>
     </div>
 
     <?php if ($related): ?>
-      <div style="margin-top:20px;">
-        <h3 style="font-size:24px; margin-bottom:20px;">Taip pat gali patikti</h3>
-        <div class="related-grid">
-          <?php foreach ($related as $rel): 
-              $relDisplay = buildPriceDisplay($rel, $globalDiscount, $categoryDiscounts); 
-              $relUrl = '/produktas/' . slugify($rel['title']) . '-' . (int)$rel['related_product_id'];
-          ?>
-            <a href="<?php echo htmlspecialchars($relUrl); ?>" class="related-card">
-              <img src="<?php echo htmlspecialchars($rel['image_url']); ?>" alt="<?php echo htmlspecialchars($rel['title']); ?>">
-              <div class="related-title"><?php echo htmlspecialchars($rel['title']); ?></div>
-              <div class="related-price">
-                <?php if ($relDisplay['has_discount']): ?>
-                    <span style="text-decoration:line-through; color:#94a3b8; font-size:13px; font-weight:400;"><?php echo number_format($relDisplay['original'], 2); ?> €</span>
-                <?php endif; ?>
-                <span><?php echo number_format($relDisplay['current'], 2); ?> €</span>
-              </div>
-            </a>
-          <?php endforeach; ?>
+        <div class="related-section">
+            <h3 style="font-size:24px; color:var(--text-main);">Taip pat gali patikti</h3>
+            <div class="related-grid">
+                <?php foreach ($related as $rel): 
+                    $relDisplay = buildPriceDisplay($rel, $globalDiscount, $categoryDiscounts);
+                    $relUrl = '/produktas/' . slugify($rel['title']) . '-' . (int)$rel['related_product_id'];
+                ?>
+                    <a href="<?php echo htmlspecialchars($relUrl); ?>" class="rel-card">
+                        <img src="<?php echo htmlspecialchars($rel['image_url']); ?>" class="rel-img">
+                        <div class="rel-title"><?php echo htmlspecialchars($rel['title']); ?></div>
+                        <div class="rel-price">
+                            <?php if($relDisplay['has_discount']): ?>
+                                <span style="font-weight:400; color:#94a3b8; text-decoration:line-through; font-size:13px;"><?php echo number_format($relDisplay['original'], 2); ?> €</span>
+                            <?php endif; ?>
+                            <?php echo number_format($relDisplay['current'], 2); ?> €
+                        </div>
+                    </a>
+                <?php endforeach; ?>
+            </div>
         </div>
-      </div>
     <?php endif; ?>
-  </div>
 
-  <div class="lightbox" id="lightbox" aria-hidden="true" onclick="this.classList.remove('show')">
-    <img src="" alt="Didelė nuotrauka">
   </div>
-
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org/",
-    "@type": "Product",
-    "name": <?php echo json_encode($product['title']); ?>,
-    "image": [<?php echo json_encode('https://cukrinukas.lt' . $product['image_url']); ?>],
-    "description": <?php echo json_encode(mb_substr(strip_tags($product['description']), 0, 300)); ?>,
-    "sku": <?php echo json_encode($product['id']); ?>,
-    "brand": { "@type": "Brand", "name": "Cukrinukas" },
-    "offers": {
-      "@type": "Offer",
-      "url": <?php echo json_encode($currentProductUrl); ?>,
-      "priceCurrency": "EUR",
-      "price": <?php echo json_encode($priceDisplay['current']); ?>,
-      "availability": <?php echo ((int)$product['quantity'] > 0) ? '"https://schema.org/InStock"' : '"https://schema.org/OutOfStock"'; ?>
-    }
-  }
-  </script>
 
   <?php renderFooter($pdo); ?>
 
   <script>
-    // Nuotraukų logika
-    const heroImage = document.getElementById('heroImage');
-    const lightbox = document.getElementById('lightbox');
-    const lightboxImg = lightbox.querySelector('img');
-
-    function setMainImage(thumb) {
-        heroImage.src = thumb.src;
-        document.querySelectorAll('.thumbs img').forEach(t => t.classList.remove('active-thumb'));
-        thumb.classList.add('active-thumb');
+    // Nuotraukų keitimas
+    function changeImage(thumb) {
+        document.getElementById('mainImg').src = thumb.src;
+        document.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
+        thumb.classList.add('active');
     }
-
-    heroImage.addEventListener('click', () => {
-        lightboxImg.src = heroImage.src;
-        lightbox.classList.add('show');
-    });
 
     // Kainų logika
     const baseOriginal = parseFloat('<?php echo (float)($product['price'] ?? 0); ?>');
     const baseSale = <?php echo $product['sale_price'] !== null ? 'parseFloat(' . json_encode((float)$product['sale_price']) . ')' : 'null'; ?>;
     
-    // Nuolaidų duomenys iš PHP
+    // Nuolaidų duomenys
     const globalDiscount = {
         type: '<?php echo $globalDiscount['type'] ?? 'none'; ?>',
         value: parseFloat('<?php echo (float)($globalDiscount['value'] ?? 0); ?>')
@@ -450,19 +504,23 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
 
     function applyDiscounts(amount) {
         let final = amount;
-        // Global
         if (globalDiscount.type === 'percent') final -= final * (globalDiscount.value / 100);
         else if (globalDiscount.type === 'amount') final -= globalDiscount.value;
-        // Category
         if (categoryDiscount.type === 'percent') final -= final * (categoryDiscount.value / 100);
         else if (categoryDiscount.type === 'amount') final -= categoryDiscount.value;
-        
         return Math.max(0, final);
     }
 
-    function updatePrice(delta = 0) {
-        const originalBase = baseOriginal + delta;
-        const saleBase = (baseSale !== null ? baseSale : baseOriginal) + delta;
+    // Saugome pasirinktas deltas pagal grupes
+    const selectedDeltas = {}; 
+
+    function updatePrice() {
+        // Susumuojame visas deltas
+        let totalDelta = 0;
+        Object.values(selectedDeltas).forEach(d => totalDelta += d);
+
+        const originalBase = baseOriginal + totalDelta;
+        const saleBase = (baseSale !== null ? baseSale : baseOriginal) + totalDelta;
         
         const finalPrice = applyDiscounts(saleBase);
         const hasDiscount = (baseSale !== null) || (finalPrice < originalBase);
@@ -477,36 +535,28 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
         }
     }
 
-    // Variacijų pasirinkimas
-    const varInput = document.getElementById('variation-id');
-    const allChips = document.querySelectorAll('.variation-chip');
-
     function selectVariation(el) {
-        // Nuimame active nuo visų
-        allChips.forEach(c => c.classList.remove('active'));
-        
+        const groupHash = el.dataset.group;
+        const varId = el.dataset.id;
+        const delta = parseFloat(el.dataset.delta || 0);
+
+        // 1. UI atnaujinimas (Active klasė)
+        // Nuimame active nuo visų šios grupės elementų
+        document.querySelectorAll(`.var-chip[data-group="${groupHash}"]`).forEach(c => c.classList.remove('active'));
         // Uždedame ant paspausto
         el.classList.add('active');
-        
-        // Atnaujiname formos input
-        varInput.value = el.dataset.id;
-        
-        // Perskaičiuojame kainą
-        const delta = parseFloat(el.dataset.delta || 0);
-        updatePrice(delta);
-    }
 
-    // Facebook Pixel events
-    document.querySelector('form.controls-card').addEventListener('submit', function(e) {
-        if(e.submitter && e.submitter.name !== 'action') { // Tik jei Add To Cart
-             fbq('track', 'AddToCart', {
-                content_ids: ['<?php echo $product['id']; ?>'],
-                content_type: 'product',
-                value: parseFloat(document.getElementById('price-current').innerText),
-                currency: 'EUR'
-            });
-        }
-    });
+        // 2. Duomenų atnaujinimas
+        // Įrašome ID į paslėptą input lauką
+        document.getElementById('input-' + groupHash).value = varId;
+        
+        // Išsaugome deltą kainos skaičiavimui
+        selectedDeltas[groupHash] = delta;
+
+        // 3. Perskaičiuojame kainą
+        updatePrice();
+    }
   </script>
 </body>
 </html>
+}
