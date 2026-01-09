@@ -29,6 +29,18 @@ tryAutoLogin($pdo);
 
 $messages = [];
 $errors = [];
+
+// --- PATAISYMAS: Iškart paimame žinutes iš sesijos ---
+if (isset($_SESSION['flash_success'])) {
+    $messages[] = $_SESSION['flash_success'];
+    unset($_SESSION['flash_success']); // Ištriname, kad nebesikartotų
+}
+if (isset($_SESSION['flash_error'])) {
+    $errors[] = $_SESSION['flash_error'];
+    unset($_SESSION['flash_error']);
+}
+// -----------------------------------------------------
+
 $view = $_GET['view'] ?? 'dashboard';
 
 // Įtraukiame pagalbines funkcijas ir veiksmų logiką
