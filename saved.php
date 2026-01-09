@@ -2,6 +2,7 @@
 session_start();
 require __DIR__ . '/db.php';
 require __DIR__ . '/layout.php';
+require_once __DIR__ . '/helpers.php'; // Būtina slugify funkcijai
 
 if (empty($_SESSION['user_id'])) {
     header('Location: /login.php');
@@ -287,20 +288,21 @@ function priceDisplay(array $row): string {
             $link = '#';
             $priceHtml = '';
             
+            // PAKEITIMAS: SEO nuorodų generavimas
             if ($type === 'product' && isset($products[$item['item_id']])) {
                 $ref = $products[$item['item_id']];
-                $link = '/product.php?id=' . (int)$ref['id'];
+                $link = '/produktas/' . slugify($ref['title']) . '-' . (int)$ref['id'];
                 $priceHtml = priceDisplay($ref);
                 $badgeClass = 'product';
                 $badgeLabel = 'Produktas';
             } elseif ($type === 'news' && isset($news[$item['item_id']])) {
                 $ref = $news[$item['item_id']];
-                $link = '/news_view.php?id=' . (int)$ref['id'];
+                $link = '/naujiena/' . slugify($ref['title']) . '-' . (int)$ref['id'];
                 $badgeClass = 'news';
                 $badgeLabel = 'Naujiena';
             } elseif ($type === 'recipe' && isset($recipes[$item['item_id']])) {
                 $ref = $recipes[$item['item_id']];
-                $link = '/recipe_view.php?id=' . (int)$ref['id'];
+                $link = '/receptas/' . slugify($ref['title']) . '-' . (int)$ref['id'];
                 $badgeClass = 'recipe';
                 $badgeLabel = 'Receptas';
             }
@@ -310,12 +312,16 @@ function priceDisplay(array $row): string {
             <div class="card-img-container">
                 <div class="badge <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($badgeLabel); ?></div>
                 <?php if (!empty($ref['image_url'])): ?>
-                    <img src="<?php echo htmlspecialchars($ref['image_url']); ?>" alt="<?php echo htmlspecialchars($ref['title']); ?>">
+                    <a href="<?php echo htmlspecialchars($link); ?>">
+                      <img src="<?php echo htmlspecialchars($ref['image_url']); ?>" alt="<?php echo htmlspecialchars($ref['title']); ?>">
+                    </a>
                 <?php endif; ?>
             </div>
             
             <div class="card-content">
-                <div class="card-title"><?php echo htmlspecialchars($ref['title']); ?></div>
+                <div class="card-title">
+                    <a href="<?php echo htmlspecialchars($link); ?>"><?php echo htmlspecialchars($ref['title']); ?></a>
+                </div>
                 <?php if ($type === 'product'): ?>
                     <div><?php echo $priceHtml; ?></div>
                 <?php else: ?>
