@@ -228,50 +228,20 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
         border-bottom: 1px solid var(--border); 
         font-size: 14px; 
         line-height: 1.6;
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        gap: 20px;
+        color: var(--text-muted);
     }
     .spec-item:last-child { border-bottom: none; }
     
-    .spec-label {
-        font-weight: 600;
-        color: var(--text-main);
-        flex: 0 0 40%;
-    }
-    
     .spec-value {
+        text-align: left;
+        width: 100%;
         color: var(--text-muted);
-        text-align: right;
-        flex: 1;
     }
     
     /* Jei specifikacija turi HTML elementų (pvz. ul, p), kad jie atrodytų tvarkingai */
-    .spec-value p { margin: 0; }
-    .spec-value ul { margin: 0; padding-left: 20px; text-align: left; display: inline-block; }
-
-    @media (max-width: 600px) {
-        .spec-item {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 4px;
-        }
-        .spec-label {
-            flex: none;
-            width: 100%;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-            color: #94a3b8;
-        }
-        .spec-value {
-            text-align: left;
-            color: var(--text-main);
-            font-size: 15px;
-            width: 100%;
-        }
-    }
+    .spec-value p { margin: 0 0 8px 0; }
+    .spec-value p:last-child { margin: 0; }
+    .spec-value ul { margin: 0; padding-left: 20px; text-align: left; }
 
     /* Buy Box */
     .buy-box {
@@ -403,7 +373,6 @@ $currentProductUrl = 'https://cukrinukas.lt/produktas/' . slugify($product['titl
                     <div class="specs-list">
                         <?php foreach ($attributes as $attr): ?>
                             <div class="spec-item">
-                                <span class="spec-label"><?php echo htmlspecialchars($attr['label']); ?></span>
                                 <div class="spec-value"><?php echo $attr['value']; ?></div>
                             </div>
                         <?php endforeach; ?>
