@@ -2,6 +2,7 @@
 // admin/orders.php
 
 // 1. Surenkame duomenis
+// Prijungiame ir delivery_details, kad galėtume rodyti paštomatą
 $allOrders = $pdo->query('
     SELECT o.*, u.name AS user_name, u.email AS user_email 
     FROM orders o 
@@ -35,11 +36,15 @@ unset($order); // Nutraukiame nuorodą
         letter-spacing: 0.05em;
         display: inline-block;
     }
-    .status-laukiama { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+    
+    /* Spalvos pagal būseną */
+    .status-laukiama.apmokėjimo { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+    .status-apmokėta { background: #ecfdf5; color: #047857; border: 1px solid #d1fae5; }
     .status-apdorojama { background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; }
     .status-išsiųsta { background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }
     .status-įvykdyta { background: #ecfdf5; color: #047857; border: 1px solid #d1fae5; }
     .status-atšaukta { background: #fef2f2; color: #b91c1c; border: 1px solid #fee2e2; }
+    .status-atmesta { background: #fef2f2; color: #b91c1c; border: 1px solid #fee2e2; }
 
     /* Modal (Iššokantis langas) */
     .modal-overlay {
@@ -105,7 +110,7 @@ unset($order); // Nutraukiame nuorodą
     .item-img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; background: #eee; }
     .item-details { flex: 1; }
     .item-title { font-weight: 600; font-size: 14px; }
-    .item-meta { font-size: 12px; color: #777; }
+    .item-meta { font-size: 12px; color: #777; margin-top:2px; }
     .item-price { font-weight: 700; font-size: 14px; }
 
     .modal-footer {
@@ -119,6 +124,9 @@ unset($order); // Nutraukiame nuorodą
 
     @media (max-width: 700px) {
         .modal-grid { grid-template-columns: 1fr; }
+        .modal-footer { flex-direction: column; gap: 10px; }
+        .modal-footer form { flex-direction: column; align-items: stretch; }
+        .modal-footer .btn { width: 100%; }
     }
 </style>
 
@@ -140,7 +148,9 @@ unset($order); // Nutraukiame nuorodą
         </tr>
     </thead>
     <tbody>
-      <?php foreach ($allOrders as $order): ?>
+      <?php foreach ($allOrders as $order): 
+            $statusClass = 'status-' . str_replace(' ', '.', mb_strtolower($order['status']));
+      ?>
         <tr>
           <td><strong>#<?php echo (int)$order['id']; ?></strong></td>
           <td>
@@ -150,14 +160,14 @@ unset($order); // Nutraukiame nuorodą
           <td><?php echo date('Y-m-d H:i', strtotime($order['created_at'])); ?></td>
           <td><strong><?php echo number_format((float)$order['total'], 2); ?> €</strong></td>
           <td>
-            <span class="status-badge status-<?php echo htmlspecialchars($order['status']); ?>">
+            <span class="status-badge <?php echo $statusClass; ?>">
                 <?php echo ucfirst($order['status']); ?>
             </span>
           </td>
           <td style="text-align:right;">
             <button class="btn secondary open-order-modal" 
                     type="button"
-                    data-order='<?php echo htmlspecialchars(json_encode($order), ENT_QUOTES, 'UTF-8'); ?>'>
+                    data-order='<?php echo htmlspecialchars(json_encode($order, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>'>
               Peržiūrėti
             </button>
           </td>
@@ -186,8 +196,9 @@ unset($order); // Nutraukiame nuorodą
                     <p id="m_customerPhone" class="muted" style="font-size:14px;"></p>
                 </div>
                 <div class="info-group">
-                    <h4>Pristatymo adresas</h4>
+                    <h4>Pristatymo informacija</h4>
                     <p id="m_address" style="white-space: pre-line;"></p>
+                    <div id="m_deliveryMethod" style="margin-top:5px; font-size:13px; color:#2563eb; font-weight:600;"></div>
                 </div>
             </div>
 
@@ -209,11 +220,13 @@ unset($order); // Nutraukiame nuorodą
                 <div style="display:flex; gap:8px; align-items:center; flex:1;">
                     <label style="font-weight:600; font-size:14px;">Būsena:</label>
                     <select name="status" id="m_statusSelect" style="margin:0; width:auto; flex:1; max-width:200px;">
-                        <option value="laukiama">Laukiama</option>
+                        <option value="laukiama apmokėjimo">Laukiama apmokėjimo</option>
+                        <option value="apmokėta">Apmokėta</option>
                         <option value="apdorojama">Apdorojama</option>
                         <option value="išsiųsta">Išsiųsta</option>
                         <option value="įvykdyta">Įvykdyta</option>
                         <option value="atšaukta">Atšaukta</option>
+                        <option value="atmesta">Atmesta</option>
                     </select>
                     <button class="btn" type="submit">Atnaujinti</button>
                 </div>
@@ -229,7 +242,10 @@ unset($order); // Nutraukiame nuorodą
     // Atidaryti modalą
     document.querySelectorAll('.open-order-modal').forEach(btn => {
         btn.addEventListener('click', function() {
-            const data = JSON.parse(this.getAttribute('data-order'));
+            let data = {};
+            try {
+                data = JSON.parse(this.getAttribute('data-order'));
+            } catch(e) { console.error("JSON Error", e); return; }
             
             // Užpildome duomenis
             document.getElementById('m_orderId').innerText = data.id;
@@ -238,7 +254,27 @@ unset($order); // Nutraukiame nuorodą
             document.getElementById('m_customerName').innerText = data.customer_name;
             document.getElementById('m_customerEmail').innerText = data.customer_email;
             document.getElementById('m_customerPhone').innerText = data.customer_phone || '-';
-            document.getElementById('m_address').innerText = data.customer_address;
+            
+            // Adresas ir paštomatas
+            let addressText = data.customer_address;
+            let deliveryText = '';
+
+            if (data.delivery_method === 'locker') {
+                deliveryText = '📦 Paštomatas';
+                // Bandome ištraukti detales jei jos JSON
+                try {
+                    const details = JSON.parse(data.delivery_details);
+                    if (details.address) addressText = details.address;
+                    if (details.title) addressText = details.title + ' (' + details.address + ')';
+                    if (details.manual_request) addressText = "Rankinis įvedimas: " + details.manual_request;
+                } catch(e) {}
+            } else {
+                deliveryText = '🚚 Kurjeris';
+            }
+            
+            document.getElementById('m_address').innerText = addressText;
+            document.getElementById('m_deliveryMethod').innerText = deliveryText;
+
             document.getElementById('m_total').innerText = parseFloat(data.total).toFixed(2) + ' €';
             
             // Nustatome esamą statusą
@@ -255,11 +291,18 @@ unset($order); // Nutraukiame nuorodą
                     // Jei nėra nuotraukos, dedame placeholder
                     const imgUrl = item.image_url ? item.image_url : 'https://placehold.co/100?text=Foto';
                     
+                    // Variacijos
+                    let varInfo = '';
+                    if (item.variation_info) {
+                        varInfo = `<div style="font-size:12px; color:#2563eb; margin-top:2px;">${item.variation_info}</div>`;
+                    }
+
                     const html = `
                         <div class="item-row">
                             <img src="${imgUrl}" class="item-img" alt="">
                             <div class="item-details">
                                 <div class="item-title">${item.title || 'Prekė ištrinta'}</div>
+                                ${varInfo}
                                 <div class="item-meta">Kiekis: ${item.quantity} vnt.</div>
                             </div>
                             <div class="item-price">${total} €</div>
