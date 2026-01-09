@@ -210,7 +210,11 @@ function priceDisplay(array $row): string {
         cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center;
         transition: all .2s; flex: 1;
     }
-    .btn:hover { background: #1e293b; transform: translateY(-1px); }
+    .btn:hover { 
+        background: #1e293b; 
+        color: #ffffff !important; /* FIX: Priverstinė balta spalva */
+        transform: translateY(-1px); 
+    }
     
     .btn-outline {
         padding:10px 16px; border-radius:10px;
