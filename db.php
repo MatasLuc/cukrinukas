@@ -990,16 +990,28 @@ function ensureProductRelations(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
 
+    // Sukuriame arba atnaujiname product_variations
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS product_variations (
             id INT AUTO_INCREMENT PRIMARY KEY,
             product_id INT NOT NULL,
+            group_name VARCHAR(255) NULL DEFAULT "",
             name VARCHAR(180) NOT NULL,
             price_delta DECIMAL(10,2) NOT NULL DEFAULT 0,
+            quantity INT NOT NULL DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
     );
+
+    // Atnaujinimai egzistuojančioms lentelėms (ALTER TABLE)
+    $columns = $pdo->query("SHOW COLUMNS FROM product_variations")->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('group_name', $columns, true)) {
+        $pdo->exec("ALTER TABLE product_variations ADD COLUMN group_name VARCHAR(255) NULL DEFAULT '' AFTER product_id");
+    }
+    if (!in_array('quantity', $columns, true)) {
+        $pdo->exec("ALTER TABLE product_variations ADD COLUMN quantity INT NOT NULL DEFAULT 0 AFTER price_delta");
+    }
 }
 
 function ensureFeaturedProductsTable(PDO $pdo): void {
@@ -1666,7 +1678,7 @@ function seedNewsExamples(PDO $pdo): void {
         ],
         [
             'title' => 'Kaip kalibruoti gliukometrą namuose',
-            'image_url' => 'https://images.unsplash.com/photo-1582719478250-5c7ff88f2375?auto=format&fit=crop&w=1200&q=80',
+            'image_url' => 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
             'body' => 'Trumpas žingsnis po žingsnio gidas, kaip pasiruošti matavimams, kad rezultatai būtų patikimi.',
             'is_featured' => 1,
         ],
